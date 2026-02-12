@@ -96,6 +96,7 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 
 	const overstoryWts = worktrees.filter((wt) => wt.branch.startsWith("overstory/"));
 	const cleaned: string[] = [];
+	const failed: string[] = [];
 
 	for (const wt of overstoryWts) {
 		const session = sessions.find((s) => s.worktreePath === wt.path);
@@ -119,17 +120,19 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 		}
 
 		// Remove worktree and its branch.
-		// Force worktree removal when --all to handle untracked files.
+		// Always force worktree removal since deployed .claude/ files create untracked
+		// files that cause non-forced removal to fail.
 		// Always force-delete the branch since we're cleaning up finished/zombie agents
 		// whose branches are typically unmerged.
 		try {
-			await removeWorktree(root, wt.path, { force: all, forceBranch: true });
+			await removeWorktree(root, wt.path, { force: true, forceBranch: true });
 			cleaned.push(wt.branch);
 
 			if (!json) {
 				process.stdout.write(`🗑️  Removed: ${wt.branch}\n`);
 			}
 		} catch (err) {
+			failed.push(wt.branch);
 			if (!json) {
 				const msg = err instanceof Error ? err.message : String(err);
 				process.stderr.write(`⚠️  Failed to remove ${wt.branch}: ${msg}\n`);
@@ -163,13 +166,18 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 	await saveSessions(root, prunedSessions);
 
 	if (json) {
-		process.stdout.write(`${JSON.stringify({ cleaned, pruned: pruneCount })}\n`);
-	} else if (cleaned.length === 0 && pruneCount === 0) {
+		process.stdout.write(`${JSON.stringify({ cleaned, failed, pruned: pruneCount })}\n`);
+	} else if (cleaned.length === 0 && pruneCount === 0 && failed.length === 0) {
 		process.stdout.write("No worktrees to clean.\n");
 	} else {
 		if (cleaned.length > 0) {
 			process.stdout.write(
 				`\nCleaned ${cleaned.length} worktree${cleaned.length === 1 ? "" : "s"}.\n`,
+			);
+		}
+		if (failed.length > 0) {
+			process.stdout.write(
+				`Failed to clean ${failed.length} worktree${failed.length === 1 ? "" : "s"}.\n`,
 			);
 		}
 		if (pruneCount > 0) {

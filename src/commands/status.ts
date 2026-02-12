@@ -70,8 +70,9 @@ interface StatusData {
 
 /**
  * Gather all status data.
+ * @param agentName - Which agent's perspective for unread mail count (default "orchestrator")
  */
-async function gatherStatus(root: string): Promise<StatusData> {
+async function gatherStatus(root: string, agentName = "orchestrator"): Promise<StatusData> {
 	const sessions = await loadSessions(root);
 
 	const worktrees = await listWorktrees(root);
@@ -112,7 +113,7 @@ async function gatherStatus(root: string): Promise<StatusData> {
 		const mailFile = Bun.file(mailDbPath);
 		if (await mailFile.exists()) {
 			const store = createMailStore(mailDbPath);
-			const unread = store.getAll({ unread: true });
+			const unread = store.getAll({ to: agentName, unread: true });
 			unreadMailCount = unread.length;
 			store.close();
 		}
@@ -208,12 +209,13 @@ function printStatus(data: StatusData): void {
  */
 const STATUS_HELP = `overstory status — Show all active agents and project state
 
-Usage: overstory status [--json] [--watch] [--interval <ms>]
+Usage: overstory status [--json] [--watch] [--interval <ms>] [--agent <name>]
 
 Options:
   --json             Output as JSON
   --watch            Live updating mode (polling)
   --interval <ms>    Poll interval in milliseconds (default: 3000)
+  --agent <name>     Show unread mail for this agent (default: orchestrator)
   --help, -h         Show this help`;
 
 export async function statusCommand(args: string[]): Promise<void> {
@@ -226,6 +228,7 @@ export async function statusCommand(args: string[]): Promise<void> {
 	const watch = hasFlag(args, "--watch");
 	const intervalStr = getFlag(args, "--interval");
 	const interval = intervalStr ? Number.parseInt(intervalStr, 10) : 3000;
+	const agentName = getFlag(args, "--agent") ?? "orchestrator";
 
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
@@ -236,7 +239,7 @@ export async function statusCommand(args: string[]): Promise<void> {
 		while (true) {
 			// Clear screen
 			process.stdout.write("\x1b[2J\x1b[H");
-			const data = await gatherStatus(root);
+			const data = await gatherStatus(root, agentName);
 			if (json) {
 				process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
 			} else {
@@ -245,7 +248,7 @@ export async function statusCommand(args: string[]): Promise<void> {
 			await Bun.sleep(interval);
 		}
 	} else {
-		const data = await gatherStatus(root);
+		const data = await gatherStatus(root, agentName);
 		if (json) {
 			process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
 		} else {

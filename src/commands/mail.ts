@@ -223,7 +223,8 @@ Usage: overstory mail <subcommand> [args...]
 Subcommands:
   send     Send a message
              --to <agent>  --subject <text>  --body <text>
-             [--from <name>] [--type <status|question|result|error>]
+             [--from <name>] [--agent <name> (alias for --from)]
+             [--type <status|question|result|error>]
              [--priority <low|normal|high|urgent>] [--json]
   check    Check inbox (unread messages)
              [--agent <name>] [--inject] [--json]
@@ -232,7 +233,8 @@ Subcommands:
   read     Mark a message as read
              <message-id>
   reply    Reply to a message
-             <message-id> --body <text> [--from <name>] [--json]
+             <message-id> --body <text> [--from <name>]
+             [--agent <name> (alias for --from)] [--json]
 
 Options:
   --help, -h   Show this help`;

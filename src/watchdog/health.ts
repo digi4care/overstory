@@ -22,7 +22,7 @@ const STATE_ORDER: Record<AgentState, number> = {
  * - tmux dead → zombie, terminate
  * - lastActivity older than zombieMs → zombie, terminate
  * - lastActivity older than staleMs → stalled, escalate
- * - booting and lastActivity within staleMs → booting, none
+ * - booting and lastActivity within staleMs → working, none
  * - otherwise → working, none
  *
  * @param session - The agent session to evaluate
@@ -76,12 +76,12 @@ export function evaluateHealth(
 		};
 	}
 
-	// booting and within staleMs → still booting
+	// booting → transition to working once there's recent activity
 	if (session.state === "booting") {
 		return {
 			...base,
 			processAlive: true,
-			state: "booting",
+			state: "working",
 			action: "none",
 		};
 	}

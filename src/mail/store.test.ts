@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MailError } from "../errors.ts";
+import type { MailMessage } from "../types.ts";
 import { type MailStore, createMailStore } from "./store.ts";
 
 describe("createMailStore", () => {
@@ -453,6 +454,106 @@ describe("createMailStore", () => {
 			const msg = store2.getById("msg-concurrent");
 			expect(msg).not.toBeNull();
 			expect(msg?.body).toBe("concurrent");
+
+			store2.close();
+		});
+	});
+
+	describe("CHECK constraints", () => {
+		test("rejects invalid type at DB level", () => {
+			expect(() =>
+				store.insert({
+					id: "msg-bad-type",
+					from: "agent-a",
+					to: "orchestrator",
+					subject: "test",
+					body: "body",
+					type: "invalid_type" as MailMessage["type"],
+					priority: "normal",
+					threadId: null,
+				}),
+			).toThrow();
+		});
+
+		test("rejects invalid priority at DB level", () => {
+			expect(() =>
+				store.insert({
+					id: "msg-bad-prio",
+					from: "agent-a",
+					to: "orchestrator",
+					subject: "test",
+					body: "body",
+					type: "status",
+					priority: "invalid_prio" as MailMessage["priority"],
+					threadId: null,
+				}),
+			).toThrow();
+		});
+
+		test("accepts all valid type values", () => {
+			const types: MailMessage["type"][] = ["status", "question", "result", "error"];
+			for (const type of types) {
+				const msg = store.insert({
+					id: "",
+					from: "agent-a",
+					to: "orchestrator",
+					subject: `type-${type}`,
+					body: "body",
+					type,
+					priority: "normal",
+					threadId: null,
+				});
+				expect(msg.type).toBe(type);
+			}
+		});
+
+		test("accepts all valid priority values", () => {
+			const priorities: MailMessage["priority"][] = ["low", "normal", "high", "urgent"];
+			for (const priority of priorities) {
+				const msg = store.insert({
+					id: "",
+					from: "agent-a",
+					to: "orchestrator",
+					subject: `prio-${priority}`,
+					body: "body",
+					type: "status",
+					priority,
+					threadId: null,
+				});
+				expect(msg.priority).toBe(priority);
+			}
+		});
+
+		test("migrates existing table without CHECK constraints", () => {
+			// Create a second store to verify migration works on an existing DB
+			// The beforeEach already created the DB with constraints,
+			// so this tests that reopening is safe
+			const store2 = createMailStore(join(tempDir, "mail.db"));
+			const msg = store2.insert({
+				id: "msg-after-migration",
+				from: "agent-a",
+				to: "orchestrator",
+				subject: "migration test",
+				body: "body",
+				type: "status",
+				priority: "normal",
+				threadId: null,
+			});
+			expect(msg.id).toBe("msg-after-migration");
+
+			// Invalid values should still be rejected
+			expect(() =>
+				store2.insert({
+					id: "msg-bad-after",
+					from: "agent-a",
+					to: "orchestrator",
+					subject: "test",
+					body: "body",
+					type: "bogus" as MailMessage["type"],
+					priority: "normal",
+					threadId: null,
+				}),
+			).toThrow();
 
 			store2.close();
 		});

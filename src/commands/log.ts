@@ -64,6 +64,10 @@ async function updateLastActivity(projectRoot: string, agentName: string): Promi
 		const session = sessions.find((s) => s.agentName === agentName);
 		if (session) {
 			session.lastActivity = new Date().toISOString();
+			// Transition from booting to working on first activity
+			if (session.state === "booting") {
+				session.state = "working";
+			}
 			await Bun.write(sessionsPath, `${JSON.stringify(sessions, null, "\t")}\n`);
 		}
 	} catch {

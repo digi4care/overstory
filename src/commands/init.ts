@@ -9,6 +9,7 @@
  * - .gitignore entries for transient files
  */
 
+import { Database } from "bun:sqlite";
 import { mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { DEFAULT_CONFIG } from "../config.ts";
@@ -236,18 +237,13 @@ function buildAgentManifest(): AgentManifest {
 }
 
 /**
- * Build the hooks.json content. Reads from template if available,
- * otherwise generates a default.
+ * Build the hooks.json content for the project orchestrator.
+ *
+ * Always generates from scratch (not from the agent template, which contains
+ * {{AGENT_NAME}} placeholders and space indentation). Uses tab indentation
+ * to match Biome formatting rules.
  */
-async function buildHooksJson(overstoryRoot: string): Promise<string> {
-	// Try to read from template
-	const templatePath = join(overstoryRoot, "templates", "hooks.json.tmpl");
-	const templateFile = Bun.file(templatePath);
-	if (await templateFile.exists()) {
-		return await templateFile.text();
-	}
-
-	// Generate default hooks config — all hook types require {matcher, hooks} wrapper
+function buildHooksJson(): string {
 	const hooks = {
 		hooks: {
 			SessionStart: [
@@ -323,6 +319,67 @@ async function buildHooksJson(overstoryRoot: string): Promise<string> {
 }
 
 /**
+ * Migrate existing SQLite databases on --force reinit.
+ *
+ * Opens each DB, enables WAL mode, and re-runs CREATE TABLE/INDEX IF NOT EXISTS
+ * to apply any schema additions without losing existing data.
+ */
+async function migrateExistingDatabases(overstoryPath: string): Promise<string[]> {
+	const migrated: string[] = [];
+
+	// Migrate mail.db
+	const mailDbPath = join(overstoryPath, "mail.db");
+	if (await Bun.file(mailDbPath).exists()) {
+		const db = new Database(mailDbPath);
+		db.exec("PRAGMA journal_mode = WAL");
+		db.exec("PRAGMA busy_timeout = 5000");
+		db.exec(`
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  from_agent TEXT NOT NULL,
+  to_agent TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'status',
+  priority TEXT NOT NULL DEFAULT 'normal',
+  thread_id TEXT,
+  read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+		db.exec(`
+CREATE INDEX IF NOT EXISTS idx_inbox ON messages(to_agent, read);
+CREATE INDEX IF NOT EXISTS idx_thread ON messages(thread_id)`);
+		db.close();
+		migrated.push("mail.db");
+	}
+
+	// Migrate metrics.db
+	const metricsDbPath = join(overstoryPath, "metrics.db");
+	if (await Bun.file(metricsDbPath).exists()) {
+		const db = new Database(metricsDbPath);
+		db.exec("PRAGMA journal_mode = WAL");
+		db.exec("PRAGMA busy_timeout = 5000");
+		db.exec(`
+CREATE TABLE IF NOT EXISTS sessions (
+  agent_name TEXT NOT NULL,
+  bead_id TEXT NOT NULL,
+  capability TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  exit_code INTEGER,
+  merge_result TEXT,
+  parent_agent TEXT,
+  PRIMARY KEY (agent_name, bead_id)
+)`);
+		db.close();
+		migrated.push("metrics.db");
+	}
+
+	return migrated;
+}
+
+/**
  * Content for .overstory/.gitignore — runtime state that should not be tracked.
  * Paths are relative to .overstory/ directory.
  * Config files (config.yaml, agent-manifest.json, hooks.json) remain tracked.
@@ -355,18 +412,6 @@ async function writeOverstoryGitignore(overstoryPath: string): Promise<boolean> 
 
 	await Bun.write(gitignorePath, OVERSTORY_GITIGNORE);
 	return true;
-}
-
-/**
- * Resolve the overstory tool root directory (where templates/ lives).
- *
- * Uses import.meta.dir to find the overstory package root,
- * since this file is at src/commands/init.ts.
- */
-function getOverstoryRoot(): string {
-	// import.meta.dir is the directory of this file: src/commands/
-	// Go up two levels to get the overstory package root
-	return join(import.meta.dir, "..", "..");
 }
 
 /**
@@ -472,8 +517,7 @@ export async function initCommand(args: string[]): Promise<void> {
 	printCreated(`${OVERSTORY_DIR}/agent-manifest.json`);
 
 	// 6. Write hooks.json
-	const overstoryRoot = getOverstoryRoot();
-	const hooksContent = await buildHooksJson(overstoryRoot);
+	const hooksContent = buildHooksJson();
 	const hooksPath = join(overstoryPath, "hooks.json");
 	await Bun.write(hooksPath, hooksContent);
 	printCreated(`${OVERSTORY_DIR}/hooks.json`);
@@ -484,6 +528,14 @@ export async function initCommand(args: string[]): Promise<void> {
 		printCreated(`${OVERSTORY_DIR}/.gitignore`);
 	} else {
 		printSkipped(`${OVERSTORY_DIR}/.gitignore`, "already exists");
+	}
+
+	// 8. Migrate existing SQLite databases on --force reinit
+	if (force) {
+		const migrated = await migrateExistingDatabases(overstoryPath);
+		for (const dbName of migrated) {
+			process.stdout.write(`  \u2713 Migrated ${OVERSTORY_DIR}/${dbName} (schema validated)\n`);
+		}
 	}
 
 	process.stdout.write("\nDone. Run `overstory status` to see the current state.\n");

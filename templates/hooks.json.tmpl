@@ -1,70 +1,70 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory prime --agent {{AGENT_NAME}}"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory mail check --inject --agent {{AGENT_NAME}}"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory log tool-start --agent {{AGENT_NAME}}"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory log tool-end --agent {{AGENT_NAME}}"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory log session-end --agent {{AGENT_NAME}}"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "overstory prime --agent {{AGENT_NAME}} --compact"
-          }
-        ]
-      }
-    ]
-  }
+	"hooks": {
+		"SessionStart": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory prime --agent {{AGENT_NAME}}"
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory mail check --inject --agent {{AGENT_NAME}}"
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory log tool-start --agent {{AGENT_NAME}}"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory log tool-end --agent {{AGENT_NAME}}"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory log session-end --agent {{AGENT_NAME}}"
+					}
+				]
+			}
+		],
+		"PreCompact": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "overstory prime --agent {{AGENT_NAME}} --compact"
+					}
+				]
+			}
+		]
+	}
 }

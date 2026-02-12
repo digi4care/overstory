@@ -72,6 +72,21 @@ describe("generateOverlay", () => {
 		expect(output).not.toContain("{{SPEC_PATH}}");
 	});
 
+	test("includes 'Read your task spec' instruction when spec provided", async () => {
+		const config = makeConfig({ specPath: ".overstory/specs/my-task.md" });
+		const output = await generateOverlay(config);
+
+		expect(output).toContain("Read your task spec at the path above");
+	});
+
+	test("does not include 'Read your task spec' instruction when specPath is null", async () => {
+		const config = makeConfig({ specPath: null });
+		const output = await generateOverlay(config);
+
+		expect(output).not.toContain("Read your task spec at the path above");
+		expect(output).toContain("No task spec was provided");
+	});
+
 	test("shows 'orchestrator' when parentAgent is null", async () => {
 		const config = makeConfig({ parentAgent: null });
 		const output = await generateOverlay(config);

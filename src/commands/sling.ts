@@ -19,12 +19,13 @@ import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader } from "../agents/manifest.ts";
 import { writeOverlay } from "../agents/overlay.ts";
+import type { BeadIssue } from "../beads/client.ts";
 import { createBeadsClient } from "../beads/client.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import type { AgentSession, OverlayConfig } from "../types.ts";
 import { createWorktree } from "../worktree/manager.ts";
-import { createSession } from "../worktree/tmux.ts";
+import { createSession, sendKeys } from "../worktree/tmux.ts";
 
 /**
  * Calculate how many milliseconds to sleep before spawning a new agent,
@@ -217,16 +218,25 @@ export async function slingCommand(args: string[]): Promise<void> {
 		await Bun.sleep(staggerMs);
 	}
 
-	// 5. Validate bead exists (if beads enabled)
+	// 5. Validate bead exists and is in a workable state (if beads enabled)
 	const beads = createBeadsClient(config.project.root);
 	if (config.beads.enabled) {
+		let issue: BeadIssue;
 		try {
-			await beads.show(taskId);
+			issue = await beads.show(taskId);
 		} catch (err) {
 			throw new AgentError(`Bead task "${taskId}" not found or inaccessible`, {
 				agentName: name,
 				cause: err instanceof Error ? err : undefined,
 			});
+		}
+
+		const workableStatuses = ["open", "in_progress"];
+		if (!workableStatuses.includes(issue.status)) {
+			throw new ValidationError(
+				`Bead task "${taskId}" is not workable (status: ${issue.status}). Only open or in_progress issues can be assigned.`,
+				{ field: "taskId", value: taskId },
+			);
 		}
 	}
 
@@ -310,7 +320,17 @@ export async function slingCommand(args: string[]): Promise<void> {
 	sessions.push(session);
 	await saveSessions(sessionsPath, sessions);
 
-	// 13. Output result
+	// 13. Send initial task prompt to the agent
+	try {
+		await sendKeys(
+			tmuxSessionName,
+			`Read your assignment in .claude/CLAUDE.md and begin working on task ${taskId}`,
+		);
+	} catch {
+		// Non-fatal: agent can still read CLAUDE.md via SessionStart hook
+	}
+
+	// 14. Output result
 	const output = {
 		agentName: name,
 		capability,

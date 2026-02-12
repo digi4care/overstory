@@ -41,12 +41,66 @@ CREATE TABLE IF NOT EXISTS messages (
   to_agent TEXT NOT NULL,
   subject TEXT NOT NULL,
   body TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'status',
-  priority TEXT NOT NULL DEFAULT 'normal',
+  type TEXT NOT NULL DEFAULT 'status' CHECK(type IN ('status','question','result','error')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
   thread_id TEXT,
   read INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
+
+/**
+ * Migrate an existing messages table to add CHECK constraints on type and priority.
+ *
+ * SQLite does not support ALTER TABLE ADD CONSTRAINT, so we must recreate the table.
+ * Only runs if the table already exists without CHECK constraints.
+ */
+function migrateAddCheckConstraints(db: Database): void {
+	// Check if the table already has CHECK constraints by inspecting the schema SQL
+	const row = db
+		.prepare<{ sql: string }, []>(
+			"SELECT sql FROM sqlite_master WHERE type='table' AND name='messages'",
+		)
+		.get();
+	if (!row) {
+		// Table doesn't exist yet; CREATE TABLE IF NOT EXISTS will handle it
+		return;
+	}
+	if (row.sql.includes("CHECK")) {
+		// Constraints already present
+		return;
+	}
+
+	// Recreate the table with CHECK constraints, preserving existing data
+	db.exec("BEGIN TRANSACTION");
+	try {
+		db.exec("ALTER TABLE messages RENAME TO messages_old");
+		db.exec(`
+CREATE TABLE messages (
+  id TEXT PRIMARY KEY,
+  from_agent TEXT NOT NULL,
+  to_agent TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'status' CHECK(type IN ('status','question','result','error')),
+  priority TEXT NOT NULL DEFAULT 'normal' CHECK(priority IN ('low','normal','high','urgent')),
+  thread_id TEXT,
+  read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`);
+		db.exec(`
+INSERT INTO messages (id, from_agent, to_agent, subject, body, type, priority, thread_id, read, created_at)
+SELECT id, from_agent, to_agent, subject, body,
+  CASE WHEN type IN ('status','question','result','error') THEN type ELSE 'status' END,
+  CASE WHEN priority IN ('low','normal','high','urgent') THEN priority ELSE 'normal' END,
+  thread_id, read, created_at
+FROM messages_old`);
+		db.exec("DROP TABLE messages_old");
+		db.exec("COMMIT");
+	} catch (err) {
+		db.exec("ROLLBACK");
+		throw err;
+	}
+}
 
 const CREATE_INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_inbox ON messages(to_agent, read);
@@ -96,7 +150,10 @@ export function createMailStore(dbPath: string): MailStore {
 	db.exec("PRAGMA journal_mode = WAL");
 	db.exec("PRAGMA busy_timeout = 5000");
 
-	// Create schema
+	// Migrate existing tables to add CHECK constraints (no-op if table is new or already migrated)
+	migrateAddCheckConstraints(db);
+
+	// Create schema (if table doesn't exist yet, creates with CHECK constraints)
 	db.exec(CREATE_TABLE);
 	db.exec(CREATE_INDEXES);
 

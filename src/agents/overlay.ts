@@ -83,6 +83,10 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 		});
 	}
 
+	const specInstruction = config.specPath
+		? "Read your task spec at the path above. It contains the full description of\nwhat you need to build or review."
+		: "No task spec was provided. Check your mail or ask your parent agent for details.";
+
 	const replacements: Record<string, string> = {
 		"{{AGENT_NAME}}": config.agentName,
 		"{{BEAD_ID}}": config.beadId,
@@ -93,6 +97,7 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 		"{{FILE_SCOPE}}": formatFileScope(config.fileScope),
 		"{{MULCH_DOMAINS}}": formatMulchDomains(config.mulchDomains),
 		"{{CAN_SPAWN}}": formatCanSpawn(config),
+		"{{SPEC_INSTRUCTION}}": specInstruction,
 	};
 
 	let result = template;
