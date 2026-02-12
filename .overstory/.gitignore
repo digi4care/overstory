@@ -1,0 +1,12 @@
+# Runtime state (auto-generated, do not edit)
+worktrees/
+logs/
+mail.db
+mail.db-wal
+mail.db-shm
+metrics.db
+metrics.db-wal
+metrics.db-shm
+sessions.json
+agents/
+specs/
