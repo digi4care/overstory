@@ -297,3 +297,74 @@ export interface SessionMetrics {
 	mergeResult: ResolutionTier | null;
 	parentAgent: string | null;
 }
+
+// === Task Groups (Batch Coordination) ===
+
+export interface TaskGroup {
+	id: string; // "group-" + nanoid(8)
+	name: string;
+	memberIssueIds: string[]; // beads issue IDs tracked by this group
+	status: "active" | "completed";
+	createdAt: string; // ISO timestamp
+	completedAt: string | null; // ISO timestamp when all members closed
+}
+
+export interface TaskGroupProgress {
+	group: TaskGroup;
+	total: number;
+	completed: number;
+	inProgress: number;
+	blocked: number;
+	open: number;
+}
+
+// === Session Lifecycle (Checkpoint / Handoff / Continuity) ===
+
+/**
+ * Snapshot of agent progress, saved before compaction or handoff.
+ * Stored as JSON in .overstory/agents/{name}/checkpoint.json.
+ */
+export interface SessionCheckpoint {
+	agentName: string;
+	beadId: string;
+	sessionId: string; // The AgentSession.id that created this checkpoint
+	timestamp: string; // ISO
+	progressSummary: string; // Human-readable summary of work done so far
+	filesModified: string[]; // Paths modified since session start
+	currentBranch: string;
+	pendingWork: string; // What remains to be done
+	mulchDomains: string[]; // Domains the agent has been working in
+}
+
+/**
+ * Record of a session handoff — when one session ends and another picks up.
+ */
+export interface SessionHandoff {
+	fromSessionId: string;
+	toSessionId: string | null; // null until the new session starts
+	checkpoint: SessionCheckpoint;
+	reason: "compaction" | "crash" | "manual" | "timeout";
+	handoffAt: string; // ISO timestamp
+}
+
+/**
+ * Three-layer model for agent persistence.
+ * Session = ephemeral Claude runtime
+ * Sandbox = git worktree (persists across sessions)
+ * Identity = permanent agent record (persists across assignments)
+ */
+export interface AgentLayers {
+	identity: AgentIdentity;
+	sandbox: {
+		worktreePath: string;
+		branchName: string;
+		beadId: string;
+	};
+	session: {
+		id: string;
+		pid: number | null;
+		tmuxSession: string;
+		startedAt: string;
+		checkpoint: SessionCheckpoint | null;
+	} | null; // null when sandbox exists but no active session
+}

@@ -149,3 +149,46 @@ export class ValidationError extends OverstoryError {
 		this.value = context?.value ?? null;
 	}
 }
+
+/**
+ * Raised when task group operations fail.
+ * Examples: group not found, duplicate member, auto-close failures.
+ */
+export class GroupError extends OverstoryError {
+	readonly groupId: string | null;
+
+	constructor(
+		message: string,
+		context?: {
+			groupId?: string;
+			cause?: Error;
+		},
+	) {
+		super(message, "GROUP_ERROR", { cause: context?.cause });
+		this.name = "GroupError";
+		this.groupId = context?.groupId ?? null;
+	}
+}
+
+/**
+ * Raised when session lifecycle operations fail.
+ * Examples: checkpoint save/restore failures, handoff failures.
+ */
+export class LifecycleError extends OverstoryError {
+	readonly agentName: string | null;
+	readonly sessionId: string | null;
+
+	constructor(
+		message: string,
+		context?: {
+			agentName?: string;
+			sessionId?: string;
+			cause?: Error;
+		},
+	) {
+		super(message, "LIFECYCLE_ERROR", { cause: context?.cause });
+		this.name = "LifecycleError";
+		this.agentName = context?.agentName ?? null;
+		this.sessionId = context?.sessionId ?? null;
+	}
+}

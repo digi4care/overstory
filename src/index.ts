@@ -6,6 +6,7 @@
  * Usage: overstory <command> [args...]
  */
 
+import { groupCommand } from "./commands/group.ts";
 import { initCommand } from "./commands/init.ts";
 import { logCommand } from "./commands/log.ts";
 import { mailCommand } from "./commands/mail.ts";
@@ -33,6 +34,7 @@ Commands:
   mail <sub>              Mail system (send/check/list/read/reply)
   merge                   Merge agent branches into canonical
   nudge <agent> [msg]     Send a text nudge to an agent
+  group <sub>             Task groups (create/status/add/remove/list)
   worktree <sub>          Manage worktrees (list/clean)
   log <event>             Log a hook event
   watch                   Start watchdog daemon
@@ -52,6 +54,7 @@ const COMMANDS = [
 	"mail",
 	"merge",
 	"nudge",
+	"group",
 	"worktree",
 	"log",
 	"watch",
@@ -127,6 +130,9 @@ async function main(): Promise<void> {
 			break;
 		case "nudge":
 			await nudgeCommand(commandArgs);
+			break;
+		case "group":
+			await groupCommand(commandArgs);
 			break;
 		case "worktree":
 			await worktreeCommand(commandArgs);

@@ -8,13 +8,20 @@
  */
 
 import { join } from "node:path";
+import { loadCheckpoint } from "../agents/checkpoint.ts";
 import { loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError } from "../errors.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { createMulchClient } from "../mulch/client.ts";
-import type { AgentIdentity, AgentManifest, AgentSession, SessionMetrics } from "../types.ts";
+import type {
+	AgentIdentity,
+	AgentManifest,
+	AgentSession,
+	SessionCheckpoint,
+	SessionMetrics,
+} from "../types.ts";
 
 /**
  * Parse CLI flags from the args array.
@@ -95,6 +102,22 @@ function formatIdentity(identity: AgentIdentity): string {
 		}
 	}
 
+	return lines.join("\n");
+}
+
+/**
+ * Format checkpoint recovery section for compact priming.
+ */
+function formatCheckpointRecovery(checkpoint: SessionCheckpoint): string {
+	const lines: string[] = [];
+	lines.push("\n## Session Recovery");
+	lines.push("");
+	lines.push("You are resuming from a previous session that was compacted.");
+	lines.push("");
+	lines.push(`**Progress so far:** ${checkpoint.progressSummary}`);
+	lines.push(`**Files modified:** ${checkpoint.filesModified.join(", ") || "none"}`);
+	lines.push(`**Pending work:** ${checkpoint.pendingWork}`);
+	lines.push(`**Branch:** ${checkpoint.currentBranch}`);
 	return lines.join("\n");
 }
 
@@ -204,6 +227,15 @@ async function outputAgentContext(
 		sections.push(formatIdentity(identity));
 	} else {
 		sections.push("New agent - no prior sessions");
+	}
+
+	// In compact mode, check for checkpoint recovery
+	if (compact) {
+		const baseDir = join(config.project.root, ".overstory", "agents");
+		const checkpoint = await loadCheckpoint(baseDir, agentName);
+		if (checkpoint !== null) {
+			sections.push(formatCheckpointRecovery(checkpoint));
+		}
 	}
 
 	// In compact mode, skip expertise
