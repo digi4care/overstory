@@ -27,6 +27,35 @@ import { createWorktree } from "../worktree/manager.ts";
 import { createSession } from "../worktree/tmux.ts";
 
 /**
+ * Calculate how many milliseconds to sleep before spawning a new agent,
+ * based on the configured stagger delay and when the most recent active
+ * session was started.
+ *
+ * Returns 0 if no sleep is needed (no active sessions, delay is 0, or
+ * enough time has already elapsed).
+ *
+ * @param staggerDelayMs - The configured minimum delay between spawns
+ * @param activeSessions - Currently active (non-zombie) sessions
+ * @param now - Current timestamp in ms (defaults to Date.now(), injectable for testing)
+ */
+export function calculateStaggerDelay(
+	staggerDelayMs: number,
+	activeSessions: ReadonlyArray<{ startedAt: string }>,
+	now: number = Date.now(),
+): number {
+	if (staggerDelayMs <= 0 || activeSessions.length === 0) {
+		return 0;
+	}
+
+	const mostRecent = activeSessions.reduce((latest, s) => {
+		return new Date(s.startedAt).getTime() > new Date(latest.startedAt).getTime() ? s : latest;
+	});
+	const elapsed = now - new Date(mostRecent.startedAt).getTime();
+	const remaining = staggerDelayMs - elapsed;
+	return remaining > 0 ? remaining : 0;
+}
+
+/**
  * Parse a named flag value from an args array.
  */
 function getFlag(args: string[], flag: string): string | undefined {
@@ -180,6 +209,12 @@ export async function slingCommand(args: string[]): Promise<void> {
 		throw new AgentError(`Agent name "${name}" is already in use (state: ${existing.state})`, {
 			agentName: name,
 		});
+	}
+
+	// 4b. Enforce stagger delay between agent spawns
+	const staggerMs = calculateStaggerDelay(config.agents.staggerDelayMs, activeSessions);
+	if (staggerMs > 0) {
+		await Bun.sleep(staggerMs);
 	}
 
 	// 5. Validate bead exists (if beads enabled)
