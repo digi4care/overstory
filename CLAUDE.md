@@ -311,3 +311,36 @@ When ending a work session, you MUST:
 6. Hand off context for the next session
 
 Work is NOT complete until `git push` succeeds.
+
+<!-- mulch:start -->
+## Project Expertise (Mulch)
+
+This project uses [Mulch](https://github.com/jayminwest/mulch) for structured expertise management.
+
+**At the start of every session**, run:
+```bash
+mulch prime
+```
+
+This injects project-specific conventions, patterns, decisions, and other learnings into your context.
+
+**Before completing your task**, review your work for insights worth preserving — conventions discovered,
+patterns applied, failures encountered, or decisions made — and record them:
+```bash
+mulch record <domain> --type <convention|pattern|failure|decision|reference|guide> --description "..."
+```
+
+Run `mulch status` to check domain health and entry counts.
+Run `mulch --help` for full usage.
+
+### Before You Finish
+
+1. Store insights from this work session:
+   ```bash
+   mulch record <domain> --type <convention|pattern|failure|decision|reference|guide> --description "..."
+   ```
+2. Validate and commit:
+   ```bash
+   mulch validate && git add .mulch/ && git commit -m "mulch: record learnings"
+   ```
+<!-- mulch:end -->
