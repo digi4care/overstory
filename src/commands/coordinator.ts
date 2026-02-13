@@ -86,7 +86,9 @@ export function buildCoordinatorBeacon(): string {
 	const parts = [
 		`[OVERSTORY] ${COORDINATOR_NAME} (coordinator) ${timestamp}`,
 		"Depth: 0 | Parent: none | Role: persistent orchestrator",
-		`Startup: run mulch prime, check mail (overstory mail check --agent ${COORDINATOR_NAME}), check bd ready, check overstory group status, then await instructions`,
+		"HIERARCHY: You ONLY spawn leads (overstory sling --capability lead). Leads spawn scouts, builders, reviewers. NEVER spawn non-lead agents directly.",
+		"DELEGATION: For any exploration/scouting, spawn a lead who will spawn scouts. Do NOT explore the codebase yourself beyond initial planning.",
+		`Startup: run mulch prime, check mail (overstory mail check --agent ${COORDINATOR_NAME}), check bd ready, check overstory group status, then begin work`,
 	];
 	return parts.join(" — ");
 }
@@ -161,8 +163,19 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		});
 	}
 
-	// Spawn tmux session at project root with Claude Code (interactive mode)
-	const claudeCmd = "claude --model opus --dangerously-skip-permissions";
+	// Spawn tmux session at project root with Claude Code (interactive mode).
+	// Inject the coordinator base definition via --append-system-prompt so the
+	// coordinator knows its role, hierarchy rules, and delegation patterns
+	// (overstory-gaio, overstory-0kwf).
+	const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "coordinator.md");
+	const agentDefFile = Bun.file(agentDefPath);
+	let claudeCmd = "claude --model opus --dangerously-skip-permissions";
+	if (await agentDefFile.exists()) {
+		const agentDef = await agentDefFile.text();
+		// Single-quote the content for safe shell expansion (only escape single quotes)
+		const escaped = agentDef.replace(/'/g, "'\\''");
+		claudeCmd += ` --append-system-prompt '${escaped}'`;
+	}
 	const pid = await tmux.createSession(TMUX_SESSION, projectRoot, claudeCmd, {
 		OVERSTORY_AGENT_NAME: COORDINATOR_NAME,
 	});

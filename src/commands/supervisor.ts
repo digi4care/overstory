@@ -212,9 +212,17 @@ async function startSupervisor(args: string[]): Promise<void> {
 		});
 	}
 
-	// Spawn tmux session at project root with Claude Code (interactive mode)
+	// Spawn tmux session at project root with Claude Code (interactive mode).
+	// Inject the supervisor base definition via --append-system-prompt.
 	const tmuxSession = `overstory-supervisor-${flags.name}`;
-	const claudeCmd = "claude --model opus --dangerously-skip-permissions";
+	const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "supervisor.md");
+	const agentDefFile = Bun.file(agentDefPath);
+	let claudeCmd = "claude --model opus --dangerously-skip-permissions";
+	if (await agentDefFile.exists()) {
+		const agentDef = await agentDefFile.text();
+		const escaped = agentDef.replace(/'/g, "'\\''");
+		claudeCmd += ` --append-system-prompt '${escaped}'`;
+	}
 	const pid = await createSession(tmuxSession, projectRoot, claudeCmd, {
 		OVERSTORY_AGENT_NAME: flags.name,
 	});

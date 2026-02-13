@@ -143,8 +143,16 @@ async function startMonitor(args: string[]): Promise<void> {
 		});
 	}
 
-	// Spawn tmux session at project root with Claude Code (interactive mode)
-	const claudeCmd = "claude --model sonnet --dangerously-skip-permissions";
+	// Spawn tmux session at project root with Claude Code (interactive mode).
+	// Inject the monitor base definition via --append-system-prompt.
+	const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "monitor.md");
+	const agentDefFile = Bun.file(agentDefPath);
+	let claudeCmd = "claude --model sonnet --dangerously-skip-permissions";
+	if (await agentDefFile.exists()) {
+		const agentDef = await agentDefFile.text();
+		const escaped = agentDef.replace(/'/g, "'\\''");
+		claudeCmd += ` --append-system-prompt '${escaped}'`;
+	}
 	const pid = await createSession(TMUX_SESSION, projectRoot, claudeCmd, {
 		OVERSTORY_AGENT_NAME: MONITOR_NAME,
 	});

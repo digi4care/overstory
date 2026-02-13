@@ -253,6 +253,47 @@ describe("startCoordinator", () => {
 		expect(calls.sendKeys.length).toBeGreaterThanOrEqual(1);
 	});
 
+	test("injects agent definition via --append-system-prompt when agent-defs/coordinator.md exists", async () => {
+		// Deploy a coordinator agent definition
+		const agentDefsDir = join(overstoryDir, "agent-defs");
+		await mkdir(agentDefsDir, { recursive: true });
+		await Bun.write(
+			join(agentDefsDir, "coordinator.md"),
+			"# Coordinator Agent\n\nYou are the coordinator.\n",
+		);
+
+		const { deps, calls } = makeDeps();
+		const originalSleep = Bun.sleep;
+		Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+		try {
+			await captureStdout(() => coordinatorCommand(["start", "--no-attach", "--json"], deps));
+		} finally {
+			Bun.sleep = originalSleep;
+		}
+
+		expect(calls.createSession).toHaveLength(1);
+		const cmd = calls.createSession[0]?.command ?? "";
+		expect(cmd).toContain("--append-system-prompt");
+		expect(cmd).toContain("# Coordinator Agent");
+	});
+
+	test("does not add --append-system-prompt when agent-defs/coordinator.md is absent", async () => {
+		const { deps, calls } = makeDeps();
+		const originalSleep = Bun.sleep;
+		Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+		try {
+			await captureStdout(() => coordinatorCommand(["start", "--no-attach", "--json"], deps));
+		} finally {
+			Bun.sleep = originalSleep;
+		}
+
+		expect(calls.createSession).toHaveLength(1);
+		const cmd = calls.createSession[0]?.command ?? "";
+		expect(cmd).not.toContain("--append-system-prompt");
+	});
+
 	test("--json outputs JSON with expected fields", async () => {
 		const { deps } = makeDeps();
 		const originalSleep = Bun.sleep;
@@ -510,11 +551,23 @@ describe("buildCoordinatorBeacon", () => {
 		expect(beacon).toContain("overstory group status");
 	});
 
+	test("includes hierarchy enforcement instruction", () => {
+		const beacon = buildCoordinatorBeacon();
+		expect(beacon).toContain("ONLY spawn leads");
+		expect(beacon).toContain("NEVER spawn non-lead agents directly");
+	});
+
+	test("includes delegation instruction", () => {
+		const beacon = buildCoordinatorBeacon();
+		expect(beacon).toContain("DELEGATION");
+		expect(beacon).toContain("spawn a lead who will spawn scouts");
+	});
+
 	test("parts are joined with em-dash separator", () => {
 		const beacon = buildCoordinatorBeacon();
-		// Should have exactly 2 " — " separators (3 parts)
+		// Should have exactly 4 " — " separators (5 parts)
 		const dashes = beacon.split(" — ");
-		expect(dashes).toHaveLength(3);
+		expect(dashes).toHaveLength(5);
 	});
 });
 

@@ -125,6 +125,12 @@ async function sendNudgeWithRetry(tmuxSession: string, message: string): Promise
 	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
 		try {
 			await sendKeys(tmuxSession, message);
+			// Follow-up Enter after a short delay to ensure submission.
+			// Claude Code's TUI may consume the first Enter during re-render/focus
+			// events, leaving text visible but unsubmitted (overstory-t62v).
+			// Same workaround as sling.ts and coordinator.ts.
+			await Bun.sleep(500);
+			await sendKeys(tmuxSession, "");
 			return true;
 		} catch {
 			if (attempt < MAX_RETRIES) {
