@@ -40,6 +40,12 @@ function makeSession(overrides: Partial<SessionMetrics> = {}): SessionMetrics {
 		exitCode: 0,
 		mergeResult: "auto-resolve",
 		parentAgent: "coordinator",
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheReadTokens: 0,
+		cacheCreationTokens: 0,
+		estimatedCostUsd: null,
+		modelUsed: null,
 		...overrides,
 	};
 }
@@ -264,6 +270,106 @@ describe("getAverageDuration", () => {
 
 		const avg = store.getAverageDuration();
 		expect(avg).toBe(123_456);
+	});
+});
+
+// === token fields ===
+
+describe("token fields", () => {
+	test("token data roundtrips correctly", () => {
+		const session = makeSession({
+			inputTokens: 15_000,
+			outputTokens: 3_000,
+			cacheReadTokens: 100_000,
+			cacheCreationTokens: 10_000,
+			estimatedCostUsd: 1.23,
+			modelUsed: "claude-opus-4-6",
+		});
+
+		store.recordSession(session);
+		const retrieved = store.getRecentSessions(10);
+
+		expect(retrieved).toHaveLength(1);
+		expect(retrieved[0]?.inputTokens).toBe(15_000);
+		expect(retrieved[0]?.outputTokens).toBe(3_000);
+		expect(retrieved[0]?.cacheReadTokens).toBe(100_000);
+		expect(retrieved[0]?.cacheCreationTokens).toBe(10_000);
+		expect(retrieved[0]?.estimatedCostUsd).toBeCloseTo(1.23, 2);
+		expect(retrieved[0]?.modelUsed).toBe("claude-opus-4-6");
+	});
+
+	test("token fields default to 0 and cost/model default to null", () => {
+		const session = makeSession();
+
+		store.recordSession(session);
+		const retrieved = store.getRecentSessions(10);
+
+		expect(retrieved).toHaveLength(1);
+		expect(retrieved[0]?.inputTokens).toBe(0);
+		expect(retrieved[0]?.outputTokens).toBe(0);
+		expect(retrieved[0]?.cacheReadTokens).toBe(0);
+		expect(retrieved[0]?.cacheCreationTokens).toBe(0);
+		expect(retrieved[0]?.estimatedCostUsd).toBeNull();
+		expect(retrieved[0]?.modelUsed).toBeNull();
+	});
+
+	test("migration adds token columns to existing table without them", () => {
+		// Close the current store which has the new schema
+		store.close();
+
+		// Create a DB with the old schema (no token columns)
+		const { Database } = require("bun:sqlite");
+		const oldDb = new Database(dbPath);
+		oldDb.exec("DROP TABLE IF EXISTS sessions");
+		oldDb.exec(`
+			CREATE TABLE sessions (
+				agent_name TEXT NOT NULL,
+				bead_id TEXT NOT NULL,
+				capability TEXT NOT NULL,
+				started_at TEXT NOT NULL,
+				completed_at TEXT,
+				duration_ms INTEGER NOT NULL DEFAULT 0,
+				exit_code INTEGER,
+				merge_result TEXT,
+				parent_agent TEXT,
+				PRIMARY KEY (agent_name, bead_id)
+			)
+		`);
+		// Insert a row with old schema
+		oldDb.exec(`
+			INSERT INTO sessions (agent_name, bead_id, capability, started_at, duration_ms)
+			VALUES ('old-agent', 'old-task', 'builder', '2026-01-01T00:00:00Z', 100000)
+		`);
+		oldDb.close();
+
+		// Re-open with createMetricsStore which should migrate
+		store = createMetricsStore(dbPath);
+
+		// The old row should still be readable with token defaults
+		const sessions = store.getRecentSessions(10);
+		expect(sessions).toHaveLength(1);
+		expect(sessions[0]?.agentName).toBe("old-agent");
+		expect(sessions[0]?.inputTokens).toBe(0);
+		expect(sessions[0]?.outputTokens).toBe(0);
+		expect(sessions[0]?.estimatedCostUsd).toBeNull();
+		expect(sessions[0]?.modelUsed).toBeNull();
+
+		// New rows with token data should work
+		store.recordSession(
+			makeSession({
+				agentName: "new-agent",
+				beadId: "new-task",
+				inputTokens: 5000,
+				outputTokens: 1000,
+				estimatedCostUsd: 0.42,
+				modelUsed: "claude-sonnet-4-20250514",
+			}),
+		);
+
+		const newSessions = store.getSessionsByAgent("new-agent");
+		expect(newSessions).toHaveLength(1);
+		expect(newSessions[0]?.inputTokens).toBe(5000);
+		expect(newSessions[0]?.estimatedCostUsd).toBeCloseTo(0.42, 2);
 	});
 });
 

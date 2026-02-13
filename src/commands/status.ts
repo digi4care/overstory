@@ -274,14 +274,14 @@ export function printStatus(data: StatusData): void {
  */
 const STATUS_HELP = `overstory status — Show all active agents and project state
 
-Usage: overstory status [--json] [--watch] [--verbose] [--interval <ms>] [--agent <name>]
+Usage: overstory status [--json] [--verbose] [--agent <name>]
 
 Options:
   --json             Output as JSON
-  --watch            Live updating mode (polling)
   --verbose          Show extra detail per agent (worktree, logs, mail timestamps)
-  --interval <ms>    Poll interval in milliseconds (default: 3000)
   --agent <name>     Show unread mail for this agent (default: orchestrator)
+  --watch            (deprecated) Use 'overstory dashboard' for live monitoring
+  --interval <ms>    Poll interval for --watch in milliseconds (default: 3000)
   --help, -h         Show this help`;
 
 export async function statusCommand(args: string[]): Promise<void> {
@@ -310,7 +310,10 @@ export async function statusCommand(args: string[]): Promise<void> {
 	const root = config.project.root;
 
 	if (watch) {
-		// Polling loop
+		process.stderr.write(
+			"⚠️  --watch is deprecated. Use 'overstory dashboard' for live monitoring.\n\n",
+		);
+		// Polling loop (kept for one release cycle)
 		while (true) {
 			// Clear screen
 			process.stdout.write("\x1b[2J\x1b[H");

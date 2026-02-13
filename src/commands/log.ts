@@ -12,6 +12,7 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createLogger } from "../logging/logger.ts";
 import { createMetricsStore } from "../metrics/store.ts";
+import { estimateCost, parseTranscriptUsage } from "../metrics/transcript.ts";
 import type { AgentSession } from "../types.ts";
 
 /**
@@ -132,9 +133,10 @@ Arguments:
   <event>            Event type: tool-start, tool-end, session-end
 
 Options:
-  --agent <name>       Agent name (required)
-  --tool-name <name>   Tool name (for tool-start/tool-end events)
-  --help, -h           Show this help`;
+  --agent <name>            Agent name (required)
+  --tool-name <name>        Tool name (for tool-start/tool-end events)
+  --transcript <path>       Path to Claude Code transcript JSONL (for session-end)
+  --help, -h                Show this help`;
 
 export async function logCommand(args: string[]): Promise<void> {
 	if (args.includes("--help") || args.includes("-h")) {
@@ -145,6 +147,7 @@ export async function logCommand(args: string[]): Promise<void> {
 	const event = args.find((a) => !a.startsWith("--"));
 	const agentName = getFlag(args, "--agent");
 	const toolName = getFlag(args, "--tool-name") ?? "unknown";
+	const transcriptPath = getFlag(args, "--transcript");
 
 	if (!event) {
 		throw new ValidationError("Event is required: overstory log <event> --agent <name>", {
@@ -207,13 +210,36 @@ export async function logCommand(args: string[]): Promise<void> {
 					// Non-fatal: identity may not exist for this agent
 				}
 
-				// Record session metrics
+				// Record session metrics (with optional token data from transcript)
 				if (agentSession) {
 					try {
 						const metricsDbPath = join(config.project.root, ".overstory", "metrics.db");
 						const metricsStore = createMetricsStore(metricsDbPath);
 						const now = new Date().toISOString();
 						const durationMs = new Date(now).getTime() - new Date(agentSession.startedAt).getTime();
+
+						// Parse token usage from transcript if path provided
+						let inputTokens = 0;
+						let outputTokens = 0;
+						let cacheReadTokens = 0;
+						let cacheCreationTokens = 0;
+						let estimatedCostUsd: number | null = null;
+						let modelUsed: string | null = null;
+
+						if (transcriptPath) {
+							try {
+								const usage = await parseTranscriptUsage(transcriptPath);
+								inputTokens = usage.inputTokens;
+								outputTokens = usage.outputTokens;
+								cacheReadTokens = usage.cacheReadTokens;
+								cacheCreationTokens = usage.cacheCreationTokens;
+								modelUsed = usage.modelUsed;
+								estimatedCostUsd = estimateCost(usage);
+							} catch {
+								// Non-fatal: transcript parsing should not break metrics
+							}
+						}
+
 						metricsStore.recordSession({
 							agentName,
 							beadId: agentSession.beadId,
@@ -224,6 +250,12 @@ export async function logCommand(args: string[]): Promise<void> {
 							exitCode: null,
 							mergeResult: null,
 							parentAgent: agentSession.parentAgent,
+							inputTokens,
+							outputTokens,
+							cacheReadTokens,
+							cacheCreationTokens,
+							estimatedCostUsd,
+							modelUsed,
 						});
 						metricsStore.close();
 					} catch {

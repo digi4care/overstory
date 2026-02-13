@@ -8,12 +8,21 @@
 import type { SessionMetrics } from "../types.ts";
 import type { MetricsStore } from "./store.ts";
 
+export interface TokenTotals {
+	inputTokens: number;
+	outputTokens: number;
+	cacheReadTokens: number;
+	cacheCreationTokens: number;
+	estimatedCostUsd: number;
+}
+
 export interface MetricsSummary {
 	totalSessions: number;
 	completedSessions: number;
 	averageDurationMs: number;
 	byCapability: Record<string, { count: number; avgDurationMs: number }>;
 	recentSessions: SessionMetrics[];
+	tokenTotals: TokenTotals;
 }
 
 /**
@@ -60,12 +69,31 @@ export function generateSummary(store: MetricsStore, limit = 10): MetricsSummary
 		};
 	}
 
+	// Aggregate token totals across all sessions
+	const tokenTotals: TokenTotals = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheReadTokens: 0,
+		cacheCreationTokens: 0,
+		estimatedCostUsd: 0,
+	};
+	for (const session of allSessions) {
+		tokenTotals.inputTokens += session.inputTokens;
+		tokenTotals.outputTokens += session.outputTokens;
+		tokenTotals.cacheReadTokens += session.cacheReadTokens;
+		tokenTotals.cacheCreationTokens += session.cacheCreationTokens;
+		if (session.estimatedCostUsd !== null) {
+			tokenTotals.estimatedCostUsd += session.estimatedCostUsd;
+		}
+	}
+
 	return {
 		totalSessions,
 		completedSessions,
 		averageDurationMs: Math.round(averageDurationMs),
 		byCapability,
 		recentSessions,
+		tokenTotals,
 	};
 }
 
@@ -90,6 +118,26 @@ export function formatSummary(summary: MetricsSummary): string {
 		}
 	}
 
+	// Token usage section (only if any tokens were recorded)
+	const tt = summary.tokenTotals;
+	const hasTokenData =
+		tt.inputTokens > 0 ||
+		tt.outputTokens > 0 ||
+		tt.cacheReadTokens > 0 ||
+		tt.cacheCreationTokens > 0;
+
+	if (hasTokenData) {
+		lines.push("");
+		lines.push("Token usage:");
+		lines.push(`  Input:           ${formatTokenCount(tt.inputTokens)}`);
+		lines.push(`  Output:          ${formatTokenCount(tt.outputTokens)}`);
+		lines.push(`  Cache read:      ${formatTokenCount(tt.cacheReadTokens)}`);
+		lines.push(`  Cache creation:  ${formatTokenCount(tt.cacheCreationTokens)}`);
+		if (tt.estimatedCostUsd > 0) {
+			lines.push(`  Estimated cost:  $${tt.estimatedCostUsd.toFixed(2)}`);
+		}
+	}
+
 	if (summary.recentSessions.length > 0) {
 		lines.push("");
 		lines.push("Recent sessions:");
@@ -97,7 +145,11 @@ export function formatSummary(summary: MetricsSummary): string {
 			const status = session.completedAt !== null ? "done" : "running";
 			const duration =
 				session.completedAt !== null ? formatDuration(session.durationMs) : "in progress";
-			lines.push(`  ${session.agentName} [${session.capability}] ${status} (${duration})`);
+			const costSuffix =
+				session.estimatedCostUsd !== null ? ` $${session.estimatedCostUsd.toFixed(2)}` : "";
+			lines.push(
+				`  ${session.agentName} [${session.capability}] ${status} (${duration})${costSuffix}`,
+			);
 		}
 	}
 
@@ -115,4 +167,12 @@ function formatDuration(ms: number): string {
 	const minutes = Math.floor(ms / 60_000);
 	const seconds = Math.round((ms % 60_000) / 1_000);
 	return `${minutes}m ${seconds}s`;
+}
+
+/** Format a token count into a human-friendly string (e.g., 1,234,567 or 1.2M). */
+function formatTokenCount(count: number): string {
+	if (count >= 1_000_000) {
+		return `${(count / 1_000_000).toFixed(1)}M`;
+	}
+	return count.toLocaleString("en-US");
 }

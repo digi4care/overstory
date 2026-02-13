@@ -308,6 +308,12 @@ export interface SessionMetrics {
 	exitCode: number | null;
 	mergeResult: ResolutionTier | null;
 	parentAgent: string | null;
+	inputTokens: number;
+	outputTokens: number;
+	cacheReadTokens: number;
+	cacheCreationTokens: number;
+	estimatedCostUsd: number | null;
+	modelUsed: string | null;
 }
 
 // === Task Groups (Batch Coordination) ===

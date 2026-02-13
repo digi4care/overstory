@@ -62,6 +62,12 @@ describe("metricsCommand", () => {
 			exitCode: 0,
 			mergeResult: "clean-merge",
 			parentAgent: null,
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheReadTokens: 0,
+			cacheCreationTokens: 0,
+			estimatedCostUsd: null,
+			modelUsed: null,
 			...overrides,
 		};
 	}
@@ -364,6 +370,12 @@ describe("formatDuration helper", () => {
 			exitCode: 0,
 			mergeResult: "clean-merge",
 			parentAgent: null,
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheReadTokens: 0,
+			cacheCreationTokens: 0,
+			estimatedCostUsd: null,
+			modelUsed: null,
 		};
 	}
 

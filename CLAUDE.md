@@ -205,7 +205,8 @@ overstory prime                         Load context for orchestrator/agent
 
 overstory status                        Show all active agents, worktrees, beads state
   --json                                 JSON output
-  --watch                                Live updating
+  --verbose                              Extra per-agent detail
+  --watch                                (deprecated) Use 'overstory dashboard'
 
 overstory mail send                     Send a message
   --to <agent>  --subject <text>  --body <text>

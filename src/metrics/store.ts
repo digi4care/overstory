@@ -27,6 +27,12 @@ interface SessionRow {
 	exit_code: number | null;
 	merge_result: string | null;
 	parent_agent: string | null;
+	input_tokens: number;
+	output_tokens: number;
+	cache_read_tokens: number;
+	cache_creation_tokens: number;
+	estimated_cost_usd: number | null;
+	model_used: string | null;
 }
 
 const CREATE_TABLE = `
@@ -40,8 +46,39 @@ CREATE TABLE IF NOT EXISTS sessions (
   exit_code INTEGER,
   merge_result TEXT,
   parent_agent TEXT,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+  cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+  estimated_cost_usd REAL,
+  model_used TEXT,
   PRIMARY KEY (agent_name, bead_id)
 )`;
+
+/** Token columns added in the token instrumentation migration. */
+const TOKEN_COLUMNS = [
+	{ name: "input_tokens", ddl: "INTEGER NOT NULL DEFAULT 0" },
+	{ name: "output_tokens", ddl: "INTEGER NOT NULL DEFAULT 0" },
+	{ name: "cache_read_tokens", ddl: "INTEGER NOT NULL DEFAULT 0" },
+	{ name: "cache_creation_tokens", ddl: "INTEGER NOT NULL DEFAULT 0" },
+	{ name: "estimated_cost_usd", ddl: "REAL" },
+	{ name: "model_used", ddl: "TEXT" },
+] as const;
+
+/**
+ * Migrate an existing sessions table to include token columns.
+ * Safe to call multiple times — only adds columns that are missing.
+ */
+function migrateTokenColumns(db: Database): void {
+	const rows = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+	const existingColumns = new Set(rows.map((r) => r.name));
+
+	for (const col of TOKEN_COLUMNS) {
+		if (!existingColumns.has(col.name)) {
+			db.exec(`ALTER TABLE sessions ADD COLUMN ${col.name} ${col.ddl}`);
+		}
+	}
+}
 
 /** Convert a database row (snake_case) to a SessionMetrics object (camelCase). */
 function rowToMetrics(row: SessionRow): SessionMetrics {
@@ -55,6 +92,12 @@ function rowToMetrics(row: SessionRow): SessionMetrics {
 		exitCode: row.exit_code,
 		mergeResult: row.merge_result as SessionMetrics["mergeResult"],
 		parentAgent: row.parent_agent,
+		inputTokens: row.input_tokens,
+		outputTokens: row.output_tokens,
+		cacheReadTokens: row.cache_read_tokens,
+		cacheCreationTokens: row.cache_creation_tokens,
+		estimatedCostUsd: row.estimated_cost_usd,
+		modelUsed: row.model_used,
 	};
 }
 
@@ -63,6 +106,7 @@ function rowToMetrics(row: SessionRow): SessionMetrics {
  *
  * Initializes the database with WAL mode and a 5-second busy timeout.
  * Creates the sessions table if it does not already exist.
+ * Migrates existing tables to add token columns if missing.
  */
 export function createMetricsStore(dbPath: string): MetricsStore {
 	const db = new Database(dbPath);
@@ -73,6 +117,9 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 
 	// Create schema
 	db.exec(CREATE_TABLE);
+
+	// Migrate: add token columns to existing tables that lack them
+	migrateTokenColumns(db);
 
 	// Prepare statements for all queries
 	const insertStmt = db.prepare<
@@ -87,12 +134,18 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 			$exit_code: number | null;
 			$merge_result: string | null;
 			$parent_agent: string | null;
+			$input_tokens: number;
+			$output_tokens: number;
+			$cache_read_tokens: number;
+			$cache_creation_tokens: number;
+			$estimated_cost_usd: number | null;
+			$model_used: string | null;
 		}
 	>(`
 		INSERT OR REPLACE INTO sessions
-			(agent_name, bead_id, capability, started_at, completed_at, duration_ms, exit_code, merge_result, parent_agent)
+			(agent_name, bead_id, capability, started_at, completed_at, duration_ms, exit_code, merge_result, parent_agent, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, estimated_cost_usd, model_used)
 		VALUES
-			($agent_name, $bead_id, $capability, $started_at, $completed_at, $duration_ms, $exit_code, $merge_result, $parent_agent)
+			($agent_name, $bead_id, $capability, $started_at, $completed_at, $duration_ms, $exit_code, $merge_result, $parent_agent, $input_tokens, $output_tokens, $cache_read_tokens, $cache_creation_tokens, $estimated_cost_usd, $model_used)
 	`);
 
 	const recentStmt = db.prepare<SessionRow, { $limit: number }>(`
@@ -127,6 +180,12 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 				$exit_code: metrics.exitCode,
 				$merge_result: metrics.mergeResult,
 				$parent_agent: metrics.parentAgent,
+				$input_tokens: metrics.inputTokens,
+				$output_tokens: metrics.outputTokens,
+				$cache_read_tokens: metrics.cacheReadTokens,
+				$cache_creation_tokens: metrics.cacheCreationTokens,
+				$estimated_cost_usd: metrics.estimatedCostUsd,
+				$model_used: metrics.modelUsed,
 			});
 		},
 

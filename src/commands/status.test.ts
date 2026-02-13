@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentSession } from "../types.ts";
-import { type StatusData, type VerboseAgentDetail, printStatus } from "./status.ts";
+import { type StatusData, type VerboseAgentDetail, printStatus, statusCommand } from "./status.ts";
 
 /**
  * Tests for the --verbose flag in overstory status.
@@ -217,5 +220,56 @@ describe("--verbose --json", () => {
 
 		const json = JSON.stringify(data);
 		expect(json).not.toContain("verboseDetails");
+	});
+});
+
+describe("--watch deprecation", () => {
+	test("help text marks --watch as deprecated", async () => {
+		const chunks: string[] = [];
+		const originalWrite = process.stdout.write;
+		process.stdout.write = ((chunk: string) => {
+			chunks.push(chunk);
+			return true;
+		}) as typeof process.stdout.write;
+
+		try {
+			await statusCommand(["--help"]);
+		} finally {
+			process.stdout.write = originalWrite;
+		}
+
+		const out = chunks.join("");
+		expect(out).toContain("deprecated");
+		expect(out).toContain("overstory dashboard");
+	});
+
+	test("--watch writes deprecation notice to stderr", async () => {
+		const stderrChunks: string[] = [];
+		const originalStderr = process.stderr.write;
+		process.stderr.write = ((chunk: string) => {
+			stderrChunks.push(chunk);
+			return true;
+		}) as typeof process.stderr.write;
+
+		// statusCommand with --watch will fail at loadConfig (no .overstory/)
+		// but the deprecation notice is written before that. We just verify
+		// the notice was emitted.
+		const tmpDir = await mkdtemp(join(tmpdir(), "status-deprecation-"));
+		const originalCwd = process.cwd();
+		process.chdir(tmpDir);
+
+		try {
+			await statusCommand(["--watch"]);
+		} catch {
+			// Expected: loadConfig fails without .overstory/
+		} finally {
+			process.stderr.write = originalStderr;
+			process.chdir(originalCwd);
+			await rm(tmpDir, { recursive: true, force: true });
+		}
+
+		const err = stderrChunks.join("");
+		expect(err).toContain("--watch is deprecated");
+		expect(err).toContain("overstory dashboard");
 	});
 });

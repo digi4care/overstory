@@ -41,6 +41,12 @@ function makeSession(overrides: Partial<SessionMetrics> = {}): SessionMetrics {
 		exitCode: 0,
 		mergeResult: "auto-resolve",
 		parentAgent: "coordinator",
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheReadTokens: 0,
+		cacheCreationTokens: 0,
+		estimatedCostUsd: null,
+		modelUsed: null,
 		...overrides,
 	};
 }
@@ -125,6 +131,71 @@ describe("generateSummary", () => {
 
 		expect(summary.totalSessions).toBe(3);
 		expect(summary.completedSessions).toBe(1);
+	});
+
+	test("aggregates token totals across all sessions", () => {
+		store.recordSession(
+			makeSession({
+				beadId: "task-1",
+				inputTokens: 10_000,
+				outputTokens: 2_000,
+				cacheReadTokens: 50_000,
+				cacheCreationTokens: 5_000,
+				estimatedCostUsd: 1.5,
+			}),
+		);
+		store.recordSession(
+			makeSession({
+				beadId: "task-2",
+				inputTokens: 20_000,
+				outputTokens: 3_000,
+				cacheReadTokens: 80_000,
+				cacheCreationTokens: 10_000,
+				estimatedCostUsd: 2.5,
+			}),
+		);
+
+		const summary = generateSummary(store);
+
+		expect(summary.tokenTotals.inputTokens).toBe(30_000);
+		expect(summary.tokenTotals.outputTokens).toBe(5_000);
+		expect(summary.tokenTotals.cacheReadTokens).toBe(130_000);
+		expect(summary.tokenTotals.cacheCreationTokens).toBe(15_000);
+		expect(summary.tokenTotals.estimatedCostUsd).toBeCloseTo(4.0, 2);
+	});
+
+	test("token totals are zero when no sessions have token data", () => {
+		store.recordSession(makeSession({ beadId: "task-1" }));
+
+		const summary = generateSummary(store);
+
+		expect(summary.tokenTotals.inputTokens).toBe(0);
+		expect(summary.tokenTotals.outputTokens).toBe(0);
+		expect(summary.tokenTotals.cacheReadTokens).toBe(0);
+		expect(summary.tokenTotals.cacheCreationTokens).toBe(0);
+		expect(summary.tokenTotals.estimatedCostUsd).toBe(0);
+	});
+
+	test("token totals skip null cost entries gracefully", () => {
+		store.recordSession(
+			makeSession({
+				beadId: "task-1",
+				inputTokens: 100,
+				estimatedCostUsd: 0.5,
+			}),
+		);
+		store.recordSession(
+			makeSession({
+				beadId: "task-2",
+				inputTokens: 200,
+				estimatedCostUsd: null, // no cost data
+			}),
+		);
+
+		const summary = generateSummary(store);
+
+		expect(summary.tokenTotals.inputTokens).toBe(300);
+		expect(summary.tokenTotals.estimatedCostUsd).toBeCloseTo(0.5, 2);
 	});
 
 	test("capability breakdown excludes incomplete sessions from avgDurationMs", () => {
@@ -245,6 +316,75 @@ describe("formatSummary", () => {
 		const formatted = formatSummary(summary);
 
 		expect(formatted).toContain("2m 5s");
+	});
+
+	test("shows token usage section when sessions have token data", () => {
+		store.recordSession(
+			makeSession({
+				beadId: "task-1",
+				inputTokens: 15_000,
+				outputTokens: 3_000,
+				cacheReadTokens: 100_000,
+				cacheCreationTokens: 10_000,
+				estimatedCostUsd: 2.47,
+			}),
+		);
+
+		const summary = generateSummary(store);
+		const formatted = formatSummary(summary);
+
+		expect(formatted).toContain("Token usage:");
+		expect(formatted).toContain("Input:");
+		expect(formatted).toContain("Output:");
+		expect(formatted).toContain("Cache read:");
+		expect(formatted).toContain("Cache creation:");
+		expect(formatted).toContain("Estimated cost:");
+		expect(formatted).toContain("$2.47");
+	});
+
+	test("hides token usage section when no token data exists", () => {
+		store.recordSession(makeSession({ beadId: "task-1" }));
+
+		const summary = generateSummary(store);
+		const formatted = formatSummary(summary);
+
+		expect(formatted).not.toContain("Token usage:");
+	});
+
+	test("shows per-session cost in recent sessions", () => {
+		store.recordSession(
+			makeSession({
+				beadId: "task-1",
+				agentName: "agent-costly",
+				inputTokens: 10_000,
+				outputTokens: 2_000,
+				estimatedCostUsd: 1.23,
+			}),
+		);
+
+		const summary = generateSummary(store);
+		const formatted = formatSummary(summary);
+
+		expect(formatted).toContain("agent-costly");
+		expect(formatted).toContain("$1.23");
+	});
+
+	test("formats large token counts with M suffix", () => {
+		store.recordSession(
+			makeSession({
+				beadId: "task-1",
+				inputTokens: 2_500_000,
+				outputTokens: 500_000,
+				cacheReadTokens: 0,
+				cacheCreationTokens: 0,
+				estimatedCostUsd: 10.0,
+			}),
+		);
+
+		const summary = generateSummary(store);
+		const formatted = formatSummary(summary);
+
+		expect(formatted).toContain("2.5M");
 	});
 
 	test("empty summary does not include 'By capability' or 'Recent sessions' sections", () => {
