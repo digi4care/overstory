@@ -85,6 +85,15 @@ const DANGEROUS_BASH_PATTERNS = [
 	"\\bnpm\\s+install\\b",
 	"\\bbun\\s+install\\b",
 	"\\bbun\\s+add\\b",
+	// Runtime eval flags — bypass shell pattern guards by executing JS/Python directly
+	"\\bbun\\s+-e\\b",
+	"\\bbun\\s+--eval\\b",
+	"\\bnode\\s+-e\\b",
+	"\\bnode\\s+--eval\\b",
+	"\\bdeno\\s+eval\\b",
+	"\\bpython3?\\s+-c\\b",
+	"\\bperl\\s+-e\\b",
+	"\\bruby\\s+-e\\b",
 ];
 
 /**
@@ -124,6 +133,17 @@ function getTemplatePath(): string {
 }
 
 /**
+ * Env var guard prefix for hook commands.
+ *
+ * When hooks are deployed to the project root (e.g. for the coordinator),
+ * they affect ALL Claude Code sessions in that directory. This prefix
+ * ensures hooks only activate for overstory-managed agent sessions
+ * (which have OVERSTORY_AGENT_NAME set in their environment) and are
+ * no-ops for the user's own Claude Code session.
+ */
+const ENV_GUARD = '[ -z "$OVERSTORY_AGENT_NAME" ] && exit 0;';
+
+/**
  * Build a PreToolUse guard that blocks a specific tool.
  *
  * Returns a JSON response with decision=block so Claude Code rejects
@@ -136,7 +156,7 @@ function blockGuard(toolName: string, reason: string): HookEntry {
 		hooks: [
 			{
 				type: "command",
-				command: `echo '${response}'`,
+				command: `${ENV_GUARD} echo '${response}'`,
 			},
 		],
 	};
@@ -154,6 +174,8 @@ function buildBashGuardScript(agentName: string): string {
 	// The script reads JSON from stdin, extracts the command field, then checks patterns.
 	// Uses parameter expansion to avoid requiring jq (zero runtime deps).
 	const script = [
+		// Only enforce for overstory agent sessions (skip for user's own Claude Code)
+		ENV_GUARD,
 		"read -r INPUT;",
 		// Extract command value from JSON — grab everything after "command": (with optional space)
 		'CMD=$(echo "$INPUT" | sed \'s/.*"command": *"\\([^"]*\\)".*/\\1/\');',
@@ -226,6 +248,8 @@ export function buildBashFileGuardScript(
 	const dangerPattern = DANGEROUS_BASH_PATTERNS.join("|");
 
 	const script = [
+		// Only enforce for overstory agent sessions (skip for user's own Claude Code)
+		ENV_GUARD,
 		"read -r INPUT;",
 		// Extract command value from JSON (with optional space after colon)
 		'CMD=$(echo "$INPUT" | sed \'s/.*"command": *"\\([^"]*\\)".*/\\1/\');',
