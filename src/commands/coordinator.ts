@@ -12,7 +12,7 @@
  * - Persists across work batches
  */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
@@ -20,6 +20,7 @@ import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession } from "../types.ts";
+import { isProcessRunning } from "../watchdog/health.ts";
 import { createSession, isSessionAlive, killSession, sendKeys } from "../worktree/tmux.ts";
 
 /** Default coordinator agent name. */
@@ -45,6 +46,121 @@ export interface CoordinatorDeps {
 		isSessionAlive: (name: string) => Promise<boolean>;
 		killSession: (name: string) => Promise<void>;
 		sendKeys: (name: string, keys: string) => Promise<void>;
+	};
+	_watchdog?: {
+		start: () => Promise<{ pid: number } | null>;
+		stop: () => Promise<boolean>;
+		isRunning: () => Promise<boolean>;
+	};
+}
+
+/**
+ * Read the PID from the watchdog PID file.
+ * Returns null if the file doesn't exist or can't be parsed.
+ */
+async function readWatchdogPid(projectRoot: string): Promise<number | null> {
+	const pidFilePath = join(projectRoot, ".overstory", "watchdog.pid");
+	const file = Bun.file(pidFilePath);
+	const exists = await file.exists();
+	if (!exists) {
+		return null;
+	}
+
+	try {
+		const text = await file.text();
+		const pid = Number.parseInt(text.trim(), 10);
+		if (Number.isNaN(pid) || pid <= 0) {
+			return null;
+		}
+		return pid;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Remove the watchdog PID file.
+ */
+async function removeWatchdogPid(projectRoot: string): Promise<void> {
+	const pidFilePath = join(projectRoot, ".overstory", "watchdog.pid");
+	try {
+		await unlink(pidFilePath);
+	} catch {
+		// File may already be gone — not an error
+	}
+}
+
+/**
+ * Default watchdog implementation for production use.
+ * Starts/stops the watchdog daemon via `overstory watch --background`.
+ */
+function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps["_watchdog"]> {
+	return {
+		async start(): Promise<{ pid: number } | null> {
+			// Check if watchdog is already running
+			const existingPid = await readWatchdogPid(projectRoot);
+			if (existingPid !== null && isProcessRunning(existingPid)) {
+				return null; // Already running
+			}
+
+			// Clean up stale PID file
+			if (existingPid !== null) {
+				await removeWatchdogPid(projectRoot);
+			}
+
+			// Start watchdog in background
+			const proc = Bun.spawn(["overstory", "watch", "--background"], {
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+
+			const exitCode = await proc.exited;
+			if (exitCode !== 0) {
+				return null; // Failed to start
+			}
+
+			// Read the PID file that was written by the background process
+			const pid = await readWatchdogPid(projectRoot);
+			if (pid === null) {
+				return null; // PID file wasn't created
+			}
+
+			return { pid };
+		},
+
+		async stop(): Promise<boolean> {
+			const pid = await readWatchdogPid(projectRoot);
+			if (pid === null) {
+				return false; // No PID file
+			}
+
+			// Check if process is running
+			if (!isProcessRunning(pid)) {
+				// Process is dead, clean up PID file
+				await removeWatchdogPid(projectRoot);
+				return false;
+			}
+
+			// Kill the process
+			try {
+				process.kill(pid, 15); // SIGTERM
+			} catch {
+				return false;
+			}
+
+			// Remove PID file
+			await removeWatchdogPid(projectRoot);
+			return true;
+		},
+
+		async isRunning(): Promise<boolean> {
+			const pid = await readWatchdogPid(projectRoot);
+			if (pid === null) {
+				return false;
+			}
+			return isProcessRunning(pid);
+		},
 	};
 }
 
@@ -90,9 +206,11 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 
 	const json = args.includes("--json");
 	const shouldAttach = resolveAttach(args, !!process.stdout.isTTY);
+	const watchdogFlag = args.includes("--watchdog");
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
 	const tmuxSession = coordinatorTmuxSession(config.project.name);
 
 	// Check for existing coordinator
@@ -192,12 +310,25 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		await Bun.sleep(500);
 		await tmux.sendKeys(tmuxSession, "");
 
+		// Auto-start watchdog if --watchdog flag is present
+		let watchdogPid: number | undefined;
+		if (watchdogFlag) {
+			const watchdogResult = await watchdog.start();
+			if (watchdogResult) {
+				watchdogPid = watchdogResult.pid;
+				if (!json) process.stdout.write(`  Watchdog: started (PID ${watchdogResult.pid})\n`);
+			} else {
+				if (!json) process.stderr.write("  Watchdog: failed to start or already running\n");
+			}
+		}
+
 		const output = {
 			agentName: COORDINATOR_NAME,
 			capability: "coordinator",
 			tmuxSession,
 			projectRoot,
 			pid,
+			watchdog: watchdogFlag ? watchdogPid !== undefined : false,
 		};
 
 		if (json) {
@@ -233,6 +364,7 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
 
 	const overstoryDir = join(projectRoot, ".overstory");
 	const { store } = openSessionStore(overstoryDir);
@@ -256,14 +388,24 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 			await tmux.killSession(session.tmuxSession);
 		}
 
+		// Always attempt to stop watchdog
+		const watchdogStopped = await watchdog.stop();
+
 		// Update session state
 		store.updateState(COORDINATOR_NAME, "completed");
 		store.updateLastActivity(COORDINATOR_NAME);
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ stopped: true, sessionId: session.id })}\n`);
+			process.stdout.write(
+				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped })}\n`,
+			);
 		} else {
 			process.stdout.write(`Coordinator stopped (session: ${session.id})\n`);
+			if (watchdogStopped) {
+				process.stdout.write("Watchdog stopped\n");
+			} else {
+				process.stdout.write("No watchdog running\n");
+			}
 		}
 	} finally {
 		store.close();
@@ -282,11 +424,13 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
 
 	const overstoryDir = join(projectRoot, ".overstory");
 	const { store } = openSessionStore(overstoryDir);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
+		const watchdogRunning = await watchdog.isRunning();
 
 		if (
 			!session ||
@@ -295,9 +439,12 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			session.state === "zombie"
 		) {
 			if (json) {
-				process.stdout.write(`${JSON.stringify({ running: false })}\n`);
+				process.stdout.write(`${JSON.stringify({ running: false, watchdogRunning })}\n`);
 			} else {
 				process.stdout.write("Coordinator is not running\n");
+				if (watchdogRunning) {
+					process.stdout.write("Watchdog: running\n");
+				}
 			}
 			return;
 		}
@@ -321,6 +468,7 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			pid: session.pid,
 			startedAt: session.startedAt,
 			lastActivity: session.lastActivity,
+			watchdogRunning,
 		};
 
 		if (json) {
@@ -333,6 +481,7 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			process.stdout.write(`  PID:       ${session.pid}\n`);
 			process.stdout.write(`  Started:   ${session.startedAt}\n`);
 			process.stdout.write(`  Activity:  ${session.lastActivity}\n`);
+			process.stdout.write(`  Watchdog:  ${watchdogRunning ? "running" : "not running"}\n`);
 		}
 	} finally {
 		store.close();
@@ -352,6 +501,7 @@ Start options:
   --attach                 Always attach to tmux session after start
   --no-attach              Never attach to tmux session after start
                            Default: attach when running in an interactive TTY
+  --watchdog               Auto-start watchdog daemon with coordinator
 
 General options:
   --json                   Output as JSON

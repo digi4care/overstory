@@ -40,6 +40,15 @@ interface TmuxCallTracker {
 	sendKeys: Array<{ name: string; keys: string }>;
 }
 
+// --- Fake Watchdog ---
+
+/** Track calls to fake watchdog for assertions. */
+interface WatchdogCallTracker {
+	start: number;
+	stop: number;
+	isRunning: number;
+}
+
 /** Build a fake tmux DI object with configurable session liveness. */
 function makeFakeTmux(sessionAliveMap: Record<string, boolean> = {}): {
 	tmux: NonNullable<CoordinatorDeps["_tmux"]>;
@@ -76,6 +85,44 @@ function makeFakeTmux(sessionAliveMap: Record<string, boolean> = {}): {
 	};
 
 	return { tmux, calls };
+}
+
+/**
+ * Build a fake watchdog DI object with configurable behavior.
+ * @param running - Whether the watchdog should report as running
+ * @param startSuccess - Whether start() should succeed (return a PID)
+ * @param stopSuccess - Whether stop() should succeed (return true)
+ */
+function makeFakeWatchdog(
+	running = false,
+	startSuccess = true,
+	stopSuccess = true,
+): {
+	watchdog: NonNullable<CoordinatorDeps["_watchdog"]>;
+	calls: WatchdogCallTracker;
+} {
+	const calls: WatchdogCallTracker = {
+		start: 0,
+		stop: 0,
+		isRunning: 0,
+	};
+
+	const watchdog: NonNullable<CoordinatorDeps["_watchdog"]> = {
+		async start(): Promise<{ pid: number } | null> {
+			calls.start++;
+			return startSuccess ? { pid: 88888 } : null;
+		},
+		async stop(): Promise<boolean> {
+			calls.stop++;
+			return stopSuccess;
+		},
+		async isRunning(): Promise<boolean> {
+			calls.isRunning++;
+			return running;
+		},
+	};
+
+	return { watchdog, calls };
 }
 
 // --- Test Setup ---
@@ -173,11 +220,27 @@ async function captureStdout(fn: () => Promise<void>): Promise<string> {
 }
 
 /** Build default CoordinatorDeps with fake tmux. */
-function makeDeps(sessionAliveMap: Record<string, boolean> = {}): {
+function makeDeps(
+	sessionAliveMap: Record<string, boolean> = {},
+	watchdogConfig?: { running?: boolean; startSuccess?: boolean; stopSuccess?: boolean },
+): {
 	deps: CoordinatorDeps;
 	calls: TmuxCallTracker;
+	watchdogCalls?: WatchdogCallTracker;
 } {
 	const { tmux, calls } = makeFakeTmux(sessionAliveMap);
+	if (watchdogConfig) {
+		const { watchdog, calls: watchdogCalls } = makeFakeWatchdog(
+			watchdogConfig.running,
+			watchdogConfig.startSuccess,
+			watchdogConfig.stopSuccess,
+		);
+		return {
+			deps: { _tmux: tmux, _watchdog: watchdog },
+			calls,
+			watchdogCalls,
+		};
+	}
 	return {
 		deps: { _tmux: tmux },
 		calls,
@@ -681,6 +744,229 @@ describe("resolveAttach", () => {
 		expect(resolveAttach(["--json", "--attach"], false)).toBe(true);
 		expect(resolveAttach(["--json", "--no-attach"], true)).toBe(false);
 		expect(resolveAttach(["--json"], true)).toBe(true);
+	});
+});
+
+describe("watchdog integration", () => {
+	describe("startCoordinator with --watchdog", () => {
+		test("calls watchdog.start() when --watchdog flag is present", async () => {
+			const { deps, watchdogCalls } = makeDeps({}, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			try {
+				await captureStdout(() => coordinatorCommand(["start", "--watchdog", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(watchdogCalls?.start).toBe(1);
+		});
+
+		test("does NOT call watchdog.start() when --watchdog flag is absent", async () => {
+			const { deps, watchdogCalls } = makeDeps({}, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			try {
+				await captureStdout(() => coordinatorCommand(["start", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(watchdogCalls?.start).toBe(0);
+		});
+
+		test("--json output includes watchdog field when --watchdog is present and succeeds", async () => {
+			const { deps } = makeDeps({}, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--watchdog", "--json"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdog).toBe(true);
+		});
+
+		test("--json output includes watchdog:false when --watchdog is present but start fails", async () => {
+			const { deps } = makeDeps({}, { startSuccess: false });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--watchdog", "--json"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdog).toBe(false);
+		});
+
+		test("--json output includes watchdog:false when --watchdog is absent", async () => {
+			const { deps } = makeDeps({}, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() => coordinatorCommand(["start", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdog).toBe(false);
+		});
+
+		test("text output includes watchdog PID when --watchdog succeeds", async () => {
+			const { deps } = makeDeps({}, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--watchdog", "--no-attach"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(output).toContain("Watchdog: started (PID 88888)");
+		});
+	});
+
+	describe("stopCoordinator watchdog cleanup", () => {
+		test("always calls watchdog.stop() when stopping coordinator", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps, watchdogCalls } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				{ stopSuccess: true },
+			);
+
+			await captureStdout(() => coordinatorCommand(["stop"], deps));
+
+			expect(watchdogCalls?.stop).toBe(1);
+		});
+
+		test("--json output includes watchdogStopped:true when watchdog was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				{ stopSuccess: true },
+			);
+
+			const output = await captureStdout(() => coordinatorCommand(["stop", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdogStopped).toBe(true);
+		});
+
+		test("--json output includes watchdogStopped:false when no watchdog was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				{ stopSuccess: false },
+			);
+
+			const output = await captureStdout(() => coordinatorCommand(["stop", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdogStopped).toBe(false);
+		});
+
+		test("text output shows 'Watchdog stopped' when watchdog was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				{ stopSuccess: true },
+			);
+
+			const output = await captureStdout(() => coordinatorCommand(["stop"], deps));
+			expect(output).toContain("Watchdog stopped");
+		});
+
+		test("text output shows 'No watchdog running' when no watchdog was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				{ stopSuccess: false },
+			);
+
+			const output = await captureStdout(() => coordinatorCommand(["stop"], deps));
+			expect(output).toContain("No watchdog running");
+		});
+	});
+
+	describe("statusCoordinator watchdog state", () => {
+		test("includes watchdogRunning in JSON output when coordinator is running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, { running: true });
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdogRunning).toBe(true);
+		});
+
+		test("includes watchdogRunning:false in JSON output when watchdog is not running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, { running: false });
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.watchdogRunning).toBe(false);
+		});
+
+		test("text output shows watchdog status when coordinator is running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, { running: true });
+
+			const output = await captureStdout(() => coordinatorCommand(["status"], deps));
+			expect(output).toContain("Watchdog:  running");
+		});
+
+		test("text output shows 'not running' when watchdog is not running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, { running: false });
+
+			const output = await captureStdout(() => coordinatorCommand(["status"], deps));
+			expect(output).toContain("Watchdog:  not running");
+		});
+
+		test("includes watchdogRunning in JSON output when coordinator is not running", async () => {
+			const { deps } = makeDeps({}, { running: true });
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.running).toBe(false);
+			expect(parsed.watchdogRunning).toBe(true);
+		});
+	});
+
+	describe("COORDINATOR_HELP", () => {
+		test("help text includes --watchdog flag", async () => {
+			const output = await captureStdout(() => coordinatorCommand(["--help"]));
+			expect(output).toContain("--watchdog");
+			expect(output).toContain("Auto-start watchdog daemon with coordinator");
+		});
 	});
 });
 
