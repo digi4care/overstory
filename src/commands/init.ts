@@ -312,6 +312,10 @@ function buildHooksJson(): string {
 							type: "command",
 							command: "overstory log session-end --agent orchestrator",
 						},
+						{
+							type: "command",
+							command: "mulch learn",
+						},
 					],
 				},
 			],

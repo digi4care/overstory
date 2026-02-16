@@ -298,6 +298,20 @@ describe("deployHooks", () => {
 		expect(stop.hooks[0].command).toContain('read -r INPUT; echo "$INPUT" |');
 	});
 
+	test("Stop hook includes mulch learn command", async () => {
+		const worktreePath = join(tempDir, "worktree");
+
+		await deployHooks(worktreePath, "learn-agent");
+
+		const outputPath = join(worktreePath, ".claude", "settings.local.json");
+		const content = await Bun.file(outputPath).text();
+		const parsed = JSON.parse(content);
+		const stop = parsed.hooks.Stop[0];
+		expect(stop.hooks.length).toBe(2);
+		expect(stop.hooks[1].command).toContain("mulch learn");
+		expect(stop.hooks[1].command).toContain("OVERSTORY_AGENT_NAME");
+	});
+
 	test("hook commands no longer use sed-based extraction", async () => {
 		const worktreePath = join(tempDir, "worktree");
 

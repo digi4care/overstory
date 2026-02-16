@@ -90,4 +90,17 @@ describe("initCommand: agent-defs deployment", () => {
 		const restored = await Bun.file(tamperPath).text();
 		expect(restored).toBe(sourceContent);
 	});
+
+	test("Stop hook includes mulch learn command", async () => {
+		await initCommand([]);
+
+		const hooksPath = join(tempDir, ".overstory", "hooks.json");
+		const content = await Bun.file(hooksPath).text();
+		const parsed = JSON.parse(content);
+		const stopHooks = parsed.hooks.Stop[0].hooks;
+
+		expect(stopHooks.length).toBe(2);
+		expect(stopHooks[0].command).toContain("overstory log session-end");
+		expect(stopHooks[1].command).toBe("mulch learn");
+	});
 });
