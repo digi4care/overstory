@@ -49,6 +49,15 @@ interface WatchdogCallTracker {
 	isRunning: number;
 }
 
+// --- Fake Monitor ---
+
+/** Track calls to fake monitor for assertions. */
+interface MonitorCallTracker {
+	start: number;
+	stop: number;
+	isRunning: number;
+}
+
 /** Build a fake tmux DI object with configurable session liveness. */
 function makeFakeTmux(sessionAliveMap: Record<string, boolean> = {}): {
 	tmux: NonNullable<CoordinatorDeps["_tmux"]>;
@@ -123,6 +132,44 @@ function makeFakeWatchdog(
 	};
 
 	return { watchdog, calls };
+}
+
+/**
+ * Build a fake monitor DI object with configurable behavior.
+ * @param running - Whether the monitor should report as running
+ * @param startSuccess - Whether start() should succeed (return a PID)
+ * @param stopSuccess - Whether stop() should succeed (return true)
+ */
+function makeFakeMonitor(
+	running = false,
+	startSuccess = true,
+	stopSuccess = true,
+): {
+	monitor: NonNullable<CoordinatorDeps["_monitor"]>;
+	calls: MonitorCallTracker;
+} {
+	const calls: MonitorCallTracker = {
+		start: 0,
+		stop: 0,
+		isRunning: 0,
+	};
+
+	const monitor: NonNullable<CoordinatorDeps["_monitor"]> = {
+		async start(): Promise<{ pid: number } | null> {
+			calls.start++;
+			return startSuccess ? { pid: 77777 } : null;
+		},
+		async stop(): Promise<boolean> {
+			calls.stop++;
+			return stopSuccess;
+		},
+		async isRunning(): Promise<boolean> {
+			calls.isRunning++;
+			return running;
+		},
+	};
+
+	return { monitor, calls };
 }
 
 // --- Test Setup ---
@@ -223,27 +270,43 @@ async function captureStdout(fn: () => Promise<void>): Promise<string> {
 function makeDeps(
 	sessionAliveMap: Record<string, boolean> = {},
 	watchdogConfig?: { running?: boolean; startSuccess?: boolean; stopSuccess?: boolean },
+	monitorConfig?: { running?: boolean; startSuccess?: boolean; stopSuccess?: boolean },
 ): {
 	deps: CoordinatorDeps;
 	calls: TmuxCallTracker;
 	watchdogCalls?: WatchdogCallTracker;
+	monitorCalls?: MonitorCallTracker;
 } {
 	const { tmux, calls } = makeFakeTmux(sessionAliveMap);
+	const deps: CoordinatorDeps = { _tmux: tmux };
+	let watchdogCalls: WatchdogCallTracker | undefined;
+	let monitorCalls: MonitorCallTracker | undefined;
+
 	if (watchdogConfig) {
-		const { watchdog, calls: watchdogCalls } = makeFakeWatchdog(
+		const { watchdog, calls: wdCalls } = makeFakeWatchdog(
 			watchdogConfig.running,
 			watchdogConfig.startSuccess,
 			watchdogConfig.stopSuccess,
 		);
-		return {
-			deps: { _tmux: tmux, _watchdog: watchdog },
-			calls,
-			watchdogCalls,
-		};
+		deps._watchdog = watchdog;
+		watchdogCalls = wdCalls;
 	}
+
+	if (monitorConfig) {
+		const { monitor, calls: monCalls } = makeFakeMonitor(
+			monitorConfig.running,
+			monitorConfig.startSuccess,
+			monitorConfig.stopSuccess,
+		);
+		deps._monitor = monitor;
+		monitorCalls = monCalls;
+	}
+
 	return {
-		deps: { _tmux: tmux },
+		deps,
 		calls,
+		watchdogCalls,
+		monitorCalls,
 	};
 }
 
@@ -966,6 +1029,234 @@ describe("watchdog integration", () => {
 			const output = await captureStdout(() => coordinatorCommand(["--help"]));
 			expect(output).toContain("--watchdog");
 			expect(output).toContain("Auto-start watchdog daemon with coordinator");
+		});
+	});
+});
+
+describe("monitor integration", () => {
+	describe("startCoordinator with --monitor", () => {
+		test("calls monitor.start() when --monitor flag is present", async () => {
+			const { deps, monitorCalls } = makeDeps({}, undefined, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			try {
+				await captureStdout(() => coordinatorCommand(["start", "--monitor", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(monitorCalls?.start).toBe(1);
+		});
+
+		test("does NOT call monitor.start() when --monitor flag is absent", async () => {
+			const { deps, monitorCalls } = makeDeps({}, undefined, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			try {
+				await captureStdout(() => coordinatorCommand(["start", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(monitorCalls?.start).toBe(0);
+		});
+
+		test("--json output includes monitor field when --monitor is present and succeeds", async () => {
+			const { deps } = makeDeps({}, undefined, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--monitor", "--json"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitor).toBe(true);
+		});
+
+		test("--json output includes monitor:false when --monitor is present but start fails", async () => {
+			const { deps } = makeDeps({}, undefined, { startSuccess: false });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--monitor", "--json"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitor).toBe(false);
+		});
+
+		test("--json output includes monitor:false when --monitor is absent", async () => {
+			const { deps } = makeDeps({}, undefined, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() => coordinatorCommand(["start", "--json"], deps));
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitor).toBe(false);
+		});
+
+		test("text output includes monitor PID when --monitor succeeds", async () => {
+			const { deps } = makeDeps({}, undefined, { startSuccess: true });
+			const originalSleep = Bun.sleep;
+			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
+
+			let output: string;
+			try {
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--monitor", "--no-attach"], deps),
+				);
+			} finally {
+				Bun.sleep = originalSleep;
+			}
+
+			expect(output).toContain("Monitor:  started (PID 77777)");
+		});
+	});
+
+	describe("stopCoordinator monitor cleanup", () => {
+		test("always calls monitor.stop() when stopping coordinator", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps, monitorCalls } = makeDeps(
+				{ "overstory-test-project-coordinator": true },
+				undefined,
+				{ stopSuccess: true },
+			);
+
+			await captureStdout(() => coordinatorCommand(["stop"], deps));
+
+			expect(monitorCalls?.stop).toBe(1);
+		});
+
+		test("--json output includes monitorStopped:true when monitor was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				stopSuccess: true,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["stop", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitorStopped).toBe(true);
+		});
+
+		test("--json output includes monitorStopped:false when no monitor was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				stopSuccess: false,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["stop", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitorStopped).toBe(false);
+		});
+
+		test("text output shows 'Monitor stopped' when monitor was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				stopSuccess: true,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["stop"], deps));
+			expect(output).toContain("Monitor stopped");
+		});
+
+		test("text output shows 'No monitor running' when no monitor was running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				stopSuccess: false,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["stop"], deps));
+			expect(output).toContain("No monitor running");
+		});
+	});
+
+	describe("statusCoordinator monitor state", () => {
+		test("includes monitorRunning in JSON output when coordinator is running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				running: true,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitorRunning).toBe(true);
+		});
+
+		test("includes monitorRunning:false in JSON output when monitor is not running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				running: false,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.monitorRunning).toBe(false);
+		});
+
+		test("text output shows monitor status when coordinator is running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				running: true,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["status"], deps));
+			expect(output).toContain("Monitor:   running");
+		});
+
+		test("text output shows 'not running' when monitor is not running", async () => {
+			const session = makeCoordinatorSession({ state: "working" });
+			saveSessionsToDb([session]);
+			const { deps } = makeDeps({ "overstory-test-project-coordinator": true }, undefined, {
+				running: false,
+			});
+
+			const output = await captureStdout(() => coordinatorCommand(["status"], deps));
+			expect(output).toContain("Monitor:   not running");
+		});
+
+		test("includes monitorRunning in JSON output when coordinator is not running", async () => {
+			const { deps } = makeDeps({}, undefined, { running: true });
+
+			const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
+			const parsed = JSON.parse(output) as Record<string, unknown>;
+			expect(parsed.running).toBe(false);
+			expect(parsed.monitorRunning).toBe(true);
+		});
+	});
+
+	describe("COORDINATOR_HELP", () => {
+		test("help text includes --monitor flag", async () => {
+			const output = await captureStdout(() => coordinatorCommand(["--help"]));
+			expect(output).toContain("--monitor");
+			expect(output).toContain("Auto-start monitor agent (Tier 2) with coordinator");
 		});
 	});
 });

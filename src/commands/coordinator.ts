@@ -52,6 +52,11 @@ export interface CoordinatorDeps {
 		stop: () => Promise<boolean>;
 		isRunning: () => Promise<boolean>;
 	};
+	_monitor?: {
+		start: (args: string[]) => Promise<{ pid: number } | null>;
+		stop: () => Promise<boolean>;
+		isRunning: () => Promise<boolean>;
+	};
 }
 
 /**
@@ -165,6 +170,56 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 }
 
 /**
+ * Default monitor implementation for production use.
+ * Starts/stops the monitor agent via `overstory monitor start/stop`.
+ */
+function createDefaultMonitor(projectRoot: string): NonNullable<CoordinatorDeps["_monitor"]> {
+	return {
+		async start(): Promise<{ pid: number } | null> {
+			const proc = Bun.spawn(["overstory", "monitor", "start", "--no-attach", "--json"], {
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			const exitCode = await proc.exited;
+			if (exitCode !== 0) return null;
+			try {
+				const stdout = await new Response(proc.stdout).text();
+				const result = JSON.parse(stdout.trim()) as { pid?: number };
+				return result.pid ? { pid: result.pid } : null;
+			} catch {
+				return null;
+			}
+		},
+		async stop(): Promise<boolean> {
+			const proc = Bun.spawn(["overstory", "monitor", "stop", "--json"], {
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			const exitCode = await proc.exited;
+			return exitCode === 0;
+		},
+		async isRunning(): Promise<boolean> {
+			const proc = Bun.spawn(["overstory", "monitor", "status", "--json"], {
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			const exitCode = await proc.exited;
+			if (exitCode !== 0) return false;
+			try {
+				const stdout = await new Response(proc.stdout).text();
+				const result = JSON.parse(stdout.trim()) as { running?: boolean };
+				return result.running === true;
+			} catch {
+				return false;
+			}
+		},
+	};
+}
+
+/**
  * Build the coordinator startup beacon — the first message sent to the coordinator
  * via tmux send-keys after Claude Code initializes.
  */
@@ -207,10 +262,12 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 	const json = args.includes("--json");
 	const shouldAttach = resolveAttach(args, !!process.stdout.isTTY);
 	const watchdogFlag = args.includes("--watchdog");
+	const monitorFlag = args.includes("--monitor");
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
 	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 	const tmuxSession = coordinatorTmuxSession(config.project.name);
 
 	// Check for existing coordinator
@@ -322,6 +379,18 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 			}
 		}
 
+		// Auto-start monitor if --monitor flag is present
+		let monitorPid: number | undefined;
+		if (monitorFlag) {
+			const monitorResult = await monitor.start([]);
+			if (monitorResult) {
+				monitorPid = monitorResult.pid;
+				if (!json) process.stdout.write(`  Monitor:  started (PID ${monitorResult.pid})\n`);
+			} else {
+				if (!json) process.stderr.write("  Monitor:  failed to start or already running\n");
+			}
+		}
+
 		const output = {
 			agentName: COORDINATOR_NAME,
 			capability: "coordinator",
@@ -329,6 +398,7 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 			projectRoot,
 			pid,
 			watchdog: watchdogFlag ? watchdogPid !== undefined : false,
+			monitor: monitorFlag ? monitorPid !== undefined : false,
 		};
 
 		if (json) {
@@ -365,6 +435,7 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
 	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
 	const overstoryDir = join(projectRoot, ".overstory");
 	const { store } = openSessionStore(overstoryDir);
@@ -391,13 +462,16 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 		// Always attempt to stop watchdog
 		const watchdogStopped = await watchdog.stop();
 
+		// Always attempt to stop monitor
+		const monitorStopped = await monitor.stop();
+
 		// Update session state
 		store.updateState(COORDINATOR_NAME, "completed");
 		store.updateLastActivity(COORDINATOR_NAME);
 
 		if (json) {
 			process.stdout.write(
-				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped })}\n`,
+				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped, monitorStopped })}\n`,
 			);
 		} else {
 			process.stdout.write(`Coordinator stopped (session: ${session.id})\n`);
@@ -405,6 +479,11 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 				process.stdout.write("Watchdog stopped\n");
 			} else {
 				process.stdout.write("No watchdog running\n");
+			}
+			if (monitorStopped) {
+				process.stdout.write("Monitor stopped\n");
+			} else {
+				process.stdout.write("No monitor running\n");
 			}
 		}
 	} finally {
@@ -425,12 +504,14 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
 	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
 	const overstoryDir = join(projectRoot, ".overstory");
 	const { store } = openSessionStore(overstoryDir);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
 		const watchdogRunning = await watchdog.isRunning();
+		const monitorRunning = await monitor.isRunning();
 
 		if (
 			!session ||
@@ -439,11 +520,16 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			session.state === "zombie"
 		) {
 			if (json) {
-				process.stdout.write(`${JSON.stringify({ running: false, watchdogRunning })}\n`);
+				process.stdout.write(
+					`${JSON.stringify({ running: false, watchdogRunning, monitorRunning })}\n`,
+				);
 			} else {
 				process.stdout.write("Coordinator is not running\n");
 				if (watchdogRunning) {
 					process.stdout.write("Watchdog: running\n");
+				}
+				if (monitorRunning) {
+					process.stdout.write("Monitor: running\n");
 				}
 			}
 			return;
@@ -469,6 +555,7 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			startedAt: session.startedAt,
 			lastActivity: session.lastActivity,
 			watchdogRunning,
+			monitorRunning,
 		};
 
 		if (json) {
@@ -482,6 +569,7 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			process.stdout.write(`  Started:   ${session.startedAt}\n`);
 			process.stdout.write(`  Activity:  ${session.lastActivity}\n`);
 			process.stdout.write(`  Watchdog:  ${watchdogRunning ? "running" : "not running"}\n`);
+			process.stdout.write(`  Monitor:   ${monitorRunning ? "running" : "not running"}\n`);
 		}
 	} finally {
 		store.close();
@@ -502,6 +590,7 @@ Start options:
   --no-attach              Never attach to tmux session after start
                            Default: attach when running in an interactive TTY
   --watchdog               Auto-start watchdog daemon with coordinator
+  --monitor                Auto-start monitor agent (Tier 2) with coordinator
 
 General options:
   --json                   Output as JSON
