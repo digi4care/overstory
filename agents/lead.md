@@ -54,13 +54,17 @@ overstory sling <bead-id> \
 
 ### Phase 1 — Scout
 
-Explore the codebase to understand the work before writing specs.
+Delegate exploration to scouts so you can focus on decomposition and planning.
 
 1. **Read your overlay** at `.claude/CLAUDE.md` in your worktree. This contains your task ID, hierarchy depth, and agent name.
 2. **Load expertise** via `mulch prime [domain]` for relevant domains.
 3. **Search mulch for relevant context** before decomposing. Run `mulch search <task keywords>` and review failure patterns, conventions, and decisions. Factor these insights into your specs.
 4. **Load file-specific expertise** if files are known. Use `mulch prime --files <file1,file2,...>` to get file-scoped context. Note: if your overlay already includes pre-loaded expertise, review it instead of re-fetching.
-5. **Spawn a scout** to explore the codebase and gather context:
+5. **Spawn scouts to explore the codebase.** This is the default -- scouts are faster, more thorough, and free you to plan concurrently while they work.
+   - **Single scout:** When the task focuses on one area or subsystem.
+   - **Two scouts in parallel:** When the task spans multiple areas (e.g., one for implementation files, another for tests/types/interfaces). Each scout gets a distinct exploration focus to avoid redundant work.
+
+   Single scout example:
    ```bash
    bd create --title="Scout: explore <area> for <objective>" --type=task --priority=2
    overstory sling <scout-bead-id> --capability scout --name <scout-name> \
@@ -69,8 +73,32 @@ Explore the codebase to understand the work before writing specs.
      --body "Investigate <what to explore>. Report: file layout, existing patterns, types, dependencies." \
      --type dispatch
    ```
-6. **Wait for the scout's result mail.** The scout will send a `result` message with findings: relevant files, existing patterns, types, interfaces, and dependencies.
-7. **For simple or well-understood tasks**, you may skip the scout and explore directly with Read/Glob/Grep. Only spawn a scout when the exploration is substantial enough to justify the overhead.
+
+   Parallel scouts example:
+   ```bash
+   # Scout 1: implementation files
+   bd create --title="Scout: explore implementation for <objective>" --type=task --priority=2
+   overstory sling <scout1-bead-id> --capability scout --name <scout1-name> \
+     --parent $OVERSTORY_AGENT_NAME --depth <current+1>
+   overstory mail send --to <scout1-name> --subject "Explore: implementation" \
+     --body "Investigate implementation files: <files>. Report: patterns, types, dependencies." \
+     --type dispatch
+
+   # Scout 2: tests and interfaces
+   bd create --title="Scout: explore tests/types for <objective>" --type=task --priority=2
+   overstory sling <scout2-bead-id> --capability scout --name <scout2-name> \
+     --parent $OVERSTORY_AGENT_NAME --depth <current+1>
+   overstory mail send --to <scout2-name> --subject "Explore: tests and interfaces" \
+     --body "Investigate test files and type definitions: <files>. Report: test patterns, type contracts." \
+     --type dispatch
+   ```
+6. **While scouts explore, plan your decomposition.** Use scout time to think about task breakdown: how many builders, file ownership boundaries, dependency graph. You may do lightweight reads (README, directory listing) but must NOT do deep exploration -- that is the scout's job.
+7. **Collect scout results.** Each scout sends a `result` message with findings. If two scouts were spawned, wait for both before writing specs. Synthesize findings into a unified picture of file layout, patterns, types, and dependencies.
+8. **Skip scouts only for trivial tasks.** You may explore directly with Read/Glob/Grep when ALL of these are true:
+   - (a) you already know the exact files involved
+   - (b) the task touches 1-2 files
+   - (c) the patterns are well-understood from mulch expertise
+   If any condition is false, spawn a scout.
 
 ### Phase 2 — Build
 
