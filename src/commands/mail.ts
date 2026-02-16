@@ -10,8 +10,10 @@ import { join } from "node:path";
 import { resolveProjectRoot } from "../config.ts";
 import { MailError, ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { isGroupAddress, resolveGroupAddress } from "../mail/broadcast.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
+import { openSessionStore } from "../sessions/compat.ts";
 import type { MailMessage, MailMessageType } from "../types.ts";
 import { MAIL_MESSAGE_TYPES } from "../types.ts";
 
@@ -305,6 +307,104 @@ async function handleSend(args: string[], cwd: string): Promise<void> {
 		throw new ValidationError("--body is required for mail send", { field: "body" });
 	}
 
+	// Handle broadcast messages (group addresses)
+	if (isGroupAddress(to)) {
+		const overstoryDir = join(cwd, ".overstory");
+		const { store: sessionStore } = openSessionStore(overstoryDir);
+
+		try {
+			const activeSessions = sessionStore.getActive();
+			const recipients = resolveGroupAddress(to, activeSessions, from);
+
+			const client = openClient(cwd);
+			const messageIds: string[] = [];
+
+			try {
+				// Fan out: send individual message to each recipient
+				for (const recipient of recipients) {
+					const id = client.send({ from, to: recipient, subject, body, type, priority, payload });
+					messageIds.push(id);
+
+					// Record mail_sent event for each individual message (fire-and-forget)
+					try {
+						const eventsDbPath = join(cwd, ".overstory", "events.db");
+						const eventStore = createEventStore(eventsDbPath);
+						try {
+							let runId: string | null = null;
+							const runIdPath = join(cwd, ".overstory", "current-run.txt");
+							const runIdFile = Bun.file(runIdPath);
+							if (await runIdFile.exists()) {
+								const text = await runIdFile.text();
+								const trimmed = text.trim();
+								if (trimmed.length > 0) {
+									runId = trimmed;
+								}
+							}
+							eventStore.insert({
+								runId,
+								agentName: from,
+								sessionId: null,
+								eventType: "mail_sent",
+								toolName: null,
+								toolArgs: null,
+								toolDurationMs: null,
+								level: "info",
+								data: JSON.stringify({
+									to: recipient,
+									subject,
+									type,
+									priority,
+									messageId: id,
+									broadcast: true,
+								}),
+							});
+						} finally {
+							eventStore.close();
+						}
+					} catch {
+						// Event recording failure is non-fatal
+					}
+
+					// Auto-nudge for each individual message
+					const shouldNudge =
+						priority === "urgent" || priority === "high" || AUTO_NUDGE_TYPES.has(type);
+					if (shouldNudge) {
+						const nudgeReason = AUTO_NUDGE_TYPES.has(type) ? type : `${priority} priority`;
+						await writePendingNudge(cwd, recipient, {
+							from,
+							reason: nudgeReason,
+							subject,
+							messageId: id,
+						});
+					}
+				}
+			} finally {
+				client.close();
+			}
+
+			// Output broadcast summary
+			if (hasFlag(args, "--json")) {
+				process.stdout.write(
+					`${JSON.stringify({ messageIds, recipientCount: recipients.length })}\n`,
+				);
+			} else {
+				process.stdout.write(
+					`📢 Broadcast sent to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"} (${to})\n`,
+				);
+				for (let i = 0; i < recipients.length; i++) {
+					const recipient = recipients[i];
+					const msgId = messageIds[i];
+					process.stdout.write(`   → ${recipient} (${msgId})\n`);
+				}
+			}
+
+			return; // Early return — broadcast handled
+		} finally {
+			sessionStore.close();
+		}
+	}
+
+	// Single-recipient message (existing logic)
 	const client = openClient(cwd);
 	try {
 		const id = client.send({ from, to, subject, body, type, priority, payload });

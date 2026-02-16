@@ -735,4 +735,391 @@ describe("mailCommand", () => {
 			expect(await Bun.file(statePath).exists()).toBe(true);
 		});
 	});
+
+	describe("broadcast", () => {
+		// Helper to create active agent sessions for broadcast testing
+		async function seedActiveSessions(): Promise<void> {
+			const { createSessionStore } = await import("../sessions/store.ts");
+			const sessionsDbPath = join(tempDir, ".overstory", "sessions.db");
+			const sessionStore = createSessionStore(sessionsDbPath);
+
+			const sessions = [
+				{
+					id: "session-orchestrator",
+					agentName: "orchestrator",
+					capability: "coordinator",
+					worktreePath: "/worktrees/orchestrator",
+					branchName: "main",
+					beadId: "bead-001",
+					tmuxSession: "overstory-test-orchestrator",
+					state: "working" as const,
+					pid: 12345,
+					parentAgent: null,
+					depth: 0,
+					runId: "run-001",
+					startedAt: new Date().toISOString(),
+					lastActivity: new Date().toISOString(),
+					escalationLevel: 0,
+					stalledSince: null,
+				},
+				{
+					id: "session-builder-1",
+					agentName: "builder-1",
+					capability: "builder",
+					worktreePath: "/worktrees/builder-1",
+					branchName: "builder-1",
+					beadId: "bead-002",
+					tmuxSession: "overstory-test-builder-1",
+					state: "working" as const,
+					pid: 12346,
+					parentAgent: "orchestrator",
+					depth: 1,
+					runId: "run-001",
+					startedAt: new Date().toISOString(),
+					lastActivity: new Date().toISOString(),
+					escalationLevel: 0,
+					stalledSince: null,
+				},
+				{
+					id: "session-builder-2",
+					agentName: "builder-2",
+					capability: "builder",
+					worktreePath: "/worktrees/builder-2",
+					branchName: "builder-2",
+					beadId: "bead-003",
+					tmuxSession: "overstory-test-builder-2",
+					state: "working" as const,
+					pid: 12347,
+					parentAgent: "orchestrator",
+					depth: 1,
+					runId: "run-001",
+					startedAt: new Date().toISOString(),
+					lastActivity: new Date().toISOString(),
+					escalationLevel: 0,
+					stalledSince: null,
+				},
+				{
+					id: "session-scout-1",
+					agentName: "scout-1",
+					capability: "scout",
+					worktreePath: "/worktrees/scout-1",
+					branchName: "scout-1",
+					beadId: "bead-004",
+					tmuxSession: "overstory-test-scout-1",
+					state: "working" as const,
+					pid: 12348,
+					parentAgent: "orchestrator",
+					depth: 1,
+					runId: "run-001",
+					startedAt: new Date().toISOString(),
+					lastActivity: new Date().toISOString(),
+					escalationLevel: 0,
+					stalledSince: null,
+				},
+			];
+
+			for (const session of sessions) {
+				sessionStore.upsert(session);
+			}
+
+			sessionStore.close();
+		}
+
+		test("@all broadcasts to all active agents except sender", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@all",
+				"--subject",
+				"Team update",
+				"--body",
+				"Important announcement",
+			]);
+
+			expect(output).toContain("Broadcast sent to 3 recipients (@all)");
+			expect(output).toContain("→ builder-1");
+			expect(output).toContain("→ builder-2");
+			expect(output).toContain("→ scout-1");
+			expect(output).not.toContain("orchestrator"); // sender excluded
+
+			// Verify messages were actually stored
+			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
+			const client = createMailClient(store);
+			const messages = client.list();
+			const broadcastMsgs = messages.filter((m) => m.subject === "Team update");
+			expect(broadcastMsgs.length).toBe(3);
+			expect(broadcastMsgs.map((m) => m.to).sort()).toEqual([
+				"builder-1",
+				"builder-2",
+				"scout-1",
+			]);
+			client.close();
+		});
+
+		test("@builders broadcasts to all builder agents", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--subject",
+				"Builder update",
+				"--body",
+				"Build instructions",
+			]);
+
+			expect(output).toContain("Broadcast sent to 2 recipients (@builders)");
+			expect(output).toContain("→ builder-1");
+			expect(output).toContain("→ builder-2");
+			expect(output).not.toContain("scout-1");
+
+			// Verify messages
+			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
+			const client = createMailClient(store);
+			const messages = client.list();
+			const broadcastMsgs = messages.filter((m) => m.subject === "Builder update");
+			expect(broadcastMsgs.length).toBe(2);
+			client.close();
+		});
+
+		test("@scouts broadcasts to all scout agents", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@scouts",
+				"--subject",
+				"Scout task",
+				"--body",
+				"Explore this area",
+			]);
+
+			expect(output).toContain("Broadcast sent to 1 recipient (@scouts)");
+			expect(output).toContain("→ scout-1");
+
+			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
+			const client = createMailClient(store);
+			const messages = client.list();
+			const broadcastMsgs = messages.filter((m) => m.subject === "Scout task");
+			expect(broadcastMsgs.length).toBe(1);
+			expect(broadcastMsgs[0]?.to).toBe("scout-1");
+			client.close();
+		});
+
+		test("singular alias @builder works same as @builders", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builder",
+				"--subject",
+				"Builder task",
+				"--body",
+				"Singular alias test",
+			]);
+
+			expect(output).toContain("Broadcast sent to 2 recipients (@builder)");
+			expect(output).toContain("→ builder-1");
+			expect(output).toContain("→ builder-2");
+		});
+
+		test("sender is excluded from broadcast recipients", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--from",
+				"builder-1",
+				"--subject",
+				"Peer message",
+				"--body",
+				"Message from builder-1",
+			]);
+
+			expect(output).toContain("Broadcast sent to 1 recipient (@builders)");
+			expect(output).toContain("→ builder-2");
+			expect(output).not.toContain("builder-1");
+
+			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
+			const client = createMailClient(store);
+			const messages = client.list();
+			const broadcastMsgs = messages.filter((m) => m.subject === "Peer message");
+			expect(broadcastMsgs.length).toBe(1);
+			expect(broadcastMsgs[0]?.to).toBe("builder-2");
+			client.close();
+		});
+
+		test("throws when group resolves to zero recipients", async () => {
+			await seedActiveSessions();
+
+			// @all from all agents (impossible — at least one agent needed)
+			// Instead, test a capability group with no members
+			let error: Error | null = null;
+			try {
+				await mailCommand([
+					"send",
+					"--to",
+					"@reviewers",
+					"--subject",
+					"Test",
+					"--body",
+					"Body",
+				]);
+			} catch (e) {
+				error = e as Error;
+			}
+
+			expect(error).toBeTruthy();
+			expect(error?.message).toContain("resolved to zero recipients");
+		});
+
+		test("throws when group is unknown", async () => {
+			await seedActiveSessions();
+
+			let error: Error | null = null;
+			try {
+				await mailCommand([
+					"send",
+					"--to",
+					"@unknown",
+					"--subject",
+					"Test",
+					"--body",
+					"Body",
+				]);
+			} catch (e) {
+				error = e as Error;
+			}
+
+			expect(error).toBeTruthy();
+			expect(error?.message).toContain("Unknown group address");
+		});
+
+		test("broadcast with --json outputs message IDs and recipient count", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--subject",
+				"Test",
+				"--body",
+				"Body",
+				"--json",
+			]);
+
+			const result = JSON.parse(output) as { messageIds: string[]; recipientCount: number };
+			expect(result.messageIds).toBeInstanceOf(Array);
+			expect(result.messageIds.length).toBe(2);
+			expect(result.recipientCount).toBe(2);
+		});
+
+		test("broadcast records event for each individual message", async () => {
+			await seedActiveSessions();
+
+			const eventsDbPath = join(tempDir, ".overstory", "events.db");
+			const eventStore = createEventStore(eventsDbPath);
+			eventStore.close(); // Just to initialize the DB
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--subject",
+				"Test",
+				"--body",
+				"Body",
+			]);
+
+			// Check events by agent (orchestrator is the sender)
+			const eventStore2 = createEventStore(eventsDbPath);
+			const events = eventStore2.getByAgent("orchestrator");
+			eventStore2.close();
+
+			const mailSentEvents = events.filter((e) => e.eventType === "mail_sent");
+			expect(mailSentEvents.length).toBe(2);
+			for (const evt of mailSentEvents) {
+				expect(evt.eventType).toBe("mail_sent");
+				const data = JSON.parse(evt.data ?? "{}") as {
+					to: string;
+					broadcast: boolean;
+				};
+				expect(data.broadcast).toBe(true);
+				expect(["builder-1", "builder-2"]).toContain(data.to);
+			}
+		});
+
+		test("broadcast with urgent priority writes pending nudge for each recipient", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--subject",
+				"Urgent task",
+				"--body",
+				"Do this now",
+				"--priority",
+				"urgent",
+			]);
+
+			// Check pending nudge markers
+			const nudgesDir = join(tempDir, ".overstory", "pending-nudges");
+			const nudgeFiles = await readdir(nudgesDir);
+			expect(nudgeFiles).toContain("builder-1.json");
+			expect(nudgeFiles).toContain("builder-2.json");
+
+			// Verify nudge content
+			const nudge1 = JSON.parse(
+				await Bun.file(join(nudgesDir, "builder-1.json")).text(),
+			) as { reason: string; subject: string };
+			expect(nudge1.reason).toBe("urgent priority");
+			expect(nudge1.subject).toBe("Urgent task");
+		});
+
+		test("broadcast with auto-nudge type writes pending nudge for each recipient", async () => {
+			await seedActiveSessions();
+
+			output = "";
+			await mailCommand([
+				"send",
+				"--to",
+				"@builders",
+				"--subject",
+				"Error occurred",
+				"--body",
+				"Something went wrong",
+				"--type",
+				"error",
+			]);
+
+			// Check pending nudge markers
+			const nudgesDir = join(tempDir, ".overstory", "pending-nudges");
+			const nudgeFiles = await readdir(nudgesDir);
+			expect(nudgeFiles).toContain("builder-1.json");
+			expect(nudgeFiles).toContain("builder-2.json");
+
+			const nudge1 = JSON.parse(
+				await Bun.file(join(nudgesDir, "builder-1.json")).text(),
+			) as { reason: string };
+			expect(nudge1.reason).toBe("error");
+		});
+	});
 });
