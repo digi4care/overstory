@@ -99,6 +99,12 @@ overstory mail check --inject
 ## CLI Reference
 
 ```
+overstory agents discover               Discover agents by capability/state/parent
+  --capability <type>                    Filter by capability type
+  --state <state>                        Filter by agent state
+  --parent <name>                        Filter by parent agent
+  --json                                 JSON output
+
 overstory init                          Initialize .overstory/ in current project
                                         (deploys agent definitions automatically)
 
@@ -258,13 +264,13 @@ Global Flags:
 - **Dependencies**: Zero runtime dependencies — only Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (1749 tests across 71 files, colocated with source)
+- **Testing**: `bun test` (1793 tests across 73 files, colocated with source)
 - **External CLIs**: `bd` (beads), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (1749 tests across 71 files)
+# Run tests (1793 tests across 73 files)
 bun test
 
 # Run a single test
@@ -304,7 +310,8 @@ overstory/
     types.ts                      Shared types and interfaces
     config.ts                     Config loader + validation
     errors.ts                     Custom error types
-    commands/                     One file per CLI subcommand (28 commands)
+    commands/                     One file per CLI subcommand (29 commands)
+      agents.ts                   Agent discovery and querying
       coordinator.ts              Persistent orchestrator lifecycle
       supervisor.ts               Team lead management
       dashboard.ts                Live TUI dashboard (ANSI, zero deps)
@@ -348,6 +355,7 @@ overstory/
     logging/                      Multi-format logger + sanitizer + reporter + color control
     metrics/                      SQLite metrics + transcript parsing
     doctor/                       Health check modules (9 checks)
+    insights/                     Session insight analyzer for auto-expertise
     beads/                        bd CLI wrapper + molecules
     mulch/                        mulch CLI wrapper
     e2e/                          End-to-end lifecycle tests

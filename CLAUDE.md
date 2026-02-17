@@ -50,11 +50,12 @@ Purpose-built messaging via `bun:sqlite` in `.overstory/mail.db`. WAL mode for c
 ```
 overstory/                        # This repo (the overstory tool itself)
   src/
-    index.ts                      # CLI entry point (command router, 28 commands)
+    index.ts                      # CLI entry point (command router, 29 commands)
     types.ts                      # ALL shared types and interfaces
     config.ts                     # Config loader + defaults + validation
     errors.ts                     # Custom error types (extend OverstoryError)
     commands/                     # One file per CLI subcommand
+      agents.ts                   # overstory agents (discover)
       init.ts                     # overstory init
       sling.ts                    # overstory sling (spawn worker)
       prime.ts                    # overstory prime
@@ -100,6 +101,8 @@ overstory/                        # This repo (the overstory tool itself)
     events/
       store.ts                    # SQLite EventStore (tool events, timelines, errors)
       tool-filter.ts              # Smart arg filtering for event storage
+    insights/
+      analyzer.ts                 # Session insight analyzer for auto-expertise
     beads/
       client.ts                   # bd CLI wrapper (--json parsing)
       molecules.ts                # Molecule management helpers

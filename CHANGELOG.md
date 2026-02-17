@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-02-16
+
+### Added
+
+#### New CLI Commands
+- `overstory agents discover` — discover and query agents by capability, state, file scope, and parent with `--capability`, `--state`, `--parent` filters and `--json` output
+
+#### New Subsystems
+- Session insight analyzer (`src/insights/analyzer.ts`) — analyzes EventStore data from completed sessions to extract structured patterns about tool usage, file edits, and errors for automatic mulch expertise recording
+- Conflict history intelligence in merge resolver — tracks past conflict resolution patterns per file to skip historically-failing tiers and enrich AI resolution prompts with successful strategies
+
+#### Agent Improvements
+- INSIGHT recording protocol for agent definitions — read-only agents (scout, reviewer) use INSIGHT prefix for structured expertise observations; parent agents (lead, supervisor) record insights to mulch automatically
+
+#### Testing
+- Test suite grew from 1749 to 1793 tests across 73 files (4587 expect() calls)
+
+### Changed
+- `session-end` hook now calls `mulch record` directly instead of sending `mulch_learn` mail messages — removes mail indirection for expertise recording
+
+### Fixed
+- Coordinator tests now always inject fake monitor/watchdog for proper isolation
+
 ## [0.5.0] - 2026-02-16
 
 ### Added
@@ -241,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/jayminwest/overstory/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/jayminwest/overstory/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/jayminwest/overstory/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/jayminwest/overstory/compare/v0.3.0...v0.4.0
