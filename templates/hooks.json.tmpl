@@ -31,6 +31,15 @@
 						"command": "[ -z \"$OVERSTORY_AGENT_NAME\" ] && exit 0; overstory log tool-start --agent {{AGENT_NAME}} --stdin"
 					}
 				]
+			},
+			{
+				"matcher": "Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "read -r INPUT; CMD=$(echo \"$INPUT\" | sed 's/.*\"command\": *\"\\([^\"]*\\)\".*/\\1/'); if echo \"$CMD\" | grep -qE '\\bgit\\s+push\\b'; then echo '{\"decision\":\"block\",\"reason\":\"git push is blocked — use overstory merge to integrate changes, push manually when ready\"}'; exit 0; fi;"
+					}
+				]
 			}
 		],
 		"PostToolUse": [
