@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-02-18
+
+### Added
+
+#### Run Scoping
+- `overstory status` now scopes to the current run by default with `--all` flag to show all runs — `gatherStatus()` filters sessions by `runId` when present
+- `overstory dashboard` now scopes all panels to the current run by default with `--all` flag to show data across all runs
+
+#### Config Local Overrides
+- `config.local.yaml` support for machine-specific configuration overrides — values in `config.local.yaml` are deep-merged over `config.yaml`, allowing per-machine settings (model overrides, paths, watchdog intervals) without modifying the tracked config file (PR #9)
+
+#### Universal Push Guard
+- PreToolUse hooks template now includes a universal `git push` guard — blocks all `git push` commands for all agents (previously only blocked push to canonical branches)
+
+#### Watchdog Run-Completion Detection
+- Watchdog daemon tick now detects when all agents in the current run have completed and auto-reports run completion
+
+#### Lead Agent Streaming
+- Lead agents now stream `merge_ready` messages per-builder as each completes, instead of batching all merge signals — enables earlier merge pipeline starts
+
+#### Claude Code Command Skills
+- Added `issue-reviews` and `pr-reviews` skills for reviewing GitHub issues and pull requests from within Claude Code
+
+#### Testing
+- Test suite grew from 1848 to 1868 tests across 73 files (4771 expect() calls)
+
+### Fixed
+- `overstory sling` now uses `resolveModel()` for config-level model overrides — previously ignored `models:` config section when spawning agents
+- `overstory doctor` dependency check now detects `bd` CGO/Dolt backend failures — catches cases where `bd` binary exists but crashes due to missing CGO dependencies (PR #11)
+- Biome line width formatting in `src/doctor/consistency.ts`
+
 ## [0.5.4] - 2026-02-17
 
 ### Added
@@ -331,7 +362,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/jayminwest/overstory/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/jayminwest/overstory/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/jayminwest/overstory/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/jayminwest/overstory/compare/v0.5.1...v0.5.2

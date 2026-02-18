@@ -152,6 +152,7 @@ overstory/                        # This repo (the overstory tool itself)
 target-project/
   .overstory/
     config.yaml                   # Project configuration
+    config.local.yaml             # Machine-specific overrides (gitignored)
     agent-manifest.json           # Agent registry
     hooks.json                    # Central hooks config
     current-run.txt               # Active run ID
@@ -337,9 +338,11 @@ overstory group <sub>                  Batch coordination
 ```
 overstory status                        Show all active agents, worktrees, state
   --json  --verbose                      JSON output / extra per-agent detail
+  --all                                  Show all runs (default: current run only)
 
 overstory dashboard                     Live TUI dashboard for agent monitoring
   --interval <ms>                        Poll interval (default: 2000, min: 500)
+  --all                                  Show all runs (default: current run only)
 
 overstory inspect <agent>               Deep inspection of a single agent
   --follow                               Poll and refresh continuously

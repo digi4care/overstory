@@ -135,9 +135,11 @@ overstory prime                         Load context for orchestrator/agent
 overstory status                        Show all active agents, worktrees, beads state
   --json                                 JSON output
   --verbose                              Show detailed agent info
+  --all                                  Show all runs (default: current run only)
 
 overstory dashboard                     Live TUI dashboard for agent monitoring
   --interval <ms>                        Refresh interval (default: 2000)
+  --all                                  Show all runs (default: current run only)
 
 overstory hooks install                 Install orchestrator hooks to .claude/settings.local.json
   --force                                Overwrite existing hooks
@@ -263,13 +265,13 @@ Global Flags:
 - **Dependencies**: Zero runtime dependencies — only Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (1848 tests across 73 files, colocated with source)
+- **Testing**: `bun test` (1868 tests across 73 files, colocated with source)
 - **External CLIs**: `bd` (beads), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (1848 tests across 73 files)
+# Run tests (1868 tests across 73 files)
 bun test
 
 # Run a single test
