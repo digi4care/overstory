@@ -142,8 +142,8 @@ describe("deployHooks", () => {
 		const content = await Bun.file(outputPath).text();
 		const parsed = JSON.parse(content);
 		const postToolUse = parsed.hooks.PostToolUse;
-		// PostToolUse should have 2 entries: logger and mail check
-		expect(postToolUse).toHaveLength(2);
+		// PostToolUse should have 3 entries: logger, mail check, and mulch diff Bash hook
+		expect(postToolUse).toHaveLength(3);
 		// First entry is the logging hook
 		expect(postToolUse[0].hooks[0].command).toContain("overstory log tool-end");
 		// Second entry is the debounced mail check
@@ -151,6 +151,23 @@ describe("deployHooks", () => {
 		expect(postToolUse[1].hooks[0].command).toContain("mail-check-agent");
 		expect(postToolUse[1].hooks[0].command).toContain("--debounce 30000");
 		expect(postToolUse[1].hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
+	});
+
+	test("PostToolUse hook includes mulch diff Bash hook", async () => {
+		const worktreePath = join(tempDir, "mulch-diff-wt");
+
+		await deployHooks(worktreePath, "mulch-diff-agent");
+
+		const outputPath = join(worktreePath, ".claude", "settings.local.json");
+		const content = await Bun.file(outputPath).text();
+		const parsed = JSON.parse(content);
+		const postToolUse = parsed.hooks.PostToolUse;
+		// Third entry is the mulch diff Bash hook
+		const mulchDiffHook = postToolUse.find(
+			(h: { matcher: string }) => h.matcher === "Bash",
+		);
+		expect(mulchDiffHook).toBeDefined();
+		expect(mulchDiffHook.hooks[0].command).toContain("mulch diff HEAD~1");
 	});
 
 	test("output contains PreCompact hook", async () => {

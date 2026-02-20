@@ -64,6 +64,15 @@
 						"command": "[ -z \"$OVERSTORY_AGENT_NAME\" ] && exit 0; overstory mail check --inject --agent {{AGENT_NAME}} --debounce 30000"
 					}
 				]
+			},
+			{
+				"matcher": "Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "[ -z \"$OVERSTORY_AGENT_NAME\" ] && exit 0; read -r INPUT; if echo \"$INPUT\" | grep -qE '\\bgit\\s+commit\\b'; then mulch diff HEAD~1 >/dev/null 2>&1 || true; fi; exit 0;"
+					}
+				]
 			}
 		],
 		"Stop": [
