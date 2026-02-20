@@ -40,6 +40,7 @@ interface TmuxCallTracker {
 	isSessionAlive: Array<{ name: string; result: boolean }>;
 	killSession: Array<{ name: string }>;
 	sendKeys: Array<{ name: string; keys: string }>;
+	waitForTuiReady: Array<{ name: string }>;
 }
 
 // --- Fake Watchdog ---
@@ -70,6 +71,7 @@ function makeFakeTmux(sessionAliveMap: Record<string, boolean> = {}): {
 		isSessionAlive: [],
 		killSession: [],
 		sendKeys: [],
+		waitForTuiReady: [],
 	};
 
 	const tmux: NonNullable<CoordinatorDeps["_tmux"]> = {
@@ -92,6 +94,10 @@ function makeFakeTmux(sessionAliveMap: Record<string, boolean> = {}): {
 		},
 		sendKeys: async (name: string, keys: string): Promise<void> => {
 			calls.sendKeys.push({ name, keys });
+		},
+		waitForTuiReady: async (name: string): Promise<boolean> => {
+			calls.waitForTuiReady.push({ name });
+			return true;
 		},
 	};
 

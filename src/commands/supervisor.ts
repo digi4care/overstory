@@ -22,7 +22,13 @@ import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession } from "../types.ts";
-import { createSession, isSessionAlive, killSession, sendKeys } from "../worktree/tmux.ts";
+import {
+	createSession,
+	isSessionAlive,
+	killSession,
+	sendKeys,
+	waitForTuiReady,
+} from "../worktree/tmux.ts";
 import { isRunningAsRoot } from "./sling.ts";
 
 /**
@@ -213,8 +219,10 @@ async function startSupervisor(args: string[]): Promise<void> {
 			OVERSTORY_AGENT_NAME: flags.name,
 		});
 
-		// Send beacon after TUI initialization delay
-		await Bun.sleep(3_000);
+		// Wait for Claude Code TUI to render before sending input
+		await waitForTuiReady(tmuxSession);
+		await Bun.sleep(1_000);
+
 		const beacon = buildSupervisorBeacon({
 			name: flags.name,
 			beadId: flags.task,
@@ -223,9 +231,11 @@ async function startSupervisor(args: string[]): Promise<void> {
 		});
 		await sendKeys(tmuxSession, beacon);
 
-		// Follow-up Enter to ensure submission
-		await Bun.sleep(500);
-		await sendKeys(tmuxSession, "");
+		// Follow-up Enters with increasing delays to ensure submission
+		for (const delay of [1_000, 2_000]) {
+			await Bun.sleep(delay);
+			await sendKeys(tmuxSession, "");
+		}
 
 		// Record session
 		const session: AgentSession = {
