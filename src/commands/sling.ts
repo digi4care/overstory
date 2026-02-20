@@ -434,8 +434,8 @@ export async function slingCommand(args: string[]): Promise<void> {
 			worktreePath,
 			fileScope,
 			mulchDomains: config.mulch.enabled
-			? inferDomainsFromFiles(fileScope, config.mulch.domains)
-			: [],
+				? inferDomainsFromFiles(fileScope, config.mulch.domains)
+				: [],
 			parentAgent: parentAgent,
 			depth,
 			canSpawn: agentDef.canSpawn,

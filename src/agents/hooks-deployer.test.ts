@@ -163,9 +163,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const postToolUse = parsed.hooks.PostToolUse;
 		// Third entry is the mulch diff Bash hook
-		const mulchDiffHook = postToolUse.find(
-			(h: { matcher: string }) => h.matcher === "Bash",
-		);
+		const mulchDiffHook = postToolUse.find((h: { matcher: string }) => h.matcher === "Bash");
 		expect(mulchDiffHook).toBeDefined();
 		expect(mulchDiffHook.hooks[0].command).toContain("mulch diff HEAD~1");
 	});
