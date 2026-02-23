@@ -101,6 +101,14 @@ export function createMergeQueue(dbPath: string): MergeQueue {
 	db.exec(CREATE_TABLE);
 	db.exec(CREATE_INDEXES);
 
+	// Migrate: rename bead_id -> task_id if the old column exists
+	{
+		const info = db.prepare("PRAGMA table_info(merge_queue)").all() as Array<{ name: string }>;
+		if (info.some((col) => col.name === "bead_id")) {
+			db.exec("ALTER TABLE merge_queue RENAME COLUMN bead_id TO task_id");
+		}
+	}
+
 	// Prepare statements for frequent operations
 	const insertStmt = db.prepare<
 		MergeQueueRow,

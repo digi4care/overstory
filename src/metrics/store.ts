@@ -110,6 +110,19 @@ const TOKEN_COLUMNS = [
 ] as const;
 
 /**
+ * Migrate legacy `bead_id` column to `task_id` in the sessions table.
+ * Uses ALTER TABLE RENAME COLUMN (supported since SQLite 3.25.0).
+ * No-op if the column is already named `task_id`.
+ */
+function migrateBeadIdColumn(db: Database): void {
+	const rows = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+	const hasBeadId = rows.some((r) => r.name === "bead_id");
+	if (hasBeadId) {
+		db.exec("ALTER TABLE sessions RENAME COLUMN bead_id TO task_id");
+	}
+}
+
+/**
  * Migrate an existing sessions table to include the run_id column.
  * Safe to call multiple times — only adds the column if missing.
  */
@@ -190,6 +203,9 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 	db.exec(CREATE_TABLE);
 	db.exec(CREATE_SNAPSHOTS_TABLE);
 	db.exec(CREATE_SNAPSHOTS_INDEX);
+
+	// Migrate: rename bead_id -> task_id if the old column exists
+	migrateBeadIdColumn(db);
 
 	// Migrate: add token columns and run_id column to existing tables that lack them
 	migrateTokenColumns(db);

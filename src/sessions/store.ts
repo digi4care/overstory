@@ -9,6 +9,19 @@
 import { Database } from "bun:sqlite";
 import type { AgentSession, AgentState, InsertRun, Run, RunStatus, RunStore } from "../types.ts";
 
+/**
+ * Migrate legacy `bead_id` column to `task_id` in a SQLite table.
+ * Uses ALTER TABLE RENAME COLUMN (supported since SQLite 3.25.0).
+ * No-op if the column is already named `task_id` or the table doesn't exist.
+ */
+function migrateBeadIdColumn(db: Database, tableName: string): void {
+	const info = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+	const hasBeadId = info.some((col) => col.name === "bead_id");
+	if (hasBeadId) {
+		db.exec(`ALTER TABLE ${tableName} RENAME COLUMN bead_id TO task_id`);
+	}
+}
+
 export interface SessionStore {
 	/** Insert or update a session. Uses agent_name as the unique key. */
 	upsert(session: AgentSession): void;
@@ -156,6 +169,9 @@ export function createSessionStore(dbPath: string): SessionStore {
 	db.exec(CREATE_INDEXES);
 	db.exec(CREATE_RUNS_TABLE);
 	db.exec(CREATE_RUNS_INDEXES);
+
+	// Migrate: rename bead_id -> task_id if the old column exists
+	migrateBeadIdColumn(db, "sessions");
 
 	// Prepare statements for frequent operations
 	const upsertStmt = db.prepare<
