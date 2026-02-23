@@ -2,7 +2,7 @@
  * CLI command: overstory group create|status|add|remove|list
  *
  * Manages TaskGroups for batch work coordination. Groups track collections
- * of beads issues and auto-close when all member issues are closed.
+ * of issues and auto-close when all member issues are closed.
  *
  * Storage: `.overstory/groups.json` (array of TaskGroup objects).
  */
@@ -71,12 +71,12 @@ async function saveGroups(projectRoot: string, groups: TaskGroup[]): Promise<voi
 }
 
 /**
- * Query a beads issue status via `bd show <id> --json`.
+ * Query an issue status via `sd show <id> --json`.
  * Returns the status string, or null if the issue cannot be found.
  */
 async function getIssueStatus(id: string): Promise<string | null> {
 	try {
-		const proc = Bun.spawn(["bd", "show", id, "--json"], {
+		const proc = Bun.spawn(["sd", "show", id, "--json"], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
@@ -84,25 +84,27 @@ async function getIssueStatus(id: string): Promise<string | null> {
 		if (exitCode !== 0) {
 			return null;
 		}
-		// bd show --json returns an array with a single element
-		const arr = JSON.parse(stdout) as { status?: string }[];
-		const data = arr[0];
-		if (!data) {
+		// sd show --json returns an envelope: { success, command, issue: { status, ... } }
+		const envelope = JSON.parse(stdout) as {
+			success?: boolean;
+			issue?: { status?: string };
+		};
+		if (!envelope.success || !envelope.issue) {
 			return null;
 		}
-		return data.status ?? null;
+		return envelope.issue.status ?? null;
 	} catch {
 		return null;
 	}
 }
 
 /**
- * Validate that a beads issue exists.
+ * Validate that an issue exists.
  */
 async function validateIssueExists(id: string): Promise<void> {
 	const status = await getIssueStatus(id);
 	if (status === null) {
-		throw new GroupError(`Issue "${id}" not found in beads`, { groupId: id });
+		throw new GroupError(`Issue "${id}" not found in seeds`, { groupId: id });
 	}
 }
 
@@ -242,7 +244,7 @@ async function removeFromGroup(
 }
 
 /**
- * Get progress for a single group. Queries beads for member issue statuses.
+ * Get progress for a single group. Queries seeds for member issue statuses.
  * Auto-closes the group if all members are closed.
  */
 async function getGroupProgress(
@@ -343,7 +345,7 @@ Subcommands:
 
 Options:
   --json             Output as JSON
-  --skip-validation  Skip beads issue validation (for offline use)
+  --skip-validation  Skip seeds issue validation (for offline use)
   --help, -h         Show this help`;
 
 /**

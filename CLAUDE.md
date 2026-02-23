@@ -11,7 +11,7 @@ Project-agnostic swarm system for Claude Code agent orchestration. Overstory tur
 - **Linting:** Biome (formatter + linter in one tool)
 - **Runtime dependencies:** Zero. Only Bun built-in APIs (`bun:sqlite`, `Bun.spawn`, `Bun.file`, etc.)
 - **Dev dependencies:** `@types/bun`, `typescript`, `@biomejs/biome`
-- **External CLIs (not npm deps):** `bd` (beads) for issue tracking, `mulch` for expertise, `git`, `tmux`
+- **External CLIs (not npm deps):** `sd` (seeds) for issue tracking, `mulch` for expertise, `git`, `tmux`
 
 ## Architecture
 
@@ -43,7 +43,7 @@ Depth limit is configurable (default 2). Prevents runaway spawning.
 
 ### Messaging: Custom SQLite Mail
 
-Purpose-built messaging via `bun:sqlite` in `.overstory/mail.db`. WAL mode for concurrent access from multiple agents. ~1-5ms per query. Independent of beads (which is too slow for high-frequency polling).
+Purpose-built messaging via `bun:sqlite` in `.overstory/mail.db`. WAL mode for concurrent access from multiple agents. ~1-5ms per query. Independent of seeds (which is too slow for high-frequency polling).
 
 ## Directory Structure
 
@@ -104,8 +104,8 @@ overstory/                        # This repo (the overstory tool itself)
       tool-filter.ts              # Smart arg filtering for event storage
     insights/
       analyzer.ts                 # Session insight analyzer for auto-expertise
-    beads/
-      client.ts                   # bd CLI wrapper (--json parsing)
+    seeds/
+      client.ts                   # sd CLI wrapper (--json parsing)
       molecules.ts                # Molecule management helpers
     mail/
       store.ts                    # SQLite mail storage (bun:sqlite, WAL mode)
@@ -164,7 +164,7 @@ target-project/
       identity.yaml               # Persistent agent CV
       checkpoint.json             # Session checkpoint for recovery
     worktrees/{agent-name}/       # Git worktrees (gitignored)
-    specs/{bead-id}.md            # Task specifications
+    specs/{task-id}.md            # Task specifications
     logs/{agent-name}/{ts}/       # Agent logs (gitignored)
     mail.db                       # SQLite mail (gitignored, WAL mode)
     sessions.db                   # SQLite sessions + runs (gitignored, WAL mode)
@@ -193,13 +193,13 @@ target-project/
 
 - **Zero runtime dependencies.** This is a hard rule.
 - Use only Bun built-in APIs: `bun:sqlite` for databases, `Bun.spawn` for subprocesses, `Bun.file` for file I/O, `Bun.write` for writes
-- External tools (`bd`, `mulch`, `git`, `tmux`) are invoked as subprocesses via `Bun.spawn`, never as npm imports
+- External tools (`sd`, `mulch`, `git`, `tmux`) are invoked as subprocesses via `Bun.spawn`, never as npm imports
 - Dev dependencies are limited to types and tooling
 
 ### File Organization
 
 - Each CLI command gets its own file in `src/commands/`
-- Each subsystem gets its own directory under `src/` (agents, worktree, beads, mail, etc.)
+- Each subsystem gets its own directory under `src/` (agents, worktree, seeds, mail, etc.)
 - Base agent definitions (`.md` files) live in `agents/` at the repo root
 - Templates live in `templates/` at the repo root
 - Tests are colocated with source files (e.g., `src/config.test.ts`, `src/mail/store.test.ts`)
@@ -258,7 +258,7 @@ overstory prime                         Load context for orchestrator/agent
   --agent <name>                         Per-agent priming
   --compact                              Less context (for PreCompact hook)
 
-overstory spec write <bead-id>         Write a spec file to .overstory/specs/
+overstory spec write <task-id>         Write a spec file to .overstory/specs/
   --body <content>                       Spec content (or pipe via stdin)
   --agent <name>                         Agent attribution
 ```
@@ -277,7 +277,7 @@ overstory coordinator <sub>            Persistent coordinator agent
 
 overstory supervisor <sub>             Per-project supervisor agent
   start                                  Start supervisor
-    --task <bead-id>                     Bead task ID (required)
+    --task <task-id>                     Task ID (required)
     --name <name>                        Unique name (required)
     --parent <agent>                     Parent agent (default: coordinator)
     --depth <n>                          Hierarchy depth (default: 1)
@@ -337,7 +337,7 @@ overstory group <sub>                  Batch coordination
   add <group-id> <id1> [id2...]          Add issues to a group
   remove <group-id> <id1> [id2...]       Remove issues from a group
   list                                   List all groups (summary)
-  --json  --skip-validation              JSON output / skip beads checks
+  --json  --skip-validation              JSON output / skip seeds checks
 ```
 
 ### Observability
@@ -358,7 +358,7 @@ overstory inspect <agent>               Deep inspection of a single agent
   --no-tmux                              Skip tmux capture-pane
   --json                                 JSON output
 
-overstory trace <target>               Chronological event timeline for agent/bead
+overstory trace <target>               Chronological event timeline for agent/task
   --since <ts>  --until <ts>             Time range filter (ISO 8601)
   --limit <n>                            Max events (default: 100)
   --json                                 JSON output
@@ -469,7 +469,7 @@ Prefer real implementations over mocks. Mocks are a last resort, not a default.
 - **Filesystem:** Use temp directories (`mkdtemp`) for file I/O tests
 - **SQLite:** Use temp files or `:memory:` databases for `bun:sqlite` tests
 - **Git:** Use real git repos in temp directories for worktree/merge tests
-- **CLI tools:** Use real `bd` CLI for beads-client tests (when available)
+- **CLI tools:** Use real `sd` CLI for seeds-client tests (when available)
 
 **Only mock when the real thing has unacceptable side effects:**
 - **tmux:** Real tmux operations interfere with developer sessions and are fragile in CI
@@ -489,17 +489,17 @@ Shared test utilities live in `src/test-helpers.ts`:
 
 ## Tool Integration
 
-### beads (bd) -- Issue Tracking
+### seeds (sd) -- Issue Tracking
 
 ```bash
-bd ready                              # Find available work
-bd show <id>                          # View issue details
-bd update <id> --status in_progress   # Claim work
-bd close <id> --reason "summary"      # Complete work
-bd sync                               # Sync with git
+sd ready                              # Find available work
+sd show <id>                          # View issue details
+sd update <id> --status in_progress   # Claim work
+sd close <id> --reason "summary"      # Complete work
+sd sync                               # Sync with git
 ```
 
-Issues are tracked in `.beads/issues.jsonl`. Beads owns all task lifecycle (create, assign, close, dependencies, molecules). Overstory wraps `bd` via `src/beads/client.ts`.
+Issues are tracked in `.seeds/issues.jsonl`. Seeds owns all task lifecycle (create, assign, close, dependencies, molecules). Overstory wraps `sd` via `src/seeds/client.ts`.
 
 ### mulch -- Structured Expertise
 
@@ -534,13 +534,13 @@ bun run typecheck                     # tsc --noEmit
 
 When ending a work session, you MUST:
 
-1. File issues for remaining work (`bd create`)
+1. File issues for remaining work (`sd create`)
 2. Run quality gates (if code changed): `bun test && biome check . && tsc --noEmit`
 3. Update issue status: close finished work, update in-progress items
 4. Push to remote (MANDATORY):
    ```bash
    git pull --rebase
-   bd sync
+   sd sync
    git push
    git status  # MUST show "up to date with origin"
    ```

@@ -25,7 +25,7 @@ describe("checkMergeQueue", () => {
 				maxSessionsPerRun: 0,
 			},
 			worktrees: { baseDir: "" },
-			beads: { enabled: true },
+			seeds: { enabled: true },
 			mulch: { enabled: true, domains: [], primeFormat: "markdown" },
 			merge: { aiResolveEnabled: false, reimagineEnabled: false },
 			providers: {
@@ -77,13 +77,13 @@ describe("checkMergeQueue", () => {
 		const queue = createMergeQueue(dbPath);
 		queue.enqueue({
 			branchName: "feature/test",
-			beadId: "beads-abc",
+			taskId: "beads-abc",
 			agentName: "test-agent",
 			filesModified: ["src/test.ts"],
 		});
 		queue.enqueue({
 			branchName: "feature/another",
-			beadId: "beads-def",
+			taskId: "beads-def",
 			agentName: "another-agent",
 			filesModified: ["src/another.ts"],
 		});
@@ -141,7 +141,7 @@ describe("checkMergeQueue", () => {
 
 		const db = new Database(dbPath);
 		db.prepare(
-			"INSERT INTO merge_queue (branch_name, bead_id, agent_name, files_modified, status, enqueued_at) VALUES (?, ?, ?, ?, ?, ?)",
+			"INSERT INTO merge_queue (branch_name, task_id, agent_name, files_modified, status, enqueued_at) VALUES (?, ?, ?, ?, ?, ?)",
 		).run(
 			"feature/stale",
 			"beads-abc",
@@ -171,7 +171,7 @@ describe("checkMergeQueue", () => {
 
 		const db = new Database(dbPath);
 		db.prepare(
-			"INSERT INTO merge_queue (branch_name, bead_id, agent_name, files_modified, status, enqueued_at, resolved_tier) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO merge_queue (branch_name, task_id, agent_name, files_modified, status, enqueued_at, resolved_tier) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		).run(
 			"feature/old-merged",
 			"beads-abc",
@@ -194,13 +194,13 @@ describe("checkMergeQueue", () => {
 		const queue = createMergeQueue(dbPath);
 		queue.enqueue({
 			branchName: "feature/duplicate",
-			beadId: "beads-abc",
+			taskId: "beads-abc",
 			agentName: "test-agent",
 			filesModified: ["src/test.ts"],
 		});
 		queue.enqueue({
 			branchName: "feature/duplicate",
-			beadId: "beads-def",
+			taskId: "beads-def",
 			agentName: "another-agent",
 			filesModified: ["src/another.ts"],
 		});

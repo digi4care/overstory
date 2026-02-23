@@ -20,7 +20,7 @@ const mockConfig: OverstoryConfig = {
 	worktrees: {
 		baseDir: "/tmp/.overstory/worktrees",
 	},
-	beads: {
+	seeds: {
 		enabled: false,
 	},
 	mulch: {
@@ -63,16 +63,16 @@ describe("checkDependencies", () => {
 		expect(toolNames).toContain("git availability");
 		expect(toolNames).toContain("bun availability");
 		expect(toolNames).toContain("tmux availability");
-		expect(toolNames).toContain("bd availability");
+		expect(toolNames).toContain("sd availability");
 		expect(toolNames).toContain("mulch availability");
 	});
 
-	test("includes bd CGO support check when bd is available", async () => {
+	test("includes sd CGO support check when sd is available", async () => {
 		const checks = await checkDependencies(mockConfig, "/tmp/.overstory");
 
-		const bdCheck = checks.find((c) => c.name === "bd availability");
-		if (bdCheck?.status === "pass") {
-			const cgoCheck = checks.find((c) => c.name === "bd CGO support");
+		const sdCheck = checks.find((c) => c.name === "sd availability");
+		if (sdCheck?.status === "pass") {
+			const cgoCheck = checks.find((c) => c.name === "sd CGO support");
 			expect(cgoCheck).toBeDefined();
 			expect(cgoCheck?.category).toBe("dependencies");
 			expect(["pass", "warn", "fail"]).toContain(cgoCheck?.status ?? "");

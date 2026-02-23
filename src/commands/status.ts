@@ -1,7 +1,7 @@
 /**
  * CLI command: overstory status [--json] [--watch]
  *
- * Shows active agents, worktree status, beads summary, mail queue depth,
+ * Shows active agents, worktree status, seeds summary, mail queue depth,
  * and merge queue state. --watch mode uses polling for live updates.
  */
 
@@ -287,7 +287,7 @@ export function printStatus(data: StatusData): void {
 			const tmuxAlive = tmuxSessionNames.has(agent.tmuxSession);
 			const aliveMarker = tmuxAlive ? "●" : "○";
 			w(`   ${aliveMarker} ${agent.agentName} [${agent.capability}] `);
-			w(`${agent.state} | ${agent.beadId} | ${duration}\n`);
+			w(`${agent.state} | ${agent.taskId} | ${duration}\n`);
 
 			const detail = data.verboseDetails?.[agent.agentName];
 			if (detail) {

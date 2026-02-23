@@ -4,8 +4,8 @@ import {
 	type BeaconOptions,
 	buildBeacon,
 	calculateStaggerDelay,
-	checkBeadLock,
 	checkRunSessionLimit,
+	checkTaskLock,
 	inferDomainsFromFiles,
 	isRunningAsRoot,
 	parentHasScouts,
@@ -550,49 +550,49 @@ describe("isRunningAsRoot", () => {
 });
 
 /**
- * Tests for checkBeadLock.
+ * Tests for checkTaskLock.
  *
- * checkBeadLock prevents concurrent agents from working the same bead ID.
+ * checkTaskLock prevents concurrent agents from working the same task ID.
  * It checks the active session list and returns the agent name that holds
- * the lock (i.e., is already working on the bead), or null if the bead is free.
+ * the lock (i.e., is already working on the task), or null if the task is free.
  */
 
-function makeBeadSession(agentName: string, beadId: string): { agentName: string; beadId: string } {
-	return { agentName, beadId };
+function makeTaskSession(agentName: string, taskId: string): { agentName: string; taskId: string } {
+	return { agentName, taskId };
 }
 
-describe("checkBeadLock", () => {
+describe("checkTaskLock", () => {
 	test("returns null when no sessions exist", () => {
-		expect(checkBeadLock([], "overstory-abc")).toBeNull();
+		expect(checkTaskLock([], "overstory-abc")).toBeNull();
 	});
 
-	test("returns null when no session matches the bead ID", () => {
+	test("returns null when no session matches the task ID", () => {
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-xyz"),
-			makeBeadSession("builder-2", "overstory-def"),
+			makeTaskSession("builder-1", "overstory-xyz"),
+			makeTaskSession("builder-2", "overstory-def"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBeNull();
+		expect(checkTaskLock(sessions, "overstory-abc")).toBeNull();
 	});
 
 	test("returns the agent name when a session matches", () => {
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-abc"),
-			makeBeadSession("builder-2", "overstory-xyz"),
+			makeTaskSession("builder-1", "overstory-abc"),
+			makeTaskSession("builder-2", "overstory-xyz"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBe("builder-1");
+		expect(checkTaskLock(sessions, "overstory-abc")).toBe("builder-1");
 	});
 
 	test("returns the first matching agent when multiple sessions match", () => {
-		// Multiple sessions can have the same beadId (e.g., retried agent)
-		// checkBeadLock returns the first match
+		// Multiple sessions can have the same taskId (e.g., retried agent)
+		// checkTaskLock returns the first match
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-abc"),
-			makeBeadSession("builder-2", "overstory-abc"),
+			makeTaskSession("builder-1", "overstory-abc"),
+			makeTaskSession("builder-2", "overstory-abc"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBe("builder-1");
+		expect(checkTaskLock(sessions, "overstory-abc")).toBe("builder-1");
 	});
 });
 

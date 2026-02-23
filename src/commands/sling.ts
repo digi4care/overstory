@@ -7,11 +7,11 @@
  * 3. Load manifest + validate capability
  * 4. Resolve or create run_id (current-run.txt)
  * 5. Check name uniqueness + concurrency limit
- * 6. Validate bead exists
+ * 6. Validate task exists
  * 7. Create worktree
  * 8. Generate + write overlay CLAUDE.md
  * 9. Deploy hooks config
- * 10. Claim beads issue
+ * 10. Claim task issue
  * 11. Create agent identity
  * 12. Create tmux session running claude
  * 13. Record session in SessionStore + increment run agent count
@@ -24,12 +24,12 @@ import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { writeOverlay } from "../agents/overlay.ts";
-import type { BeadIssue } from "../beads/client.ts";
-import { createBeadsClient } from "../beads/client.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, HierarchyError, ValidationError } from "../errors.ts";
 import { inferDomain } from "../insights/analyzer.ts";
 import { createMulchClient } from "../mulch/client.ts";
+import type { SeedIssue } from "../seeds/client.ts";
+import { createSeedsClient } from "../seeds/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
 import type { AgentSession, OverlayConfig } from "../types.ts";
@@ -128,13 +128,13 @@ export interface BeaconOptions {
  * protocol so the agent knows exactly what to do on boot.
  *
  * Format:
- *   [OVERSTORY] <agent-name> (<capability>) <ISO timestamp> task:<bead-id>
+ *   [OVERSTORY] <agent-name> (<capability>) <ISO timestamp> task:<task-id>
  *   Depth: <n> | Parent: <parent-name|none>
  *   Startup protocol:
  *   1. Read your assignment in .claude/CLAUDE.md
  *   2. Load expertise: mulch prime
  *   3. Check mail: overstory mail check --agent <name>
- *   4. Begin working on task <bead-id>
+ *   4. Begin working on task <task-id>
  */
 export function buildBeacon(opts: BeaconOptions): string {
 	const timestamp = new Date().toISOString();
@@ -159,17 +159,17 @@ export function parentHasScouts(
 }
 
 /**
- * Check if any active agent is already working on the given bead ID.
- * Returns the agent name if locked, or null if the bead is free.
+ * Check if any active agent is already working on the given task ID.
+ * Returns the agent name if locked, or null if the task is free.
  *
  * @param activeSessions - Currently active (non-zombie) sessions
- * @param beadId - The bead task ID to check for concurrent work
+ * @param taskId - The task ID to check for concurrent work
  */
-export function checkBeadLock(
-	activeSessions: ReadonlyArray<{ agentName: string; beadId: string }>,
-	beadId: string,
+export function checkTaskLock(
+	activeSessions: ReadonlyArray<{ agentName: string; taskId: string }>,
+	taskId: string,
 ): string | null {
-	const existing = activeSessions.find((s) => s.beadId === beadId);
+	const existing = activeSessions.find((s) => s.taskId === taskId);
 	return existing?.agentName ?? null;
 }
 
@@ -239,7 +239,7 @@ const SLING_HELP = `overstory sling — Spawn a worker agent
 Usage: overstory sling <task-id> [flags]
 
 Arguments:
-  <task-id>                  Beads task ID to assign
+  <task-id>                  Task ID to assign
 
 Options:
   --capability <type>        Agent type: builder | scout | reviewer | lead | merger (default: builder)
@@ -414,12 +414,12 @@ export async function slingCommand(args: string[]): Promise<void> {
 			});
 		}
 
-		// 5d. Bead-level locking: prevent concurrent agents on the same bead ID.
-		const lockHolder = checkBeadLock(activeSessions, taskId);
+		// 5d. Task-level locking: prevent concurrent agents on the same task ID.
+		const lockHolder = checkTaskLock(activeSessions, taskId);
 		if (lockHolder !== null) {
 			throw new AgentError(
-				`Bead "${taskId}" is already being worked by agent "${lockHolder}". ` +
-					`Concurrent work on the same bead causes duplicate issues and wasted tokens.`,
+				`Task "${taskId}" is already being worked by agent "${lockHolder}". ` +
+					`Concurrent work on the same task causes duplicate issues and wasted tokens.`,
 				{ agentName: name },
 			);
 		}
@@ -442,14 +442,14 @@ export async function slingCommand(args: string[]): Promise<void> {
 			);
 		}
 
-		// 6. Validate bead exists and is in a workable state (if beads enabled)
-		const beads = createBeadsClient(config.project.root);
-		if (config.beads.enabled) {
-			let issue: BeadIssue;
+		// 6. Validate task exists and is in a workable state (if seeds enabled)
+		const seeds = createSeedsClient(config.project.root);
+		if (config.seeds.enabled) {
+			let issue: SeedIssue;
 			try {
-				issue = await beads.show(taskId);
+				issue = await seeds.show(taskId);
 			} catch (err) {
-				throw new AgentError(`Bead task "${taskId}" not found or inaccessible`, {
+				throw new AgentError(`Task "${taskId}" not found or inaccessible`, {
 					agentName: name,
 					cause: err instanceof Error ? err : undefined,
 				});
@@ -458,7 +458,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 			const workableStatuses = ["open", "in_progress"];
 			if (!workableStatuses.includes(issue.status)) {
 				throw new ValidationError(
-					`Bead task "${taskId}" is not workable (status: ${issue.status}). Only open or in_progress issues can be assigned.`,
+					`Task "${taskId}" is not workable (status: ${issue.status}). Only open or in_progress issues can be assigned.`,
 					{ field: "taskId", value: taskId },
 				);
 			}
@@ -473,7 +473,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 			baseDir: worktreeBaseDir,
 			agentName: name,
 			baseBranch: config.project.canonicalBranch,
-			beadId: taskId,
+			taskId,
 		});
 
 		// 8. Generate + write overlay CLAUDE.md
@@ -494,7 +494,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 
 		const overlayConfig: OverlayConfig = {
 			agentName: name,
-			beadId: taskId,
+			taskId,
 			specPath: absoluteSpecPath,
 			branchName,
 			worktreePath,
@@ -531,10 +531,10 @@ export async function slingCommand(args: string[]): Promise<void> {
 		// 9. Deploy hooks config (capability-specific guards)
 		await deployHooks(worktreePath, name, capability);
 
-		// 10. Claim beads issue
-		if (config.beads.enabled) {
+		// 10. Claim task issue
+		if (config.seeds.enabled) {
 			try {
-				await beads.claim(taskId);
+				await seeds.claim(taskId);
 			} catch {
 				// Non-fatal: issue may already be claimed
 			}
@@ -574,7 +574,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 			capability,
 			worktreePath,
 			branchName,
-			beadId: taskId,
+			taskId,
 			tmuxSession: tmuxSessionName,
 			state: "booting",
 			pid,

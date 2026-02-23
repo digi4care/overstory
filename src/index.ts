@@ -72,7 +72,7 @@ Commands:
   logs [options]          Query NDJSON logs across agents
   watch                   Start watchdog daemon
   feed [options]          Unified real-time event stream across all agents
-  trace <target>         Chronological event timeline for agent/bead
+  trace <target>         Chronological event timeline for agent/task
   errors [options]        Aggregated error view across agents
   run [sub]               Manage runs (list/show/complete)
   replay [options]        Interleaved chronological replay across agents

@@ -524,7 +524,7 @@ describe("resolveModel", () => {
 				maxSessionsPerRun: 0,
 			},
 			worktrees: { baseDir: ".overstory/worktrees" },
-			beads: { enabled: false },
+			seeds: { enabled: false },
 			mulch: { enabled: false, domains: [], primeFormat: "markdown" },
 			merge: { aiResolveEnabled: false, reimagineEnabled: false },
 			providers,

@@ -2,8 +2,8 @@ import type { DoctorCheck, DoctorCheckFn } from "./types.ts";
 
 /**
  * External dependency checks.
- * Validates that required CLI tools (git, bun, tmux, bd, mulch) are available
- * and that bd has functional CGO support for its Dolt database backend.
+ * Validates that required CLI tools (git, bun, tmux, sd, mulch) are available
+ * and that sd has functional CGO support for its Dolt database backend.
  */
 export const checkDependencies: DoctorCheckFn = async (
 	_config,
@@ -13,7 +13,7 @@ export const checkDependencies: DoctorCheckFn = async (
 		{ name: "git", versionFlag: "--version", required: true },
 		{ name: "bun", versionFlag: "--version", required: true },
 		{ name: "tmux", versionFlag: "-V", required: true },
-		{ name: "bd", versionFlag: "--version", required: true },
+		{ name: "sd", versionFlag: "--version", required: true },
 		{ name: "mulch", versionFlag: "--version", required: true },
 	];
 
@@ -24,10 +24,10 @@ export const checkDependencies: DoctorCheckFn = async (
 		checks.push(check);
 	}
 
-	// If bd is available, probe for CGO/Dolt backend functionality
-	const bdCheck = checks.find((c) => c.name === "bd availability");
-	if (bdCheck?.status === "pass") {
-		const cgoCheck = await checkBdCgoSupport();
+	// If sd is available, probe for CGO/Dolt backend functionality
+	const sdCheck = checks.find((c) => c.name === "sd availability");
+	if (sdCheck?.status === "pass") {
+		const cgoCheck = await checkSdCgoSupport();
 		checks.push(cgoCheck);
 	}
 
@@ -35,21 +35,21 @@ export const checkDependencies: DoctorCheckFn = async (
 };
 
 /**
- * Probe whether bd's Dolt database backend is functional.
- * The npm-distributed bd binary may be built without CGO, which causes
- * `bd init` and all database operations to fail even though `bd --version` succeeds.
- * We detect this by running `bd status` in a temp directory and checking for
+ * Probe whether sd's Dolt database backend is functional.
+ * The npm-distributed sd binary may be built without CGO, which causes
+ * `sd init` and all database operations to fail even though `sd --version` succeeds.
+ * We detect this by running `sd status` in a temp directory and checking for
  * the characteristic "without CGO support" error message.
  */
-async function checkBdCgoSupport(): Promise<DoctorCheck> {
+async function checkSdCgoSupport(): Promise<DoctorCheck> {
 	const { mkdtemp, rm } = await import("node:fs/promises");
 	const { join } = await import("node:path");
 	const { tmpdir } = await import("node:os");
 
 	let tempDir: string | undefined;
 	try {
-		tempDir = await mkdtemp(join(tmpdir(), "overstory-bd-cgo-"));
-		const proc = Bun.spawn(["bd", "status"], {
+		tempDir = await mkdtemp(join(tmpdir(), "overstory-sd-cgo-"));
+		const proc = Bun.spawn(["sd", "status"], {
 			cwd: tempDir,
 			stdout: "pipe",
 			stderr: "pipe",
@@ -60,44 +60,44 @@ async function checkBdCgoSupport(): Promise<DoctorCheck> {
 
 		if (stderr.includes("without CGO support")) {
 			return {
-				name: "bd CGO support",
+				name: "sd CGO support",
 				category: "dependencies",
 				status: "fail",
-				message: "bd binary was built without CGO — Dolt database operations will fail",
+				message: "sd binary was built without CGO — Dolt database operations will fail",
 				details: [
-					"The installed bd binary lacks CGO support required by its Dolt backend.",
-					"Workaround: rebuild bd from source with CGO_ENABLED=1 and ICU headers.",
+					"The installed sd binary lacks CGO support required by its Dolt backend.",
+					"Workaround: rebuild sd from source with CGO_ENABLED=1 and ICU headers.",
 					"See: https://github.com/jayminwest/overstory/issues/10",
 				],
 				fixable: true,
 			};
 		}
 
-		// Any other exit code is fine — bd status may fail for other reasons
-		// (no .beads/ dir, etc.) but those aren't CGO issues
+		// Any other exit code is fine — sd status may fail for other reasons
+		// (no .seeds/ dir, etc.) but those aren't CGO issues
 		if (exitCode === 0 || !stderr.includes("CGO")) {
 			return {
-				name: "bd CGO support",
+				name: "sd CGO support",
 				category: "dependencies",
 				status: "pass",
-				message: "bd has functional database backend",
+				message: "sd has functional database backend",
 				details: ["Dolt backend operational"],
 			};
 		}
 
 		return {
-			name: "bd CGO support",
+			name: "sd CGO support",
 			category: "dependencies",
 			status: "warn",
-			message: `bd status returned unexpected error (exit code ${exitCode})`,
+			message: `sd status returned unexpected error (exit code ${exitCode})`,
 			details: [stderr.trim().split("\n")[0] || "unknown error"],
 		};
 	} catch (error) {
 		return {
-			name: "bd CGO support",
+			name: "sd CGO support",
 			category: "dependencies",
 			status: "warn",
-			message: "Could not verify bd CGO support",
+			message: "Could not verify sd CGO support",
 			details: [error instanceof Error ? error.message : String(error)],
 		};
 	} finally {

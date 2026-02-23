@@ -509,7 +509,7 @@ describe("traceCommand", () => {
 	// === Target resolution ===
 
 	describe("target resolution", () => {
-		test("agent name is used as-is when not a bead ID pattern", async () => {
+		test("agent name is used as-is when not a task ID pattern", async () => {
 			const dbPath = join(tempDir, ".overstory", "events.db");
 			const store = createEventStore(dbPath);
 			store.insert(makeEvent({ agentName: "my-custom-agent" }));
@@ -523,8 +523,8 @@ describe("traceCommand", () => {
 			expect(parsed[0]?.agentName).toBe("my-custom-agent");
 		});
 
-		test("bead ID pattern is detected and resolved to agent name via SessionStore", async () => {
-			// Create a session that maps bead ID to agent name
+		test("task ID pattern is detected and resolved to agent name via SessionStore", async () => {
+			// Create a session that maps task ID to agent name
 			const sessDbPath = join(tempDir, ".overstory", "sessions.db");
 			const sessionStore = createSessionStore(sessDbPath);
 			sessionStore.upsert({
@@ -533,7 +533,7 @@ describe("traceCommand", () => {
 				capability: "builder",
 				worktreePath: "/tmp/wt",
 				branchName: "feat/task",
-				beadId: "overstory-rj1k",
+				taskId: "overstory-rj1k",
 				tmuxSession: "tmux-001",
 				state: "completed",
 				pid: null,
@@ -561,13 +561,13 @@ describe("traceCommand", () => {
 			expect(parsed[0]?.agentName).toBe("builder-for-task");
 		});
 
-		test("unresolved bead ID falls back to using bead ID as agent name", async () => {
-			// Create sessions.db but with no matching bead
+		test("unresolved task ID falls back to using task ID as agent name", async () => {
+			// Create sessions.db but with no matching task
 			const sessDbPath = join(tempDir, ".overstory", "sessions.db");
 			const sessionStore = createSessionStore(sessDbPath);
 			sessionStore.close();
 
-			// Create events.db (empty for this bead)
+			// Create events.db (empty for this task)
 			const eventsDbPath = join(tempDir, ".overstory", "events.db");
 			const eventStore = createEventStore(eventsDbPath);
 			eventStore.close();
@@ -579,13 +579,13 @@ describe("traceCommand", () => {
 			expect(parsed).toEqual([]);
 		});
 
-		test("short agent names without bead pattern are not resolved as bead IDs", async () => {
+		test("short agent names without task pattern are not resolved as task IDs", async () => {
 			const dbPath = join(tempDir, ".overstory", "events.db");
 			const store = createEventStore(dbPath);
 			store.insert(makeEvent({ agentName: "scout" }));
 			store.close();
 
-			// "scout" does not match bead pattern word-alphanumeric
+			// "scout" does not match task pattern word-alphanumeric
 			await traceCommand(["scout", "--json"]);
 			const out = output();
 

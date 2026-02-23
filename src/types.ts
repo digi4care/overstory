@@ -41,7 +41,7 @@ export interface OverstoryConfig {
 	worktrees: {
 		baseDir: string; // Where worktrees live
 	};
-	beads: {
+	seeds: {
 		enabled: boolean;
 	};
 	mulch: {
@@ -112,7 +112,7 @@ export interface AgentSession {
 	capability: string; // Which agent definition
 	worktreePath: string;
 	branchName: string;
-	beadId: string; // Task being worked
+	taskId: string; // Task being worked
 	tmuxSession: string; // Tmux session name
 	state: AgentState;
 	pid: number | null; // Claude Code PID
@@ -134,7 +134,7 @@ export interface AgentIdentity {
 	sessionsCompleted: number;
 	expertiseDomains: string[];
 	recentTasks: Array<{
-		beadId: string;
+		taskId: string;
 		summary: string;
 		completedAt: string;
 	}>;
@@ -193,7 +193,7 @@ export interface MailMessage {
 
 /** Worker signals task completion to supervisor. */
 export interface WorkerDonePayload {
-	beadId: string;
+	taskId: string;
 	branch: string;
 	exitCode: number;
 	filesModified: string[];
@@ -202,7 +202,7 @@ export interface WorkerDonePayload {
 /** Supervisor signals branch is verified and ready for merge. */
 export interface MergeReadyPayload {
 	branch: string;
-	beadId: string;
+	taskId: string;
 	agentName: string;
 	filesModified: string[];
 }
@@ -210,14 +210,14 @@ export interface MergeReadyPayload {
 /** Merger signals branch was merged successfully. */
 export interface MergedPayload {
 	branch: string;
-	beadId: string;
+	taskId: string;
 	tier: ResolutionTier;
 }
 
 /** Merger signals merge failed, needs rework. */
 export interface MergeFailedPayload {
 	branch: string;
-	beadId: string;
+	taskId: string;
 	conflictFiles: string[];
 	errorMessage: string;
 }
@@ -225,7 +225,7 @@ export interface MergeFailedPayload {
 /** Any agent escalates an issue to a higher-level decision-maker. */
 export interface EscalationPayload {
 	severity: "warning" | "error" | "critical";
-	beadId: string | null;
+	taskId: string | null;
 	context: string;
 }
 
@@ -237,7 +237,7 @@ export interface HealthCheckPayload {
 
 /** Coordinator dispatches work to a supervisor. */
 export interface DispatchPayload {
-	beadId: string;
+	taskId: string;
 	specPath: string;
 	capability: Capability;
 	fileScope: string[];
@@ -245,7 +245,7 @@ export interface DispatchPayload {
 
 /** Supervisor assigns work to a specific worker. */
 export interface AssignPayload {
-	beadId: string;
+	taskId: string;
 	specPath: string;
 	workerName: string;
 	branch: string;
@@ -267,7 +267,7 @@ export interface MailPayloadMap {
 
 export interface OverlayConfig {
 	agentName: string;
-	beadId: string;
+	taskId: string;
 	specPath: string | null;
 	branchName: string;
 	worktreePath: string;
@@ -291,7 +291,7 @@ export type ResolutionTier = "clean-merge" | "auto-resolve" | "ai-resolve" | "re
 
 export interface MergeEntry {
 	branchName: string;
-	beadId: string;
+	taskId: string;
 	agentName: string;
 	filesModified: string[];
 	enqueuedAt: string;
@@ -355,7 +355,7 @@ export interface LogEvent {
 
 export interface SessionMetrics {
 	agentName: string;
-	beadId: string;
+	taskId: string;
 	capability: string;
 	startedAt: string;
 	completedAt: string | null;
@@ -389,7 +389,7 @@ export interface TokenSnapshot {
 export interface TaskGroup {
 	id: string; // "group-" + nanoid(8)
 	name: string;
-	memberIssueIds: string[]; // beads issue IDs tracked by this group
+	memberIssueIds: string[]; // issue IDs tracked by this group
 	status: "active" | "completed";
 	createdAt: string; // ISO timestamp
 	completedAt: string | null; // ISO timestamp when all members closed
@@ -624,7 +624,7 @@ export interface MulchCompactResult {
  */
 export interface SessionCheckpoint {
 	agentName: string;
-	beadId: string;
+	taskId: string;
 	sessionId: string; // The AgentSession.id that created this checkpoint
 	timestamp: string; // ISO
 	progressSummary: string; // Human-readable summary of work done so far
@@ -656,7 +656,7 @@ export interface AgentLayers {
 	sandbox: {
 		worktreePath: string;
 		branchName: string;
-		beadId: string;
+		taskId: string;
 	};
 	session: {
 		id: string;

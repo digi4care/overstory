@@ -84,8 +84,8 @@ describe("validation", () => {
 		await expect(specCommand(["unknown"])).rejects.toThrow("Unknown spec subcommand");
 	});
 
-	test("write without bead-id throws ValidationError", async () => {
-		await expect(specCommand(["write"])).rejects.toThrow("Bead ID is required");
+	test("write without task-id throws ValidationError", async () => {
+		await expect(specCommand(["write"])).rejects.toThrow("Task ID is required");
 	});
 
 	test("write without body throws ValidationError", async () => {
@@ -104,7 +104,7 @@ describe("validation", () => {
 // === writeSpec (core function) ===
 
 describe("writeSpec", () => {
-	test("writes spec file to .overstory/specs/<bead-id>.md", async () => {
+	test("writes spec file to .overstory/specs/<task-id>.md", async () => {
 		const specPath = await writeSpec(tempDir, "task-abc", "# My Spec\n\nDetails here.");
 
 		expect(specPath).toBe(join(tempDir, ".overstory", "specs", "task-abc.md"));

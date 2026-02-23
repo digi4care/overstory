@@ -893,7 +893,7 @@ describe("buildBashFileGuardScript", () => {
 	test("includes safe prefix whitelist checks", () => {
 		const script = buildBashFileGuardScript("scout");
 		expect(script).toContain("overstory ");
-		expect(script).toContain("bd ");
+		expect(script).toContain("sd ");
 		expect(script).toContain("git status");
 		expect(script).toContain("git log");
 		expect(script).toContain("git diff");

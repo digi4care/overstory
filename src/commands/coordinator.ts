@@ -2,13 +2,13 @@
  * CLI command: overstory coordinator start|stop|status
  *
  * Manages the persistent coordinator agent lifecycle. The coordinator runs
- * at the project root (NOT in a worktree), receives work via mail and beads,
+ * at the project root (NOT in a worktree), receives work via mail and seeds,
  * and dispatches agents via overstory sling.
  *
  * Unlike regular agents spawned by sling, the coordinator:
  * - Has no worktree (operates on the main working tree)
- * - Has no bead assignment (it creates beads, not works on them)
- * - Has no overlay CLAUDE.md (context comes via mail + beads + checkpoints)
+ * - Has no task assignment (it creates tasks, not works on them)
+ * - Has no overlay CLAUDE.md (context comes via mail + seeds + checkpoints)
  * - Persists across work batches
  */
 
@@ -244,7 +244,7 @@ export function buildCoordinatorBeacon(): string {
 		"Depth: 0 | Parent: none | Role: persistent orchestrator",
 		"HIERARCHY: You ONLY spawn leads (overstory sling --capability lead). Leads spawn scouts, builders, reviewers. NEVER spawn non-lead agents directly.",
 		"DELEGATION: For any exploration/scouting, spawn a lead who will spawn scouts. Do NOT explore the codebase yourself beyond initial planning.",
-		`Startup: run mulch prime, check mail (overstory mail check --agent ${COORDINATOR_NAME}), check bd ready, check overstory group status, then begin work`,
+		`Startup: run mulch prime, check mail (overstory mail check --agent ${COORDINATOR_NAME}), check sd ready, check overstory group status, then begin work`,
 	];
 	return parts.join(" — ");
 }
@@ -379,7 +379,7 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 			capability: "coordinator",
 			worktreePath: projectRoot, // Coordinator uses project root, not a worktree
 			branchName: config.project.canonicalBranch, // Operates on canonical branch
-			beadId: "", // No specific bead assignment
+			taskId: "", // No specific task assignment
 			tmuxSession,
 			state: "booting",
 			pid,
@@ -686,7 +686,7 @@ General options:
   --help, -h               Show this help
 
 The coordinator runs at the project root and orchestrates work by:
-  - Decomposing objectives into beads issues
+  - Decomposing objectives into seeds issues
   - Dispatching agents via overstory sling
   - Tracking batches via task groups
   - Handling escalations from agents and watchdog`;

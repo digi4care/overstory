@@ -23,7 +23,7 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 	worktrees: {
 		baseDir: ".overstory/worktrees",
 	},
-	beads: {
+	seeds: {
 		enabled: true,
 	},
 	mulch: {

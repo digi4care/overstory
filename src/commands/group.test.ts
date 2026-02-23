@@ -1,10 +1,10 @@
 /**
  * Tests for overstory group command.
  *
- * Uses real temp directories for groups.json I/O. Does NOT mock bd CLI --
+ * Uses real temp directories for groups.json I/O. Does NOT mock sd CLI --
  * tests focus on the JSON storage layer and validation logic.
- * The beads validation is tested with --skip-validation flag since
- * bd is an external CLI not available in unit tests.
+ * The seeds validation is tested with --skip-validation flag since
+ * sd is an external CLI not available in unit tests.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";

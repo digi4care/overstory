@@ -40,7 +40,7 @@ describe("checkLogs", () => {
 			worktrees: {
 				baseDir: ".overstory/worktrees",
 			},
-			beads: {
+			seeds: {
 				enabled: true,
 			},
 			mulch: {

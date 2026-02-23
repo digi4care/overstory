@@ -134,7 +134,7 @@ export async function metricsCommand(args: string[]): Promise<void> {
 			const status = s.completedAt ? "done" : "running";
 			const duration = formatDuration(s.durationMs);
 			process.stdout.write(
-				`  ${s.agentName} [${s.capability}] ${s.beadId} | ${status} | ${duration}\n`,
+				`  ${s.agentName} [${s.capability}] ${s.taskId} | ${status} | ${duration}\n`,
 			);
 		}
 	} finally {

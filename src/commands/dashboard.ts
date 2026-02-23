@@ -473,7 +473,7 @@ function renderAgentPanel(
 	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
 	// Column headers
-	const colHeaders = `${BOX.vertical} St Name            Capability    State      Bead ID          Duration  Tmux ${BOX.vertical}`;
+	const colHeaders = `${BOX.vertical} St Name            Capability    State      Task ID          Duration  Tmux ${BOX.vertical}`;
 	output += `${CURSOR.cursorTo(startRow + 1, 1)}${colHeaders}\n`;
 
 	// Separator
@@ -503,7 +503,7 @@ function renderAgentPanel(
 		const name = pad(truncate(agent.agentName, 15), 15);
 		const capability = pad(truncate(agent.capability, 12), 12);
 		const state = pad(agent.state, 10);
-		const beadId = pad(truncate(agent.beadId, 16), 16);
+		const taskId = pad(truncate(agent.taskId, 16), 16);
 		const endTime =
 			agent.state === "completed" || agent.state === "zombie"
 				? new Date(agent.lastActivity).getTime()
@@ -513,7 +513,7 @@ function renderAgentPanel(
 		const tmuxAlive = data.status.tmuxSessions.some((s) => s.name === agent.tmuxSession);
 		const tmuxDot = tmuxAlive ? `${color.green}●${color.reset}` : `${color.red}○${color.reset}`;
 
-		const line = `${BOX.vertical} ${stateColor}${icon}${color.reset}  ${name} ${capability} ${stateColor}${state}${color.reset} ${beadId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
+		const line = `${BOX.vertical} ${stateColor}${icon}${color.reset}  ${name} ${capability} ${stateColor}${state}${color.reset} ${taskId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${line}\n`;
 	}
 
@@ -763,7 +763,7 @@ Options:
   --help, -h         Show this help
 
 Dashboard panels:
-  - Agent panel: Active agents with status, capability, bead ID, duration
+  - Agent panel: Active agents with status, capability, task ID, duration
   - Mail panel: Recent messages with priority and time
   - Merge queue: Pending/merging/conflict entries
   - Metrics: Session counts, avg duration, by-capability breakdown

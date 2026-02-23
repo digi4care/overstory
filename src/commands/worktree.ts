@@ -44,7 +44,7 @@ async function handleList(root: string, json: boolean): Promise<void> {
 				head: wt.head,
 				agentName: session?.agentName ?? null,
 				state: session?.state ?? null,
-				beadId: session?.beadId ?? null,
+				taskId: session?.taskId ?? null,
 			};
 		});
 		process.stdout.write(`${JSON.stringify(entries, null, "\t")}\n`);
@@ -61,9 +61,9 @@ async function handleList(root: string, json: boolean): Promise<void> {
 		const session = sessions.find((s) => s.worktreePath === wt.path);
 		const state = session?.state ?? "unknown";
 		const agent = session?.agentName ?? "?";
-		const bead = session?.beadId ?? "?";
+		const task = session?.taskId ?? "?";
 		process.stdout.write(`  ${wt.branch}\n`);
-		process.stdout.write(`    Agent: ${agent} | State: ${state} | Task: ${bead}\n`);
+		process.stdout.write(`    Agent: ${agent} | State: ${state} | Task: ${task}\n`);
 		process.stdout.write(`    Path: ${wt.path}\n\n`);
 	}
 }

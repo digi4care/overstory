@@ -1,7 +1,7 @@
 /**
- * CLI command: overstory spec write <bead-id> --body <content>
+ * CLI command: overstory spec write <task-id> --body <content>
  *
- * Writes a task specification to `.overstory/specs/<bead-id>.md`.
+ * Writes a task specification to `.overstory/specs/<task-id>.md`.
  * Scouts use this to persist spec documents as files instead of
  * sending entire specs via mail messages.
  *
@@ -67,7 +67,7 @@ const SPEC_HELP = `overstory spec -- Manage task specifications
 Usage: overstory spec <subcommand> [args...]
 
 Subcommands:
-  write <bead-id>          Write a spec file to .overstory/specs/<bead-id>.md
+  write <task-id>          Write a spec file to .overstory/specs/<task-id>.md
 
 Options for 'write':
   --body <content>         Spec content (or pipe via stdin)
@@ -80,13 +80,13 @@ Examples:
   overstory spec write task-abc --body "..." --agent scout-1`;
 
 /**
- * Write a spec file to .overstory/specs/<bead-id>.md.
+ * Write a spec file to .overstory/specs/<task-id>.md.
  *
  * Exported for direct use in tests.
  */
 export async function writeSpec(
 	projectRoot: string,
-	beadId: string,
+	taskId: string,
 	body: string,
 	agent?: string,
 ): Promise<string> {
@@ -105,7 +105,7 @@ export async function writeSpec(
 		content += "\n";
 	}
 
-	const specPath = join(specsDir, `${beadId}.md`);
+	const specPath = join(specsDir, `${taskId}.md`);
 	await Bun.write(specPath, content);
 
 	return specPath;
@@ -126,11 +126,11 @@ export async function specCommand(args: string[]): Promise<void> {
 	switch (subcommand) {
 		case "write": {
 			const positional = getPositionalArgs(subArgs);
-			const beadId = positional[0];
-			if (!beadId || beadId.trim().length === 0) {
+			const taskId = positional[0];
+			if (!taskId || taskId.trim().length === 0) {
 				throw new ValidationError(
-					"Bead ID is required: overstory spec write <bead-id> --body <content>",
-					{ field: "beadId" },
+					"Task ID is required: overstory spec write <task-id> --body <content>",
+					{ field: "taskId" },
 				);
 			}
 
@@ -154,7 +154,7 @@ export async function specCommand(args: string[]): Promise<void> {
 			const { resolveProjectRoot } = await import("../config.ts");
 			const projectRoot = await resolveProjectRoot(process.cwd());
 
-			const specPath = await writeSpec(projectRoot, beadId, body, agent);
+			const specPath = await writeSpec(projectRoot, taskId, body, agent);
 			process.stdout.write(`${specPath}\n`);
 			break;
 		}

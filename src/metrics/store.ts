@@ -30,7 +30,7 @@ export interface MetricsStore {
 /** Row shape as stored in SQLite (snake_case columns). */
 interface SessionRow {
 	agent_name: string;
-	bead_id: string;
+	task_id: string;
 	capability: string;
 	started_at: string;
 	completed_at: string | null;
@@ -63,7 +63,7 @@ interface SnapshotRow {
 const CREATE_TABLE = `
 CREATE TABLE IF NOT EXISTS sessions (
   agent_name TEXT NOT NULL,
-  bead_id TEXT NOT NULL,
+  task_id TEXT NOT NULL,
   capability TEXT NOT NULL,
   started_at TEXT NOT NULL,
   completed_at TEXT,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   estimated_cost_usd REAL,
   model_used TEXT,
   run_id TEXT,
-  PRIMARY KEY (agent_name, bead_id)
+  PRIMARY KEY (agent_name, task_id)
 )`;
 
 const CREATE_SNAPSHOTS_TABLE = `
@@ -140,7 +140,7 @@ function migrateTokenColumns(db: Database): void {
 function rowToMetrics(row: SessionRow): SessionMetrics {
 	return {
 		agentName: row.agent_name,
-		beadId: row.bead_id,
+		taskId: row.task_id,
 		capability: row.capability,
 		startedAt: row.started_at,
 		completedAt: row.completed_at,
@@ -200,7 +200,7 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 		void,
 		{
 			$agent_name: string;
-			$bead_id: string;
+			$task_id: string;
 			$capability: string;
 			$started_at: string;
 			$completed_at: string | null;
@@ -218,9 +218,9 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 		}
 	>(`
 		INSERT OR REPLACE INTO sessions
-			(agent_name, bead_id, capability, started_at, completed_at, duration_ms, exit_code, merge_result, parent_agent, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, estimated_cost_usd, model_used, run_id)
+			(agent_name, task_id, capability, started_at, completed_at, duration_ms, exit_code, merge_result, parent_agent, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, estimated_cost_usd, model_used, run_id)
 		VALUES
-			($agent_name, $bead_id, $capability, $started_at, $completed_at, $duration_ms, $exit_code, $merge_result, $parent_agent, $input_tokens, $output_tokens, $cache_read_tokens, $cache_creation_tokens, $estimated_cost_usd, $model_used, $run_id)
+			($agent_name, $task_id, $capability, $started_at, $completed_at, $duration_ms, $exit_code, $merge_result, $parent_agent, $input_tokens, $output_tokens, $cache_read_tokens, $cache_creation_tokens, $estimated_cost_usd, $model_used, $run_id)
 	`);
 
 	const recentStmt = db.prepare<SessionRow, { $limit: number }>(`
@@ -290,7 +290,7 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 		recordSession(metrics: SessionMetrics): void {
 			insertStmt.run({
 				$agent_name: metrics.agentName,
-				$bead_id: metrics.beadId,
+				$task_id: metrics.taskId,
 				$capability: metrics.capability,
 				$started_at: metrics.startedAt,
 				$completed_at: metrics.completedAt,

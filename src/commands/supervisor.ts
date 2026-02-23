@@ -3,10 +3,10 @@
  *
  * Manages per-project supervisor agent lifecycle. The supervisor is a persistent
  * agent that runs at the project root (NOT in a worktree), assigned to a specific
- * bead task, and operates at depth 1 (between coordinator and leaf workers).
+ * task, and operates at depth 1 (between coordinator and leaf workers).
  *
  * Unlike the coordinator:
- * - Has a bead assignment (required via --task flag)
+ * - Has a task assignment (required via --task flag)
  * - Has a parent agent (typically "coordinator")
  * - Has depth 1 (default)
  * - Multiple supervisors can run concurrently (distinguished by --name)
@@ -17,9 +17,9 @@ import { join } from "node:path";
 import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
-import { createBeadsClient } from "../beads/client.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { createSeedsClient } from "../seeds/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession } from "../types.ts";
 import {
@@ -35,21 +35,21 @@ import { isRunningAsRoot } from "./sling.ts";
  * Build the supervisor startup beacon.
  *
  * @param opts.name - Supervisor agent name
- * @param opts.beadId - Bead task ID
+ * @param opts.taskId - Task ID
  * @param opts.depth - Hierarchy depth (default 1)
  * @param opts.parent - Parent agent name (default "coordinator")
  */
 export function buildSupervisorBeacon(opts: {
 	name: string;
-	beadId: string;
+	taskId: string;
 	depth: number;
 	parent: string;
 }): string {
 	const timestamp = new Date().toISOString();
 	const parts = [
-		`[OVERSTORY] ${opts.name} (supervisor) ${timestamp} task:${opts.beadId}`,
+		`[OVERSTORY] ${opts.name} (supervisor) ${timestamp} task:${opts.taskId}`,
 		`Depth: ${opts.depth} | Parent: ${opts.parent} | Role: per-project supervisor`,
-		`Startup: run mulch prime, check mail (overstory mail check --agent ${opts.name}), read task (bd show ${opts.beadId}), then begin supervising`,
+		`Startup: run mulch prime, check mail (overstory mail check --agent ${opts.name}), read task (sd show ${opts.taskId}), then begin supervising`,
 	];
 	return parts.join(" — ");
 }
@@ -111,7 +111,7 @@ function parseFlags(args: string[]): {
  *
  * 1. Parse flags (--task required, --name required)
  * 2. Load config
- * 3. Validate: name is unique in sessions, bead exists and is workable
+ * 3. Validate: name is unique in sessions, task exists and is workable
  * 4. Check no supervisor with same name is already running
  * 5. Deploy hooks with capability "supervisor"
  * 6. Create identity if first run
@@ -123,7 +123,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 	const flags = parseFlags(args);
 
 	if (!flags.task) {
-		throw new ValidationError("--task <bead-id> is required", {
+		throw new ValidationError("--task <task-id> is required", {
 			field: "task",
 			value: flags.task ?? "",
 		});
@@ -145,11 +145,11 @@ async function startSupervisor(args: string[]): Promise<void> {
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
 
-	// Validate bead exists and is workable (open or in_progress)
-	const beads = createBeadsClient(projectRoot);
-	const bead = await beads.show(flags.task);
-	if (bead.status !== "open" && bead.status !== "in_progress") {
-		throw new ValidationError(`Bead ${flags.task} is not workable (status: ${bead.status})`, {
+	// Validate task exists and is workable (open or in_progress)
+	const seeds = createSeedsClient(projectRoot);
+	const task = await seeds.show(flags.task);
+	if (task.status !== "open" && task.status !== "in_progress") {
+		throw new ValidationError(`Task ${flags.task} is not workable (status: ${task.status})`, {
 			field: "task",
 			value: flags.task,
 		});
@@ -226,7 +226,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 
 		const beacon = buildSupervisorBeacon({
 			name: flags.name,
-			beadId: flags.task,
+			taskId: flags.task,
 			depth: flags.depth,
 			parent: flags.parent,
 		});
@@ -245,7 +245,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 			capability: "supervisor",
 			worktreePath: projectRoot, // Supervisor uses project root, not a worktree
 			branchName: config.project.canonicalBranch, // Operates on canonical branch
-			beadId: flags.task,
+			taskId: flags.task,
 			tmuxSession,
 			state: "booting",
 			pid,
@@ -265,7 +265,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 			capability: "supervisor",
 			tmuxSession,
 			projectRoot,
-			beadId: flags.task,
+			taskId: flags.task,
 			parent: flags.parent,
 			depth: flags.depth,
 			pid,
@@ -393,7 +393,7 @@ async function statusSupervisor(args: string[]): Promise<void> {
 				agentName: session.agentName,
 				state: session.state,
 				tmuxSession: session.tmuxSession,
-				beadId: session.beadId,
+				taskId: session.taskId,
 				parentAgent: session.parentAgent,
 				depth: session.depth,
 				pid: session.pid,
@@ -408,7 +408,7 @@ async function statusSupervisor(args: string[]): Promise<void> {
 				process.stdout.write(`Supervisor '${flags.name}': ${stateLabel}\n`);
 				process.stdout.write(`  Session:   ${session.id}\n`);
 				process.stdout.write(`  Tmux:      ${session.tmuxSession}\n`);
-				process.stdout.write(`  Task:      ${session.beadId}\n`);
+				process.stdout.write(`  Task:      ${session.taskId}\n`);
 				process.stdout.write(`  Parent:    ${session.parentAgent}\n`);
 				process.stdout.write(`  Depth:     ${session.depth}\n`);
 				process.stdout.write(`  PID:       ${session.pid}\n`);
@@ -447,7 +447,7 @@ async function statusSupervisor(args: string[]): Promise<void> {
 								? ("zombie" as const)
 								: session.state,
 						tmuxSession: session.tmuxSession,
-						beadId: session.beadId,
+						taskId: session.taskId,
 						parentAgent: session.parentAgent,
 						depth: session.depth,
 						startedAt: session.startedAt,
@@ -462,7 +462,7 @@ async function statusSupervisor(args: string[]): Promise<void> {
 				for (const status of statuses) {
 					const stateLabel = status.running ? "running" : status.state;
 					process.stdout.write(
-						`  ${status.agentName}: ${stateLabel} (task: ${status.beadId}, parent: ${status.parentAgent})\n`,
+						`  ${status.agentName}: ${stateLabel} (task: ${status.taskId}, parent: ${status.parentAgent})\n`,
 					);
 				}
 			}
@@ -482,7 +482,7 @@ Subcommands:
   status                   Show supervisor state
 
 Options (start):
-  --task <bead-id>         Bead task ID (required)
+  --task <task-id>         Task ID (required)
   --name <name>            Unique supervisor name (required)
   --parent <agent>         Parent agent name (default: "coordinator")
   --depth <n>              Hierarchy depth (default: 1)
@@ -497,7 +497,7 @@ Options (status):
   --json                   Output as JSON
 
 The supervisor runs at the project root (like the coordinator) but is assigned
-to a specific bead task and operates at depth 1. Supervisors can spawn workers
+to a specific task and operates at depth 1. Supervisors can spawn workers
 via overstory sling and coordinate their work.`;
 
 /**
