@@ -167,7 +167,7 @@ target-project/
       identity.yaml               # Persistent agent CV
       checkpoint.json             # Session checkpoint for recovery
     worktrees/{agent-name}/       # Git worktrees (gitignored)
-    specs/{bead-id}.md            # Task specifications
+    specs/{task-id}.md            # Task specifications
     logs/{agent-name}/{ts}/       # Agent logs (gitignored)
     mail.db                       # SQLite mail (gitignored, WAL mode)
     sessions.db                   # SQLite sessions + runs (gitignored, WAL mode)
@@ -262,7 +262,7 @@ overstory prime                         Load context for orchestrator/agent
   --agent <name>                         Per-agent priming
   --compact                              Less context (for PreCompact hook)
 
-overstory spec write <bead-id>         Write a spec file to .overstory/specs/
+overstory spec write <task-id>         Write a spec file to .overstory/specs/
   --body <content>                       Spec content (or pipe via stdin)
   --agent <name>                         Agent attribution
 ```
@@ -281,7 +281,7 @@ overstory coordinator <sub>            Persistent coordinator agent
 
 overstory supervisor <sub>             Per-project supervisor agent
   start                                  Start supervisor
-    --task <bead-id>                     Bead task ID (required)
+    --task <task-id>                     Task ID (required)
     --name <name>                        Unique name (required)
     --parent <agent>                     Parent agent (default: coordinator)
     --depth <n>                          Hierarchy depth (default: 1)

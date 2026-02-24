@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-02-24
+
+### Added
+
+#### Seeds Preservation for Lead Branches
+- **`preserveSeedsChanges()` in worktree manager** — extracts `.seeds/` diffs from lead agent branches and applies them to the canonical branch via patch before worktree cleanup, preventing loss of issue files created by leads whose branches are never merged through the normal merge pipeline
+- Integrated into `overstory worktree clean` — automatically preserves seeds changes before removing completed worktrees
+
+#### Merge Union Gitattribute Support
+- **`resolveConflictsUnion()` in merge resolver** — new auto-resolve strategy for files with `merge=union` gitattribute that keeps all lines from both sides (canonical + incoming), relying on dedup-on-read to handle duplicates
+- **`checkMergeUnion()` helper** — queries `git check-attr merge` to detect union merge strategy per file
+- Auto-resolve tier now checks gitattributes before choosing between keep-incoming and union resolution strategies
+
+#### Sling Preflight
+- **`ensureTmuxAvailable()` preflight in sling command** — verifies tmux is available before attempting session creation, providing a clear error instead of cryptic spawn failures
+
+#### Testing
+- Test suite: 2145 tests across 76 files (5410 expect() calls)
+
+### Changed
+- **`beadId` → `taskId` rename across all TypeScript source** — comprehensive rename of the `beadId` field to `taskId` in all source files, types, interfaces, and tests, completing the tracker abstraction naming migration started in v0.6.0
+- **`gatherStatus()` uses `evaluateHealth()`** — status command now applies the full health evaluation from the watchdog module for agent state reconciliation, matching dashboard and watchdog behavior (handles tmux-dead→zombie, persistent capability booting→working, and time-based stale/zombie detection)
+
+### Fixed
+- **Single quote escaping in blockGuard shell commands** — fixed shell escaping in blockGuard patterns that could cause guard failures when arguments contained single quotes
+- **Dashboard version from package.json** — dashboard now reads version dynamically from `package.json` instead of a hardcoded value
+- **Seeds config project name** — renamed project from "seeds" to "overstory" in `.seeds/config.yaml` and fixed 71 misnamed issue IDs
+
 ## [0.6.4] - 2026-02-24
 
 ### Added
@@ -649,7 +677,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/jayminwest/overstory/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jayminwest/overstory/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/jayminwest/overstory/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/jayminwest/overstory/compare/v0.6.1...v0.6.2

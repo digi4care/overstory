@@ -222,7 +222,7 @@ overstory inspect <agent>               Deep per-agent inspection
   --no-tmux                              Skip tmux capture
   --limit <n>                            Limit events shown
 
-overstory spec write <bead-id>          Write a task specification
+overstory spec write <task-id>          Write a task specification
   --body <content>                       Spec content (or pipe via stdin)
 
 overstory errors                        Aggregated error view across agents
@@ -270,16 +270,16 @@ Global Flags:
 ## Tech Stack
 
 - **Runtime**: Bun (TypeScript directly, no build step)
-- **Dependencies**: Minimal runtime — `chalk` (color output), core I/O via Bun built-in APIs
+- **Dependencies**: Minimal runtime — `chalk` (color output), `commander` (CLI framework), core I/O via Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2128 tests across 76 files, colocated with source)
+- **Testing**: `bun test` (2145 tests across 76 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2128 tests across 76 files)
+# Run tests (2145 tests across 76 files)
 bun test
 
 # Run a single test
