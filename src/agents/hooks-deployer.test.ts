@@ -147,9 +147,9 @@ describe("deployHooks", () => {
 		// PostToolUse should have 3 entries: logger, mail check, and mulch diff Bash hook
 		expect(postToolUse).toHaveLength(3);
 		// First entry is the logging hook
-		expect(postToolUse[0].hooks[0].command).toContain("overstory log tool-end");
+		expect(postToolUse[0].hooks[0].command).toContain("ov log tool-end");
 		// Second entry is the debounced mail check
-		expect(postToolUse[1].hooks[0].command).toContain("overstory mail check --inject");
+		expect(postToolUse[1].hooks[0].command).toContain("ov mail check --inject");
 		expect(postToolUse[1].hooks[0].command).toContain("mail-check-agent");
 		expect(postToolUse[1].hooks[0].command).toContain("--debounce 30000");
 		expect(postToolUse[1].hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
@@ -167,7 +167,7 @@ describe("deployHooks", () => {
 		// Third entry is the mulch diff Bash hook
 		const mulchDiffHook = postToolUse.find((h: { matcher: string }) => h.matcher === "Bash");
 		expect(mulchDiffHook).toBeDefined();
-		expect(mulchDiffHook.hooks[0].command).toContain("mulch diff HEAD~1");
+		expect(mulchDiffHook.hooks[0].command).toContain("ml diff HEAD~1");
 	});
 
 	test("output contains PreCompact hook", async () => {
@@ -210,7 +210,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const sessionStart = parsed.hooks.SessionStart[0];
 		expect(sessionStart.hooks[0].type).toBe("command");
-		expect(sessionStart.hooks[0].command).toContain("overstory prime --agent prime-agent");
+		expect(sessionStart.hooks[0].command).toContain("ov prime --agent prime-agent");
 		expect(sessionStart.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -223,9 +223,7 @@ describe("deployHooks", () => {
 		const content = await Bun.file(outputPath).text();
 		const parsed = JSON.parse(content);
 		const userPrompt = parsed.hooks.UserPromptSubmit[0];
-		expect(userPrompt.hooks[0].command).toContain(
-			"overstory mail check --inject --agent mail-agent",
-		);
+		expect(userPrompt.hooks[0].command).toContain("ov mail check --inject --agent mail-agent");
 		expect(userPrompt.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -239,9 +237,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const preCompact = parsed.hooks.PreCompact[0];
 		expect(preCompact.hooks[0].type).toBe("command");
-		expect(preCompact.hooks[0].command).toContain(
-			"overstory prime --agent compact-agent --compact",
-		);
+		expect(preCompact.hooks[0].command).toContain("ov prime --agent compact-agent --compact");
 		expect(preCompact.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -259,7 +255,7 @@ describe("deployHooks", () => {
 		const baseHook = preToolUse.find((h: { matcher: string }) => h.matcher === "");
 		expect(baseHook).toBeDefined();
 		expect(baseHook.hooks[0].command).toContain("--stdin");
-		expect(baseHook.hooks[0].command).toContain("overstory log tool-start");
+		expect(baseHook.hooks[0].command).toContain("ov log tool-start");
 		expect(baseHook.hooks[0].command).toContain("stdin-agent");
 		expect(baseHook.hooks[0].command).not.toContain("read -r INPUT");
 	});
@@ -274,7 +270,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const postToolUse = parsed.hooks.PostToolUse[0];
 		expect(postToolUse.hooks[0].command).toContain("--stdin");
-		expect(postToolUse.hooks[0].command).toContain("overstory log tool-end");
+		expect(postToolUse.hooks[0].command).toContain("ov log tool-end");
 		expect(postToolUse.hooks[0].command).toContain("stdin-agent");
 		expect(postToolUse.hooks[0].command).not.toContain("read -r INPUT");
 	});
@@ -293,7 +289,7 @@ describe("deployHooks", () => {
 		expect(postToolUse.hooks).toHaveLength(2);
 
 		// Second hook should be mail check with debounce
-		expect(postToolUse.hooks[1].command).toContain("overstory mail check");
+		expect(postToolUse.hooks[1].command).toContain("ov mail check");
 		expect(postToolUse.hooks[1].command).toContain("--inject");
 		expect(postToolUse.hooks[1].command).toContain("--agent mail-debounce-agent");
 		expect(postToolUse.hooks[1].command).toContain("--debounce 500");
@@ -310,7 +306,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const stop = parsed.hooks.Stop[0];
 		expect(stop.hooks[0].command).toContain("--stdin");
-		expect(stop.hooks[0].command).toContain("overstory log session-end");
+		expect(stop.hooks[0].command).toContain("ov log session-end");
 		expect(stop.hooks[0].command).toContain("stdin-agent");
 		expect(stop.hooks[0].command).not.toContain("read -r INPUT");
 	});
@@ -325,7 +321,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const stop = parsed.hooks.Stop[0];
 		expect(stop.hooks.length).toBe(2);
-		expect(stop.hooks[1].command).toContain("mulch learn");
+		expect(stop.hooks[1].command).toContain("ml learn");
 		expect(stop.hooks[1].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -665,7 +661,7 @@ describe("deployHooks", () => {
 
 		// Overstory hooks should also be present
 		expect(content).toContain("merge-agent");
-		expect(content).toContain("overstory prime");
+		expect(content).toContain("ov prime");
 	});
 
 	test("overstory hooks appear before user hooks per event type", async () => {
