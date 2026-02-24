@@ -310,5 +310,15 @@
 		"status": "completed",
 		"createdAt": "2026-02-24T15:53:19.762Z",
 		"completedAt": "2026-02-24T17:39:14.213Z"
+	},
+	{
+		"id": "group-1fbfec24",
+		"name": "test-suite-fix",
+		"memberIssueIds": [
+			"seeds-1f0c"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-24T18:56:53.989Z",
+		"completedAt": "2026-02-24T20:03:39.011Z"
 	}
 ]

@@ -3,7 +3,7 @@
 	"lead-md-builder": 1771941309343,
 	"delegation-lead": 1771941445172,
 	"dashboard-lead": 1771941807469,
-	"coordinator": 1771954779478,
+	"coordinator": 1771963605652,
 	"bugfix-lead": 1771945845129,
 	"reliability-lead": 1771945127713,
 	"provider-tests-lead": 1771945024749,
@@ -30,5 +30,9 @@
 	"mail-builder": 1771951908877,
 	"nudge-builder": 1771951452416,
 	"infra-cmdr-builder": 1771954485127,
-	"observability-builder": 1771952990343
+	"observability-builder": 1771952990343,
+	"test-fix-lead": 1771963252496,
+	"cmdr-fix-1": 1771961045105,
+	"cmdr-fix-2": 1771961728171,
+	"cmdr-fix-3": 1771962972700
 }
