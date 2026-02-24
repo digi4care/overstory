@@ -46,6 +46,13 @@ const NATIVE_TEAM_TOOLS = [
 	"TaskStop",
 ];
 
+/**
+ * Tools that require human interaction and block indefinitely in non-interactive
+ * tmux sessions. Agents run non-interactively and must never call these tools.
+ * Use overstory mail (--type question) to escalate to the orchestrator instead.
+ */
+const INTERACTIVE_TOOLS = ["AskUserQuestion", "EnterPlanMode", "EnterWorktree"];
+
 /** Tools that non-implementation agents must not use. */
 const WRITE_TOOLS = ["Write", "Edit", "NotebookEdit"];
 
@@ -444,6 +451,17 @@ export function getCapabilityGuards(capability: string): HookEntry[] {
 		),
 	);
 	guards.push(...teamToolGuards);
+
+	// Block interactive tools for ALL overstory agents.
+	// These tools require a human to respond and block indefinitely in tmux sessions.
+	// Agents must use overstory mail (--type question) to escalate instead.
+	const interactiveGuards = INTERACTIVE_TOOLS.map((tool) =>
+		blockGuard(
+			tool,
+			`${tool} requires human interaction -- agents run non-interactively. Use overstory mail (--type question) to escalate`,
+		),
+	);
+	guards.push(...interactiveGuards);
 
 	if (NON_IMPLEMENTATION_CAPABILITIES.has(capability)) {
 		const toolGuards = WRITE_TOOLS.map((tool) =>
