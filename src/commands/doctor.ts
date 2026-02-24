@@ -54,7 +54,7 @@ function printHumanReadable(
 ): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}Overstory Doctor${color.reset}\n`);
+	w(`${color.bold("Overstory Doctor")}\n`);
 	w("================\n\n");
 
 	// Group checks by category
@@ -75,10 +75,10 @@ function printHumanReadable(
 			continue; // Skip empty categories unless verbose
 		}
 
-		w(`${color.bold}[${category}]${color.reset}\n`);
+		w(`${color.bold(`[${category}]`)}\n`);
 
 		if (categoryChecks.length === 0) {
-			w(`  ${color.dim}No checks${color.reset}\n`);
+			w(`  ${color.dim("No checks")}\n`);
 		} else {
 			for (const check of categoryChecks) {
 				// Skip passing checks unless verbose
@@ -88,17 +88,17 @@ function printHumanReadable(
 
 				const icon =
 					check.status === "pass"
-						? `${color.green}✔${color.reset}`
+						? color.green("✔")
 						: check.status === "warn"
-							? `${color.yellow}⚠${color.reset}`
-							: `${color.red}✘${color.reset}`;
+							? color.yellow("⚠")
+							: color.red("✘");
 
 				w(`  ${icon} ${check.message}\n`);
 
 				// Print details if present
 				if (check.details && check.details.length > 0) {
 					for (const detail of check.details) {
-						w(`    ${color.dim}→ ${detail}${color.reset}\n`);
+						w(`    ${color.dim(`→ ${detail}`)}\n`);
 					}
 				}
 			}
@@ -113,7 +113,7 @@ function printHumanReadable(
 	const fail = checks.filter((c) => c.status === "fail").length;
 
 	w(
-		`${color.bold}Summary:${color.reset} ${color.green}${pass} passed${color.reset}, ${color.yellow}${warn} warning${warn === 1 ? "" : "s"}${color.reset}, ${color.red}${fail} failure${fail === 1 ? "" : "s"}${color.reset}\n`,
+		`${color.bold("Summary:")} ${color.green(`${pass} passed`)}, ${color.yellow(`${warn} warning${warn === 1 ? "" : "s"}`)}, ${color.red(`${fail} failure${fail === 1 ? "" : "s"}`)}\n`,
 	);
 }
 

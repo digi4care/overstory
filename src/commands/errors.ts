@@ -109,15 +109,15 @@ function groupByAgent(events: StoredEvent[]): Map<string, StoredEvent[]> {
 function printErrors(events: StoredEvent[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}${color.red}Errors${color.reset}\n`);
+	w(`${color.bold(color.red("Errors"))}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (events.length === 0) {
-		w(`${color.dim}No errors found.${color.reset}\n`);
+		w(`${color.dim("No errors found.")}\n`);
 		return;
 	}
 
-	w(`${color.dim}${events.length} error${events.length === 1 ? "" : "s"}${color.reset}\n\n`);
+	w(`${color.dim(`${events.length} error${events.length === 1 ? "" : "s"}`)}\n\n`);
 
 	const grouped = groupByAgent(events);
 
@@ -129,7 +129,7 @@ function printErrors(events: StoredEvent[]): void {
 		firstGroup = false;
 
 		w(
-			`${color.bold}${agentName}${color.reset} ${color.dim}(${agentEvents.length} error${agentEvents.length === 1 ? "" : "s"})${color.reset}\n`,
+			`${color.bold(agentName)} ${color.dim(`(${agentEvents.length} error${agentEvents.length === 1 ? "" : "s"})`)}\n`,
 		);
 
 		for (const event of agentEvents) {
@@ -138,11 +138,9 @@ function printErrors(events: StoredEvent[]): void {
 			const timestamp = date ? `${date} ${time}` : time;
 
 			const detail = buildErrorDetail(event);
-			const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+			const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
-			w(
-				`  ${color.dim}${timestamp}${color.reset} ${color.red}${color.bold}ERROR${color.reset}${detailSuffix}\n`,
-			);
+			w(`  ${color.dim(timestamp)} ${color.red(color.bold("ERROR"))}${detailSuffix}\n`);
 		}
 	}
 }

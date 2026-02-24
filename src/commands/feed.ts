@@ -10,11 +10,12 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { EventType, StoredEvent } from "../types.ts";
 
 /** Compact 5-char labels for feed output. */
-const EVENT_LABELS: Record<EventType, { label: string; color: string }> = {
+const EVENT_LABELS: Record<EventType, { label: string; color: ColorFn }> = {
 	tool_start: { label: "TOOL+", color: color.blue },
 	tool_end: { label: "TOOL-", color: color.blue },
 	session_start: { label: "SESS+", color: color.green },
@@ -26,8 +27,14 @@ const EVENT_LABELS: Record<EventType, { label: string; color: string }> = {
 	custom: { label: "CUSTM", color: color.gray },
 };
 
-/** Colors assigned to agents in order of first appearance. */
-const AGENT_COLORS = [color.blue, color.green, color.yellow, color.cyan, color.magenta] as const;
+/** Color functions assigned to agents in order of first appearance. */
+const AGENT_COLORS: readonly ColorFn[] = [
+	color.blue,
+	color.green,
+	color.yellow,
+	color.cyan,
+	color.magenta,
+];
 
 /**
  * Parse a named flag value from args.
@@ -114,16 +121,16 @@ function buildEventDetail(event: StoredEvent): string {
 }
 
 /**
- * Assign a stable color to each agent based on order of first appearance.
+ * Assign a stable color function to each agent based on order of first appearance.
  */
-function buildAgentColorMap(events: StoredEvent[]): Map<string, string> {
-	const colorMap = new Map<string, string>();
+function buildAgentColorMap(events: StoredEvent[]): Map<string, ColorFn> {
+	const colorMap = new Map<string, ColorFn>();
 	for (const event of events) {
 		if (!colorMap.has(event.agentName)) {
 			const colorIndex = colorMap.size % AGENT_COLORS.length;
-			const agentColor = AGENT_COLORS[colorIndex];
-			if (agentColor !== undefined) {
-				colorMap.set(event.agentName, agentColor);
+			const agentColorFn = AGENT_COLORS[colorIndex];
+			if (agentColorFn !== undefined) {
+				colorMap.set(event.agentName, agentColorFn);
 			}
 		}
 	}
@@ -134,7 +141,7 @@ function buildAgentColorMap(events: StoredEvent[]): Map<string, string> {
  * Print a single event in compact feed format:
  * HH:MM:SS LABEL agentname    detail
  */
-function printEvent(event: StoredEvent, colorMap: Map<string, string>): void {
+function printEvent(event: StoredEvent, colorMap: Map<string, ColorFn>): void {
 	const w = process.stdout.write.bind(process.stdout);
 
 	const timeStr = formatAbsoluteTime(event.createdAt);
@@ -144,19 +151,19 @@ function printEvent(event: StoredEvent, colorMap: Map<string, string>): void {
 		color: color.gray,
 	};
 
-	const levelColor =
-		event.level === "error" ? color.red : event.level === "warn" ? color.yellow : "";
-	const levelReset = levelColor ? color.reset : "";
+	const levelColorFn =
+		event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
+	const applyLevel = (text: string) => (levelColorFn ? levelColorFn(text) : text);
 
 	const detail = buildEventDetail(event);
-	const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+	const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
-	const agentColor = colorMap.get(event.agentName) ?? color.gray;
-	const agentLabel = ` ${agentColor}${event.agentName.padEnd(15)}${color.reset}`;
+	const agentColorFn = colorMap.get(event.agentName) ?? color.gray;
+	const agentLabel = ` ${agentColorFn(event.agentName.padEnd(15))}`;
 
 	w(
-		`${color.dim}${timeStr}${color.reset} ` +
-			`${levelColor}${eventInfo.color}${color.bold}${eventInfo.label}${color.reset}${levelReset}` +
+		`${color.dim(timeStr)} ` +
+			`${applyLevel(eventInfo.color(color.bold(eventInfo.label)))}` +
 			`${agentLabel}${detailSuffix}\n`,
 	);
 }
@@ -330,9 +337,9 @@ export async function feedCommand(args: string[]): Promise<void> {
 					for (const event of newEvents) {
 						if (!globalColorMap.has(event.agentName)) {
 							const colorIndex = globalColorMap.size % AGENT_COLORS.length;
-							const agentColor = AGENT_COLORS[colorIndex];
-							if (agentColor !== undefined) {
-								globalColorMap.set(event.agentName, agentColor);
+							const agentColorFn = AGENT_COLORS[colorIndex];
+							if (agentColorFn !== undefined) {
+								globalColorMap.set(event.agentName, agentColorFn);
 							}
 						}
 					}

@@ -2,13 +2,14 @@
  * Console reporter with ANSI colors for human-readable log output.
  *
  * Formats LogEvent objects into colored terminal output.
- * Uses ANSI escape codes directly (no external dependencies).
+ * Uses Chalk for color formatting.
  */
 
 import type { LogEvent } from "../types.ts";
+import type { ColorFn } from "./color.ts";
 import { color, isQuiet } from "./color.ts";
 
-const LEVEL_COLORS: Record<LogEvent["level"], string> = {
+const LEVEL_COLORS: Record<LogEvent["level"], ColorFn> = {
 	debug: color.gray,
 	info: color.blue,
 	warn: color.yellow,
@@ -35,13 +36,13 @@ export function formatLogLine(event: LogEvent): string {
 	const time = extractTime(event.timestamp);
 
 	// Build the agent prefix
-	const agentPart = event.agentName ? `${color.dim}${event.agentName}${color.reset} | ` : "";
+	const agentPart = event.agentName ? `${color.dim(event.agentName)} | ` : "";
 
 	// Build key=value pairs from data
 	const dataPart = formatData(event.data);
-	const dataSuffix = dataPart.length > 0 ? ` ${color.dim}${dataPart}${color.reset}` : "";
+	const dataSuffix = dataPart.length > 0 ? ` ${color.dim(dataPart)}` : "";
 
-	return `${color.dim}[${time}]${color.reset} ${levelColor}${color.bold}${label}${color.reset} ${agentPart}${event.event}${dataSuffix}`;
+	return `${color.dim(`[${time}]`)} ${levelColor(color.bold(label))} ${agentPart}${event.event}${dataSuffix}`;
 }
 
 /**

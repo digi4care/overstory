@@ -12,6 +12,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { LogEvent } from "../types.ts";
 
@@ -247,21 +248,53 @@ function filterEvents(
 	});
 }
 
+/** Resolve a log level string to a color function. */
+function getLevelColor(level: string): ColorFn {
+	switch (level) {
+		case "debug":
+			return color.gray;
+		case "info":
+			return color.blue;
+		case "warn":
+			return color.yellow;
+		case "error":
+			return color.red;
+		default:
+			return color.gray;
+	}
+}
+
+/** Resolve a log level to its label string. */
+function getLevelLabel(level: string): string {
+	switch (level) {
+		case "debug":
+			return "DBG";
+		case "info":
+			return "INF";
+		case "warn":
+			return "WRN";
+		case "error":
+			return "ERR";
+		default:
+			return String(level).slice(0, 3).toUpperCase();
+	}
+}
+
 /**
  * Print log events with ANSI colors and date separators.
  */
 function printLogs(events: LogEvent[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}Logs${color.reset}\n`);
+	w(`${color.bold("Logs")}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (events.length === 0) {
-		w(`${color.dim}No log files found.${color.reset}\n`);
+		w(`${color.dim("No log files found.")}\n`);
 		return;
 	}
 
-	w(`${color.dim}${events.length} ${events.length === 1 ? "entry" : "entries"}${color.reset}\n\n`);
+	w(`${color.dim(`${events.length} ${events.length === 1 ? "entry" : "entries"}`)}\n\n`);
 
 	let lastDate = "";
 
@@ -272,44 +305,21 @@ function printLogs(events: LogEvent[]): void {
 			if (lastDate !== "") {
 				w("\n");
 			}
-			w(`${color.dim}--- ${date} ---${color.reset}\n`);
+			w(`${color.dim(`--- ${date} ---`)}\n`);
 			lastDate = date;
 		}
 
 		const time = formatAbsoluteTime(event.timestamp);
-
-		// Format level display
-		let levelStr: string;
-		let levelColorCode: string;
-		switch (event.level) {
-			case "debug":
-				levelStr = "DBG";
-				levelColorCode = color.gray;
-				break;
-			case "info":
-				levelStr = "INF";
-				levelColorCode = color.blue;
-				break;
-			case "warn":
-				levelStr = "WRN";
-				levelColorCode = color.yellow;
-				break;
-			case "error":
-				levelStr = "ERR";
-				levelColorCode = color.red;
-				break;
-			default:
-				levelStr = String(event.level).slice(0, 3).toUpperCase();
-				levelColorCode = color.gray;
-		}
+		const levelColorFn = getLevelColor(event.level);
+		const levelStr = getLevelLabel(event.level);
 
 		const agentLabel = event.agentName ? `[${event.agentName}]` : "[unknown]";
 		const detail = buildLogDetail(event);
-		const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+		const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
 		w(
-			`${time} ${levelColorCode}${levelStr}${color.reset} ` +
-				`${event.event} ${color.dim}${agentLabel}${color.reset}${detailSuffix}\n`,
+			`${time} ${levelColorFn(levelStr)} ` +
+				`${event.event} ${color.dim(agentLabel)}${detailSuffix}\n`,
 		);
 	}
 }
@@ -326,7 +336,7 @@ async function followLogs(
 ): Promise<void> {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}Following logs (Ctrl+C to stop)${color.reset}\n\n`);
+	w(`${color.bold("Following logs (Ctrl+C to stop)")}\n\n`);
 
 	// Track file positions for tailing
 	const filePositions = new Map<string, number>();
@@ -376,38 +386,16 @@ async function followLogs(
 
 								// Print immediately
 								const time = formatAbsoluteTime(event.timestamp);
-
-								let levelStr: string;
-								let levelColorCode: string;
-								switch (event.level) {
-									case "debug":
-										levelStr = "DBG";
-										levelColorCode = color.gray;
-										break;
-									case "info":
-										levelStr = "INF";
-										levelColorCode = color.blue;
-										break;
-									case "warn":
-										levelStr = "WRN";
-										levelColorCode = color.yellow;
-										break;
-									case "error":
-										levelStr = "ERR";
-										levelColorCode = color.red;
-										break;
-									default:
-										levelStr = String(event.level).slice(0, 3).toUpperCase();
-										levelColorCode = color.gray;
-								}
+								const levelColorFn = getLevelColor(event.level);
+								const levelStr = getLevelLabel(event.level);
 
 								const agentLabel = event.agentName ? `[${event.agentName}]` : "[unknown]";
 								const detail = buildLogDetail(event);
-								const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+								const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
 								w(
-									`${time} ${levelColorCode}${levelStr}${color.reset} ` +
-										`${event.event} ${color.dim}${agentLabel}${color.reset}${detailSuffix}\n`,
+									`${time} ${levelColorFn(levelStr)} ` +
+										`${event.event} ${color.dim(agentLabel)}${detailSuffix}\n`,
 								);
 							}
 						} catch {

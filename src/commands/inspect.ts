@@ -49,15 +49,15 @@ function formatDuration(ms: number): string {
 function getStateIcon(state: AgentSession["state"]): string {
 	switch (state) {
 		case "booting":
-			return `${color.yellow}⏳${color.reset}`; // Yellow hourglass
+			return `${color.yellow("⏳")}`; // Yellow hourglass
 		case "working":
-			return `${color.green}●${color.reset}`; // Green circle
+			return `${color.green("●")}`; // Green circle
 		case "stalled":
-			return `${color.yellow}⚠${color.reset}`; // Yellow warning
+			return `${color.yellow("⚠")}`; // Yellow warning
 		case "completed":
-			return `${color.blue}✓${color.reset}`; // Blue checkmark
+			return `${color.blue("✓")}`; // Blue checkmark
 		case "zombie":
-			return `${color.red}☠${color.reset}`; // Red skull
+			return `${color.red("☠")}`; // Red skull
 		default:
 			return "?";
 	}

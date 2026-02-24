@@ -1,63 +1,69 @@
 /**
- * Central ANSI color and output control.
+ * Central color and output control using Chalk.
  *
- * Respects the NO_COLOR convention (https://no-color.org/):
- * - When NO_COLOR env var is set (any value), all color codes become empty strings
- * - When TERM=dumb, colors are disabled
- * - When FORCE_COLOR is set to a truthy value, colors are forced on
- *
- * Also provides --quiet support: when quiet mode is enabled, non-error
- * output is suppressed. Commands check isQuiet() before writing to stdout.
+ * Chalk natively handles NO_COLOR, FORCE_COLOR, and TERM=dumb.
+ * See https://github.com/chalk/chalk#supportscolor for detection logic.
  */
 
-/**
- * Priority order for color detection:
- * 1. FORCE_COLOR (highest) — set to non-"0" to force colors on
- * 2. NO_COLOR — any value disables colors
- * 3. TERM=dumb — disables colors
- * 4. Default: colors enabled
- */
-function shouldUseColor(): boolean {
-	if (process.env.FORCE_COLOR !== undefined) {
-		return process.env.FORCE_COLOR !== "0";
-	}
-	if (process.env.NO_COLOR !== undefined) {
-		return false;
-	}
-	if (process.env.TERM === "dumb") {
-		return false;
-	}
-	return true;
-}
+import chalk from "chalk";
 
-const useColor = shouldUseColor();
+// --- Brand palette (os-eco brand colors) ---
 
-function code(ansiCode: string): string {
-	return useColor ? ansiCode : "";
-}
+/** Forest green — Overstory primary brand color. */
+export const brand = chalk.rgb(27, 94, 32);
+
+/** Amber — highlights, warnings. */
+export const accent = chalk.rgb(255, 183, 77);
+
+/** Stone gray — secondary text, muted content. */
+export const muted = chalk.rgb(120, 120, 110);
+
+// --- Standard color functions ---
 
 /**
- * ANSI color codes that respect NO_COLOR.
- * When colors are disabled, all values are empty strings.
+ * Color functions that wrap text with ANSI codes.
+ * Each value is a function: color.red("text") returns "\x1b[31mtext\x1b[39m".
+ * Chalk auto-resets when wrapping, so color.reset is not needed.
  */
 export const color = {
-	reset: code("\x1b[0m"),
-	bold: code("\x1b[1m"),
-	dim: code("\x1b[2m"),
-	red: code("\x1b[31m"),
-	green: code("\x1b[32m"),
-	yellow: code("\x1b[33m"),
-	blue: code("\x1b[34m"),
-	magenta: code("\x1b[35m"),
-	cyan: code("\x1b[36m"),
-	white: code("\x1b[37m"),
-	gray: code("\x1b[90m"),
+	bold: chalk.bold,
+	dim: chalk.dim,
+	red: chalk.red,
+	green: chalk.green,
+	yellow: chalk.yellow,
+	blue: chalk.blue,
+	magenta: chalk.magenta,
+	cyan: chalk.cyan,
+	white: chalk.white,
+	gray: chalk.gray,
 } as const;
 
-/** Whether ANSI colors are currently enabled. */
-export const colorsEnabled = useColor;
+// Re-export chalk for direct use (chaining, custom RGB, etc.)
+export { chalk };
+
+/** Type for color function values (for consumers that store colors in variables). */
+export type ColorFn = (text: string) => string;
+
+/** Identity function for "no color" cases (replaces old color.white as default). */
+export const noColor: ColorFn = (text: string) => text;
+
+// --- ANSI strip utilities (for visible-width calculations in dashboard) ---
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ESC (0x1B) is required to match ANSI escape sequences
+const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
+
+/** Strip ANSI escape codes from a string. */
+export function stripAnsi(str: string): string {
+	return str.replace(ANSI_REGEX, "");
+}
+
+/** Visible string length (excluding ANSI escape codes). */
+export function visibleLength(str: string): number {
+	return stripAnsi(str).length;
+}
 
 // --- Quiet mode ---
+
 let quietMode = false;
 
 /** Enable quiet mode (suppress non-error output). */

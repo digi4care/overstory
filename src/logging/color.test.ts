@@ -5,125 +5,16 @@ import { dirname, join } from "node:path";
 const projectRoot = join(dirname(import.meta.dir), "..");
 
 describe("color module", () => {
-	// Test via subprocess to control env vars at import time
-
-	test("colors enabled by default (no env vars)", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"-e",
-				'import { color, colorsEnabled } from "./src/logging/color.ts"; console.log(JSON.stringify({ colorsEnabled, reset: color.reset }))',
-			],
-			{
-				cwd: projectRoot,
-				stdout: "pipe",
-				stderr: "pipe",
-				env: { ...process.env, NO_COLOR: undefined, FORCE_COLOR: undefined, TERM: undefined },
-			},
-		);
-		await proc.exited;
-		const output = await new Response(proc.stdout).text();
-		const result = JSON.parse(output.trim());
-		expect(result.colorsEnabled).toBe(true);
-		expect(result.reset).toBe("\x1b[0m");
+	test("color.red is a function that wraps text", async () => {
+		const { color } = await import("./color.ts");
+		const result = color.red("hello");
+		expect(result).toContain("hello");
+		expect(typeof result).toBe("string");
 	});
 
-	test("NO_COLOR disables colors", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"-e",
-				'import { color, colorsEnabled } from "./src/logging/color.ts"; console.log(JSON.stringify({ colorsEnabled, reset: color.reset }))',
-			],
-			{
-				cwd: projectRoot,
-				stdout: "pipe",
-				stderr: "pipe",
-				env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: undefined },
-			},
-		);
-		await proc.exited;
-		const output = await new Response(proc.stdout).text();
-		const result = JSON.parse(output.trim());
-		expect(result.colorsEnabled).toBe(false);
-		expect(result.reset).toBe("");
-	});
-
-	test("TERM=dumb disables colors", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"-e",
-				'import { color, colorsEnabled } from "./src/logging/color.ts"; console.log(JSON.stringify({ colorsEnabled, reset: color.reset }))',
-			],
-			{
-				cwd: projectRoot,
-				stdout: "pipe",
-				stderr: "pipe",
-				env: { ...process.env, TERM: "dumb", NO_COLOR: undefined, FORCE_COLOR: undefined },
-			},
-		);
-		await proc.exited;
-		const output = await new Response(proc.stdout).text();
-		const result = JSON.parse(output.trim());
-		expect(result.colorsEnabled).toBe(false);
-		expect(result.reset).toBe("");
-	});
-
-	test("FORCE_COLOR overrides NO_COLOR", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"-e",
-				'import { color, colorsEnabled } from "./src/logging/color.ts"; console.log(JSON.stringify({ colorsEnabled, reset: color.reset }))',
-			],
-			{
-				cwd: projectRoot,
-				stdout: "pipe",
-				stderr: "pipe",
-				env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "1" },
-			},
-		);
-		await proc.exited;
-		const output = await new Response(proc.stdout).text();
-		const result = JSON.parse(output.trim());
-		expect(result.colorsEnabled).toBe(true);
-		expect(result.reset).toBe("\x1b[0m");
-	});
-
-	test("FORCE_COLOR=0 disables colors", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"-e",
-				'import { color, colorsEnabled } from "./src/logging/color.ts"; console.log(JSON.stringify({ colorsEnabled, reset: color.reset }))',
-			],
-			{
-				cwd: projectRoot,
-				stdout: "pipe",
-				stderr: "pipe",
-				env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: undefined },
-			},
-		);
-		await proc.exited;
-		const output = await new Response(proc.stdout).text();
-		const result = JSON.parse(output.trim());
-		expect(result.colorsEnabled).toBe(false);
-	});
-
-	test("setQuiet/isQuiet controls quiet mode", async () => {
-		const { isQuiet, setQuiet } = await import("./color.ts");
-		expect(isQuiet()).toBe(false);
-		setQuiet(true);
-		expect(isQuiet()).toBe(true);
-		setQuiet(false);
-		expect(isQuiet()).toBe(false);
-	});
-
-	test("all color keys present", async () => {
+	test("color functions all exist", async () => {
 		const { color } = await import("./color.ts");
 		const expectedKeys = [
-			"reset",
 			"bold",
 			"dim",
 			"red",
@@ -137,6 +28,98 @@ describe("color module", () => {
 		];
 		for (const key of expectedKeys) {
 			expect(key in color).toBe(true);
+			expect(typeof (color as Record<string, unknown>)[key]).toBe("function");
 		}
+	});
+
+	test("brand palette functions wrap text", async () => {
+		const { brand, accent, muted } = await import("./color.ts");
+		const result = brand("Overstory");
+		expect(result).toContain("Overstory");
+		expect(typeof accent("test")).toBe("string");
+		expect(typeof muted("test")).toBe("string");
+	});
+
+	test("noColor is an identity function", async () => {
+		const { noColor } = await import("./color.ts");
+		expect(noColor("hello")).toBe("hello");
+		expect(noColor("")).toBe("");
+	});
+
+	test("stripAnsi removes escape codes", async () => {
+		const { stripAnsi } = await import("./color.ts");
+		expect(stripAnsi("\x1b[31mhello\x1b[39m")).toBe("hello");
+		expect(stripAnsi("plain")).toBe("plain");
+		expect(stripAnsi("\x1b[1m\x1b[31mbold red\x1b[39m\x1b[22m")).toBe("bold red");
+	});
+
+	test("visibleLength excludes ANSI codes", async () => {
+		const { visibleLength } = await import("./color.ts");
+		expect(visibleLength("\x1b[31mhello\x1b[39m")).toBe(5);
+		expect(visibleLength("hello")).toBe(5);
+		expect(visibleLength("")).toBe(0);
+	});
+
+	test("setQuiet/isQuiet controls quiet mode", async () => {
+		const { isQuiet, setQuiet } = await import("./color.ts");
+		expect(isQuiet()).toBe(false);
+		setQuiet(true);
+		expect(isQuiet()).toBe(true);
+		setQuiet(false);
+		expect(isQuiet()).toBe(false);
+	});
+
+	test("NO_COLOR env causes chalk.level to be 0", async () => {
+		const proc = Bun.spawn(
+			[
+				"bun",
+				"-e",
+				'import chalk from "chalk"; console.log(JSON.stringify({ level: chalk.level }))',
+			],
+			{
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: undefined },
+			},
+		);
+		await proc.exited;
+		const output = await new Response(proc.stdout).text();
+		const result = JSON.parse(output.trim());
+		expect(result.level).toBe(0);
+	});
+
+	test("FORCE_COLOR overrides NO_COLOR", async () => {
+		const proc = Bun.spawn(
+			[
+				"bun",
+				"-e",
+				'import chalk from "chalk"; console.log(JSON.stringify({ level: chalk.level }))',
+			],
+			{
+				cwd: projectRoot,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "1" },
+			},
+		);
+		await proc.exited;
+		const output = await new Response(proc.stdout).text();
+		const result = JSON.parse(output.trim());
+		expect(result.level).toBeGreaterThan(0);
+	});
+
+	test("chalk re-export is available", async () => {
+		const { chalk } = await import("./color.ts");
+		expect(typeof chalk.red).toBe("function");
+		expect(chalk.red("test")).toContain("test");
+	});
+
+	test("ColorFn type: color functions accept strings and return strings", async () => {
+		const { color } = await import("./color.ts");
+		// Each color function should accept a string and return a string
+		const result = color.bold(color.red("nested"));
+		expect(result).toContain("nested");
+		expect(typeof result).toBe("string");
 	});
 });

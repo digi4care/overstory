@@ -9,12 +9,13 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { EventType, StoredEvent } from "../types.ts";
 
 /** Labels and colors for each event type. */
-const EVENT_LABELS: Record<EventType, { label: string; color: string }> = {
+const EVENT_LABELS: Record<EventType, { label: string; color: ColorFn }> = {
 	tool_start: { label: "TOOL START", color: color.blue },
 	tool_end: { label: "TOOL END  ", color: color.blue },
 	session_start: { label: "SESSION  +", color: color.green },
@@ -142,15 +143,15 @@ function buildEventDetail(event: StoredEvent): string {
 function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime: boolean): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}Timeline for ${agentName}${color.reset}\n`);
+	w(`${color.bold(`Timeline for ${agentName}`)}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (events.length === 0) {
-		w(`${color.dim}No events found.${color.reset}\n`);
+		w(`${color.dim("No events found.")}\n`);
 		return;
 	}
 
-	w(`${color.dim}${events.length} event${events.length === 1 ? "" : "s"}${color.reset}\n\n`);
+	w(`${color.dim(`${events.length} event${events.length === 1 ? "" : "s"}`)}\n\n`);
 
 	let lastDate = "";
 
@@ -161,7 +162,7 @@ function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime
 			if (lastDate !== "") {
 				w("\n");
 			}
-			w(`${color.dim}--- ${date} ---${color.reset}\n`);
+			w(`${color.dim(`--- ${date} ---`)}\n`);
 			lastDate = date;
 		}
 
@@ -174,19 +175,18 @@ function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime
 			color: color.gray,
 		};
 
-		const levelColor =
-			event.level === "error" ? color.red : event.level === "warn" ? color.yellow : "";
-		const levelReset = levelColor ? color.reset : "";
+		const levelColorFn =
+			event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
+		const applyLevel = (text: string) => (levelColorFn ? levelColorFn(text) : text);
 
 		const detail = buildEventDetail(event);
-		const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+		const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
-		const agentLabel =
-			event.agentName !== agentName ? ` ${color.dim}[${event.agentName}]${color.reset}` : "";
+		const agentLabel = event.agentName !== agentName ? ` ${color.dim(`[${event.agentName}]`)}` : "";
 
 		w(
-			`${color.dim}${timeStr.padStart(10)}${color.reset} ` +
-				`${levelColor}${eventInfo.color}${color.bold}${eventInfo.label}${color.reset}${levelReset}` +
+			`${color.dim(timeStr.padStart(10))} ` +
+				`${applyLevel(eventInfo.color(color.bold(eventInfo.label)))}` +
 				`${agentLabel}${detailSuffix}\n`,
 		);
 	}

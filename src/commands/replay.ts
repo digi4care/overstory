@@ -10,11 +10,12 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { EventType, StoredEvent } from "../types.ts";
 
 /** Labels and colors for each event type. */
-const EVENT_LABELS: Record<EventType, { label: string; color: string }> = {
+const EVENT_LABELS: Record<EventType, { label: string; color: ColorFn }> = {
 	tool_start: { label: "TOOL START", color: color.blue },
 	tool_end: { label: "TOOL END  ", color: color.blue },
 	session_start: { label: "SESSION  +", color: color.green },
@@ -26,8 +27,14 @@ const EVENT_LABELS: Record<EventType, { label: string; color: string }> = {
 	custom: { label: "CUSTOM    ", color: color.gray },
 };
 
-/** Colors assigned to agents in order of first appearance. */
-const AGENT_COLORS = [color.blue, color.green, color.yellow, color.cyan, color.magenta] as const;
+/** Color functions assigned to agents in order of first appearance. */
+const AGENT_COLORS: readonly ColorFn[] = [
+	color.blue,
+	color.green,
+	color.yellow,
+	color.cyan,
+	color.magenta,
+];
 
 /**
  * Parse a named flag value from args.
@@ -150,16 +157,16 @@ function buildEventDetail(event: StoredEvent): string {
 }
 
 /**
- * Assign a stable color to each agent based on order of first appearance.
+ * Assign a stable color function to each agent based on order of first appearance.
  */
-function buildAgentColorMap(events: StoredEvent[]): Map<string, string> {
-	const colorMap = new Map<string, string>();
+function buildAgentColorMap(events: StoredEvent[]): Map<string, ColorFn> {
+	const colorMap = new Map<string, ColorFn>();
 	for (const event of events) {
 		if (!colorMap.has(event.agentName)) {
 			const colorIndex = colorMap.size % AGENT_COLORS.length;
-			const color = AGENT_COLORS[colorIndex];
-			if (color !== undefined) {
-				colorMap.set(event.agentName, color);
+			const agentColorFn = AGENT_COLORS[colorIndex];
+			if (agentColorFn !== undefined) {
+				colorMap.set(event.agentName, agentColorFn);
 			}
 		}
 	}
@@ -172,15 +179,15 @@ function buildAgentColorMap(events: StoredEvent[]): Map<string, string> {
 function printReplay(events: StoredEvent[], useAbsoluteTime: boolean): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold}Replay${color.reset}\n`);
+	w(`${color.bold("Replay")}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (events.length === 0) {
-		w(`${color.dim}No events found.${color.reset}\n`);
+		w(`${color.dim("No events found.")}\n`);
 		return;
 	}
 
-	w(`${color.dim}${events.length} event${events.length === 1 ? "" : "s"}${color.reset}\n\n`);
+	w(`${color.dim(`${events.length} event${events.length === 1 ? "" : "s"}`)}\n\n`);
 
 	const colorMap = buildAgentColorMap(events);
 	let lastDate = "";
@@ -192,7 +199,7 @@ function printReplay(events: StoredEvent[], useAbsoluteTime: boolean): void {
 			if (lastDate !== "") {
 				w("\n");
 			}
-			w(`${color.dim}--- ${date} ---${color.reset}\n`);
+			w(`${color.dim(`--- ${date} ---`)}\n`);
 			lastDate = date;
 		}
 
@@ -205,19 +212,19 @@ function printReplay(events: StoredEvent[], useAbsoluteTime: boolean): void {
 			color: color.gray,
 		};
 
-		const levelColor =
-			event.level === "error" ? color.red : event.level === "warn" ? color.yellow : "";
-		const levelReset = levelColor ? color.reset : "";
+		const levelColorFn =
+			event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
+		const applyLevel = (text: string) => (levelColorFn ? levelColorFn(text) : text);
 
 		const detail = buildEventDetail(event);
-		const detailSuffix = detail ? ` ${color.dim}${detail}${color.reset}` : "";
+		const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
-		const agentColor = colorMap.get(event.agentName) ?? color.gray;
-		const agentLabel = ` ${agentColor}[${event.agentName}]${color.reset}`;
+		const agentColorFn = colorMap.get(event.agentName) ?? color.gray;
+		const agentLabel = ` ${agentColorFn(`[${event.agentName}]`)}`;
 
 		w(
-			`${color.dim}${timeStr.padStart(10)}${color.reset} ` +
-				`${levelColor}${eventInfo.color}${color.bold}${eventInfo.label}${color.reset}${levelReset}` +
+			`${color.dim(timeStr.padStart(10))} ` +
+				`${applyLevel(eventInfo.color(color.bold(eventInfo.label)))}` +
 				`${agentLabel}${detailSuffix}\n`,
 		);
 	}
