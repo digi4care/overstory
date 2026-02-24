@@ -10,7 +10,7 @@
  */
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
@@ -24,6 +24,9 @@ import type { SessionStore } from "../sessions/store.ts";
 import type { MailMessage } from "../types.ts";
 import { evaluateHealth } from "../watchdog/health.ts";
 import { getCachedTmuxSessions, getCachedWorktrees, type StatusData } from "./status.ts";
+
+const pkgPath = resolve(import.meta.dir, "../../package.json");
+const PKG_VERSION: string = JSON.parse(await Bun.file(pkgPath).text()).version ?? "unknown";
 
 /**
  * Terminal control codes (cursor movement, screen clearing).
@@ -399,7 +402,7 @@ async function loadDashboardData(
  * Render the header bar (line 1).
  */
 function renderHeader(width: number, interval: number, currentRunId?: string | null): string {
-	const left = color.bold("overstory dashboard v0.2.0");
+	const left = color.bold(`overstory dashboard v${PKG_VERSION}`);
 	const now = new Date().toLocaleTimeString();
 	const scope = currentRunId ? ` [run: ${currentRunId.slice(0, 8)}]` : " [all runs]";
 	const right = `${now}${scope} | refresh: ${interval}ms`;
