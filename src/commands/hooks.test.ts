@@ -286,8 +286,8 @@ describe("hooks install merge behavior", () => {
 		// Overstory's SessionStart hook added
 		expect(content).toContain("overstory prime");
 		// Both event types present
-		expect(parsed.hooks["PreToolUse"]).toBeDefined();
-		expect(parsed.hooks["SessionStart"]).toBeDefined();
+		expect(parsed.hooks.PreToolUse).toBeDefined();
+		expect(parsed.hooks.SessionStart).toBeDefined();
 	});
 
 	test("--force deduplicates identical entries", async () => {
@@ -309,9 +309,9 @@ describe("hooks install merge behavior", () => {
 		const parsed = JSON.parse(content) as { hooks: Record<string, unknown[]> };
 
 		// SessionStart should have exactly 1 entry (no duplicate)
-		expect(parsed.hooks["SessionStart"]?.length).toBe(1);
+		expect(parsed.hooks.SessionStart?.length).toBe(1);
 		// Stop should have exactly 1 entry (no duplicate)
-		expect(parsed.hooks["Stop"]?.length).toBe(1);
+		expect(parsed.hooks.Stop?.length).toBe(1);
 	});
 
 	test("--force preserves existing event types not in source", async () => {
@@ -342,11 +342,11 @@ describe("hooks install merge behavior", () => {
 		const content = await Bun.file(join(claudeDir, "settings.local.json")).text();
 		const parsed = JSON.parse(content) as { hooks: Record<string, unknown[]> };
 		// Custom event type preserved
-		expect(parsed.hooks["Notification"]).toBeDefined();
+		expect(parsed.hooks.Notification).toBeDefined();
 		expect(content).toContain("notification-hook");
 		// Overstory hooks also present
-		expect(parsed.hooks["SessionStart"]).toBeDefined();
-		expect(parsed.hooks["Stop"]).toBeDefined();
+		expect(parsed.hooks.SessionStart).toBeDefined();
+		expect(parsed.hooks.Stop).toBeDefined();
 	});
 
 	test("first install without existing hooks works unchanged", async () => {
@@ -359,8 +359,8 @@ describe("hooks install merge behavior", () => {
 
 		const content = await Bun.file(join(tempDir, ".claude", "settings.local.json")).text();
 		const parsed = JSON.parse(content) as { hooks: Record<string, unknown[]> };
-		expect(parsed.hooks["SessionStart"]).toBeDefined();
-		expect(parsed.hooks["Stop"]).toBeDefined();
+		expect(parsed.hooks.SessionStart).toBeDefined();
+		expect(parsed.hooks.Stop).toBeDefined();
 		expect(content).toContain("overstory prime");
 	});
 
@@ -373,8 +373,8 @@ describe("hooks install merge behavior", () => {
 				SessionStart: [{ matcher: "", hooks: [{ type: "command", command: "echo b" }] }],
 			};
 			const result = mergeHooksByEventType(existing, incoming);
-			expect(result["UserInput"]).toBeDefined();
-			expect(result["SessionStart"]).toBeDefined();
+			expect(result.UserInput).toBeDefined();
+			expect(result.SessionStart).toBeDefined();
 		});
 
 		test("appends non-duplicate incoming entries to existing event type", () => {
@@ -385,7 +385,7 @@ describe("hooks install merge behavior", () => {
 				PreToolUse: [{ matcher: "Write", hooks: [{ type: "command", command: "echo write" }] }],
 			};
 			const result = mergeHooksByEventType(existing, incoming);
-			expect(result["PreToolUse"]?.length).toBe(2);
+			expect(result.PreToolUse?.length).toBe(2);
 		});
 
 		test("does not add duplicate entries (same matcher + same commands)", () => {
@@ -393,7 +393,7 @@ describe("hooks install merge behavior", () => {
 			const existing = { PreToolUse: [entry] };
 			const incoming = { PreToolUse: [entry] };
 			const result = mergeHooksByEventType(existing, incoming);
-			expect(result["PreToolUse"]?.length).toBe(1);
+			expect(result.PreToolUse?.length).toBe(1);
 		});
 
 		test("adds entry with same matcher but different commands", () => {
@@ -404,7 +404,7 @@ describe("hooks install merge behavior", () => {
 				PreToolUse: [{ matcher: "", hooks: [{ type: "command", command: "echo b" }] }],
 			};
 			const result = mergeHooksByEventType(existing, incoming);
-			expect(result["PreToolUse"]?.length).toBe(2);
+			expect(result.PreToolUse?.length).toBe(2);
 		});
 	});
 });
