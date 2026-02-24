@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-02-23
+
+### Added
+
+#### Canopy Integration for Agent Prompt Management
+- All 8 agent definitions (`agents/*.md`) restructured for Canopy prompt composition — behavioral sections (`propulsion-principle`, `cost-awareness`, `failure-modes`, `overlay`, `constraints`, `communication-protocol`, `completion-protocol`) moved to the top of each file with kebab-case headers, core content sections (`intro`, `role`, `capabilities`, `workflow`) placed after
+- Section headers converted from Title Case (`## Role`) to kebab-case (`## role`) across all agent definitions for Canopy schema compatibility
+
+#### Hooks Deployer Merge Behavior
+- `deployHooks()` now preserves existing `settings.local.json` content when deploying hooks — merges with non-hooks keys (permissions, env, `$schema`, etc.) instead of overwriting the entire file
+- `isOverstoryHookEntry()` exported for detecting overstory-managed hook entries — enables stripping stale overstory hooks while preserving user-defined hooks
+- Overstory hooks placed before user hooks per event type so security guards always run first
+
+#### Testing
+- Test suite grew from 2075 to 2087 tests across 75 files (5150 expect() calls)
+
+### Changed
+- **Dogfooding tracker migrated from beads to seeds** — `.beads/` directory removed, `.seeds/` directory added with all issues migrated
+- Biome ignore pattern updated: `.beads/` → `.seeds/`
+
+### Fixed
+- `deployHooks()` no longer overwrites existing `settings.local.json` — previously deploying hooks for coordinator/supervisor/monitor agents at the project root would destroy any existing settings (permissions, user hooks, env vars)
+
 ## [0.6.0] - 2026-02-23
 
 ### Added
@@ -535,7 +558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/jayminwest/overstory/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/jayminwest/overstory/compare/v0.5.9...v0.6.0
 [0.5.9]: https://github.com/jayminwest/overstory/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/jayminwest/overstory/compare/v0.5.7...v0.5.8

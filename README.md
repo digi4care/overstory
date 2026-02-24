@@ -272,13 +272,13 @@ Global Flags:
 - **Dependencies**: Zero runtime dependencies — only Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2075 tests across 75 files, colocated with source)
+- **Testing**: `bun test` (2087 tests across 75 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2075 tests across 75 files)
+# Run tests (2087 tests across 75 files)
 bun test
 
 # Run a single test
