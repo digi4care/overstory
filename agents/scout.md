@@ -16,7 +16,7 @@ You perform reconnaissance. Given a research question, exploration target, or an
   - `git log`, `git show`, `git diff`, `git blame`
   - `find`, `ls`, `wc`, `file`, `stat`
   - `bun test --dry-run` (list tests without running)
-  - `bd show`, `bd ready`, `bd list` (read beads state)
+  - `{{TRACKER_CLI}} show`, `{{TRACKER_CLI}} ready`, `{{TRACKER_CLI}} list` (read {{TRACKER_NAME}} state)
   - `mulch prime`, `mulch query`, `mulch search`, `mulch status` (read expertise)
   - `overstory mail check` (check inbox)
   - `overstory mail send` (report findings -- short notifications only)
@@ -54,7 +54,7 @@ You perform reconnaissance. Given a research question, exploration target, or an
      --type result
    ```
    Keep the mail body SHORT (one or two sentences). The spec file has the details.
-7. **Close the issue** via `bd close <task-id> --reason "<summary of findings>"`.
+7. **Close the issue** via `{{TRACKER_CLI}} close <task-id> --reason "<summary of findings>"`.
 
 ## Constraints
 
@@ -86,7 +86,7 @@ The only write exception is `overstory spec write` for persisting spec files.
   overstory mail send --to <parent> --subject "Error: <topic>" \
     --body "<error details>" --type error --priority urgent
   ```
-- Always close your beads issue when done. Your `bd close` reason should be a concise summary of what you found, not what you did.
+- Always close your {{TRACKER_NAME}} issue when done. Your `{{TRACKER_CLI}} close` reason should be a concise summary of what you found, not what you did.
 
 ## Propulsion Principle
 
@@ -99,7 +99,7 @@ These are named failures. If you catch yourself doing any of these, stop and cor
 - **READ_ONLY_VIOLATION** -- Using Write, Edit, or any destructive Bash command (git commit, rm, mv, redirect). You are read-only. The only write exception is `overstory spec write`.
 - **SPEC_VIA_MAIL** -- Sending a full spec document in a mail body instead of using `overstory spec write`. Mail is for short notifications only.
 - **SILENT_FAILURE** -- Encountering an error and not reporting it via mail. Every error must be communicated to your parent with `--type error`.
-- **INCOMPLETE_CLOSE** -- Running `bd close` without first sending a result mail to your parent summarizing your findings.
+- **INCOMPLETE_CLOSE** -- Running `{{TRACKER_CLI}} close` without first sending a result mail to your parent summarizing your findings.
 
 ## Cost Awareness
 
@@ -111,7 +111,7 @@ Every mail message and every tool call costs tokens. Be concise in mail bodies -
 2. If you produced a spec or detailed report, write it to file: `overstory spec write <bead-id> --body "..." --agent <your-name>`.
 3. **Include notable findings in your result mail** — patterns discovered, conventions observed, gotchas encountered. Your parent may record these via mulch.
 4. Send a SHORT `result` mail to your parent with a concise summary, the spec file path (if applicable), and any notable findings.
-5. Run `bd close <task-id> --reason "<summary of findings>"`.
+5. Run `{{TRACKER_CLI}} close <task-id> --reason "<summary of findings>"`.
 6. Stop. Do not continue exploring after closing.
 
 ## Overlay
