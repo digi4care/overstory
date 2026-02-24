@@ -894,35 +894,37 @@ describe("isOverstoryHookEntry", () => {
 describe("getCapabilityGuards", () => {
 	// 10 native team tool blocks apply to ALL capabilities
 	const NATIVE_TEAM_TOOL_COUNT = 10;
+	// 3 interactive tool blocks (AskUserQuestion, EnterPlanMode, EnterWorktree) apply to ALL capabilities
+	const INTERACTIVE_TOOL_COUNT = 3;
 
-	test("returns 14 guards for scout (10 team + 3 tool blocks + 1 bash file guard)", () => {
+	test("returns 17 guards for scout (10 team + 3 interactive + 3 tool blocks + 1 bash file guard)", () => {
 		const guards = getCapabilityGuards("scout");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 4);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 4);
 	});
 
-	test("returns 14 guards for reviewer (10 team + 3 tool blocks + 1 bash file guard)", () => {
+	test("returns 17 guards for reviewer (10 team + 3 interactive + 3 tool blocks + 1 bash file guard)", () => {
 		const guards = getCapabilityGuards("reviewer");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 4);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 4);
 	});
 
-	test("returns 14 guards for lead (10 team + 3 tool blocks + 1 bash file guard)", () => {
+	test("returns 17 guards for lead (10 team + 3 interactive + 3 tool blocks + 1 bash file guard)", () => {
 		const guards = getCapabilityGuards("lead");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 4);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 4);
 	});
 
-	test("returns 11 guards for builder (10 team + 1 bash path boundary)", () => {
+	test("returns 14 guards for builder (10 team + 3 interactive + 1 bash path boundary)", () => {
 		const guards = getCapabilityGuards("builder");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 1);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 1);
 	});
 
-	test("returns 11 guards for merger (10 team + 1 bash path boundary)", () => {
+	test("returns 14 guards for merger (10 team + 3 interactive + 1 bash path boundary)", () => {
 		const guards = getCapabilityGuards("merger");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 1);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 1);
 	});
 
-	test("returns 10 guards for unknown capability (10 team tool blocks only)", () => {
+	test("returns 13 guards for unknown capability (10 team + 3 interactive tool blocks)", () => {
 		const guards = getCapabilityGuards("unknown");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT);
 	});
 
 	test("builder gets Bash path boundary guard", () => {
@@ -1039,14 +1041,90 @@ describe("getCapabilityGuards", () => {
 		expect(taskGuard?.hooks[0]?.command).toContain('[ -z "$OVERSTORY_AGENT_NAME" ] && exit 0;');
 	});
 
-	test("coordinator gets 14 guards (10 team + 3 tool blocks + 1 bash file guard)", () => {
+	test("coordinator gets 17 guards (10 team + 3 interactive + 3 tool blocks + 1 bash file guard)", () => {
 		const guards = getCapabilityGuards("coordinator");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 4);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 4);
 	});
 
-	test("supervisor gets 14 guards (10 team + 3 tool blocks + 1 bash file guard)", () => {
+	test("supervisor gets 17 guards (10 team + 3 interactive + 3 tool blocks + 1 bash file guard)", () => {
 		const guards = getCapabilityGuards("supervisor");
-		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + 4);
+		expect(guards.length).toBe(NATIVE_TEAM_TOOL_COUNT + INTERACTIVE_TOOL_COUNT + 4);
+	});
+
+	test("all capabilities get AskUserQuestion blocked", () => {
+		for (const cap of [
+			"scout",
+			"reviewer",
+			"lead",
+			"coordinator",
+			"supervisor",
+			"builder",
+			"merger",
+			"unknown",
+		]) {
+			const guards = getCapabilityGuards(cap);
+			const guard = guards.find((g) => g.matcher === "AskUserQuestion");
+			expect(guard).toBeDefined();
+			expect(guard?.hooks[0]?.command).toContain("human interaction");
+			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+		}
+	});
+
+	test("all capabilities get EnterPlanMode blocked", () => {
+		for (const cap of [
+			"scout",
+			"reviewer",
+			"lead",
+			"coordinator",
+			"supervisor",
+			"builder",
+			"merger",
+			"unknown",
+		]) {
+			const guards = getCapabilityGuards(cap);
+			const guard = guards.find((g) => g.matcher === "EnterPlanMode");
+			expect(guard).toBeDefined();
+			expect(guard?.hooks[0]?.command).toContain("human interaction");
+			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+		}
+	});
+
+	test("all capabilities get EnterWorktree blocked", () => {
+		for (const cap of [
+			"scout",
+			"reviewer",
+			"lead",
+			"coordinator",
+			"supervisor",
+			"builder",
+			"merger",
+			"unknown",
+		]) {
+			const guards = getCapabilityGuards(cap);
+			const guard = guards.find((g) => g.matcher === "EnterWorktree");
+			expect(guard).toBeDefined();
+			expect(guard?.hooks[0]?.command).toContain("human interaction");
+			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+		}
+	});
+
+	test("interactive guards include env var guard prefix", () => {
+		const guards = getCapabilityGuards("builder");
+		for (const tool of ["AskUserQuestion", "EnterPlanMode", "EnterWorktree"]) {
+			const guard = guards.find((g) => g.matcher === tool);
+			expect(guard).toBeDefined();
+			expect(guard?.hooks[0]?.command).toContain('[ -z "$OVERSTORY_AGENT_NAME" ] && exit 0;');
+		}
+	});
+
+	test("interactive guard block reason mentions tool name", () => {
+		const guards = getCapabilityGuards("scout");
+		const askGuard = guards.find((g) => g.matcher === "AskUserQuestion");
+		expect(askGuard?.hooks[0]?.command).toContain("AskUserQuestion");
+		const planGuard = guards.find((g) => g.matcher === "EnterPlanMode");
+		expect(planGuard?.hooks[0]?.command).toContain("EnterPlanMode");
+		const worktreeGuard = guards.find((g) => g.matcher === "EnterWorktree");
+		expect(worktreeGuard?.hooks[0]?.command).toContain("EnterWorktree");
 	});
 });
 
