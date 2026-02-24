@@ -249,6 +249,7 @@ Options:
   --parent <agent-name>      Parent agent for hierarchy tracking
   --depth <n>                Current hierarchy depth (default: 0)
   --skip-scout                 Skip scout phase for lead agents (jump to build)
+  --skip-task-check              Skip task existence validation (for worktree-created issues)
   --force-hierarchy            Bypass hierarchy validation (debugging only)
   --json                     Output result as JSON
   --help, -h                 Show this help`;
@@ -275,6 +276,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 	const depth = depthStr !== undefined ? Number.parseInt(depthStr, 10) : 0;
 	const forceHierarchy = args.includes("--force-hierarchy");
 	const skipScout = args.includes("--skip-scout");
+	const skipTaskCheck = args.includes("--skip-task-check");
 
 	if (!name || name.trim().length === 0) {
 		throw new ValidationError("--name is required for sling", { field: "name" });
@@ -298,6 +300,12 @@ export async function slingCommand(args: string[]): Promise<void> {
 	if (skipScout && capability !== "lead") {
 		process.stderr.write(
 			`⚠️  Warning: --skip-scout is only meaningful for leads. Ignoring for "${capability}" agent "${name}".\n`,
+		);
+	}
+
+	if (skipTaskCheck && !parentAgent) {
+		process.stderr.write(
+			`Warning: --skip-task-check without --parent is unusual. This flag is designed for leads spawning builders with worktree-created issues.\n`,
 		);
 	}
 
@@ -416,8 +424,9 @@ export async function slingCommand(args: string[]): Promise<void> {
 		}
 
 		// 5d. Bead-level locking: prevent concurrent agents on the same bead ID.
+		// Exception: the parent agent may delegate its own task to a child.
 		const lockHolder = checkBeadLock(activeSessions, taskId);
-		if (lockHolder !== null) {
+		if (lockHolder !== null && lockHolder !== parentAgent) {
 			throw new AgentError(
 				`Bead "${taskId}" is already being worked by agent "${lockHolder}". ` +
 					`Concurrent work on the same bead causes duplicate issues and wasted tokens.`,
@@ -445,7 +454,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 
 		// 6. Validate task exists and is in a workable state (if tracker enabled)
 		const tracker = createTrackerClient(resolvedBackend, config.project.root);
-		if (config.taskTracker.enabled) {
+		if (config.taskTracker.enabled && !skipTaskCheck) {
 			let issue: TrackerIssue;
 			try {
 				issue = await tracker.show(taskId);
@@ -536,7 +545,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 		await deployHooks(worktreePath, name, capability);
 
 		// 10. Claim tracker issue
-		if (config.taskTracker.enabled) {
+		if (config.taskTracker.enabled && !skipTaskCheck) {
 			try {
 				await tracker.claim(taskId);
 			} catch {
