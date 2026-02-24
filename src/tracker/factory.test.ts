@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { createTrackerClient } from "./factory.ts";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createTrackerClient, resolveBackend, trackerCliName } from "./factory.ts";
 
 describe("createTrackerClient", () => {
 	test("creates beads tracker for beads backend", () => {
@@ -29,5 +32,49 @@ describe("createTrackerClient", () => {
 	test("throws for invalid backend", () => {
 		// @ts-expect-error - intentionally testing runtime guard
 		expect(() => createTrackerClient("invalid", "/tmp")).toThrow();
+	});
+});
+
+describe("resolveBackend", () => {
+	test("returns beads for beads backend", async () => {
+		expect(await resolveBackend("beads", "/tmp")).toBe("beads");
+	});
+	test("returns seeds for seeds backend", async () => {
+		expect(await resolveBackend("seeds", "/tmp")).toBe("seeds");
+	});
+	test("returns beads for auto when no tracker dirs exist", async () => {
+		const tempDir = await mkdtemp(join(tmpdir(), "tracker-test-"));
+		try {
+			expect(await resolveBackend("auto", tempDir)).toBe("beads");
+		} finally {
+			await rm(tempDir, { recursive: true });
+		}
+	});
+	test("returns seeds for auto when .seeds/ exists", async () => {
+		const tempDir = await mkdtemp(join(tmpdir(), "tracker-test-"));
+		try {
+			await mkdir(join(tempDir, ".seeds"));
+			expect(await resolveBackend("auto", tempDir)).toBe("seeds");
+		} finally {
+			await rm(tempDir, { recursive: true });
+		}
+	});
+	test("returns beads for auto when .beads/ exists", async () => {
+		const tempDir = await mkdtemp(join(tmpdir(), "tracker-test-"));
+		try {
+			await mkdir(join(tempDir, ".beads"));
+			expect(await resolveBackend("auto", tempDir)).toBe("beads");
+		} finally {
+			await rm(tempDir, { recursive: true });
+		}
+	});
+});
+
+describe("trackerCliName", () => {
+	test("returns bd for beads", () => {
+		expect(trackerCliName("beads")).toBe("bd");
+	});
+	test("returns sd for seeds", () => {
+		expect(trackerCliName("seeds")).toBe("sd");
 	});
 });
