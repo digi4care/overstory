@@ -24,14 +24,14 @@ import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { writeOverlay } from "../agents/overlay.ts";
-import type { BeadIssue } from "../beads/client.ts";
-import { createBeadsClient } from "../beads/client.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, HierarchyError, ValidationError } from "../errors.ts";
 import { inferDomain } from "../insights/analyzer.ts";
 import { createMulchClient } from "../mulch/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
+import type { TrackerIssue } from "../tracker/factory.ts";
+import { createTrackerClient, resolveBackend, trackerCliName } from "../tracker/factory.ts";
 import type { AgentSession, OverlayConfig } from "../types.ts";
 import { createWorktree } from "../worktree/manager.ts";
 import { createSession, sendKeys, waitForTuiReady } from "../worktree/tmux.ts";
@@ -326,6 +326,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 	// 1. Load config
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
+	const resolvedBackend = await resolveBackend(config.taskTracker.backend, config.project.root);
 
 	// 2. Validate depth limit
 	// Hierarchy: orchestrator(0) -> lead(1) -> specialist(2)
@@ -442,14 +443,14 @@ export async function slingCommand(args: string[]): Promise<void> {
 			);
 		}
 
-		// 6. Validate bead exists and is in a workable state (if beads enabled)
-		const beads = createBeadsClient(config.project.root);
+		// 6. Validate task exists and is in a workable state (if tracker enabled)
+		const tracker = createTrackerClient(resolvedBackend, config.project.root);
 		if (config.taskTracker.enabled) {
-			let issue: BeadIssue;
+			let issue: TrackerIssue;
 			try {
-				issue = await beads.show(taskId);
+				issue = await tracker.show(taskId);
 			} catch (err) {
-				throw new AgentError(`Bead task "${taskId}" not found or inaccessible`, {
+				throw new AgentError(`Task "${taskId}" not found or inaccessible`, {
 					agentName: name,
 					cause: err instanceof Error ? err : undefined,
 				});
@@ -458,7 +459,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 			const workableStatuses = ["open", "in_progress"];
 			if (!workableStatuses.includes(issue.status)) {
 				throw new ValidationError(
-					`Bead task "${taskId}" is not workable (status: ${issue.status}). Only open or in_progress issues can be assigned.`,
+					`Task "${taskId}" is not workable (status: ${issue.status}). Only open or in_progress issues can be assigned.`,
 					{ field: "taskId", value: taskId },
 				);
 			}
@@ -510,6 +511,8 @@ export async function slingCommand(args: string[]): Promise<void> {
 			mulchExpertise,
 			skipScout: skipScout && capability === "lead",
 			qualityGates: config.project.qualityGates,
+			trackerCli: trackerCliName(resolvedBackend),
+			trackerName: resolvedBackend,
 		};
 
 		try {
@@ -532,10 +535,10 @@ export async function slingCommand(args: string[]): Promise<void> {
 		// 9. Deploy hooks config (capability-specific guards)
 		await deployHooks(worktreePath, name, capability);
 
-		// 10. Claim beads issue
+		// 10. Claim tracker issue
 		if (config.taskTracker.enabled) {
 			try {
-				await beads.claim(taskId);
+				await tracker.claim(taskId);
 			} catch {
 				// Non-fatal: issue may already be claimed
 			}

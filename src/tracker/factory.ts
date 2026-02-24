@@ -2,6 +2,9 @@
  * Tracker factory — creates the right backend client based on configuration.
  */
 
+import { stat } from "node:fs/promises";
+import { join } from "node:path";
+import type { TaskTrackerBackend } from "../types.ts";
 import { createBeadsTracker } from "./beads.ts";
 import { createSeedsTracker } from "./seeds.ts";
 import type { TrackerBackend, TrackerClient } from "./types.ts";
@@ -23,6 +26,38 @@ export function createTrackerClient(backend: TrackerBackend, cwd: string): Track
 			throw new Error(`Unknown tracker backend: ${_exhaustive}`);
 		}
 	}
+}
+
+/**
+ * Resolve "auto" to a concrete backend by probing the filesystem.
+ * Explicit "beads" or "seeds" values pass through unchanged.
+ */
+export async function resolveBackend(
+	configBackend: TaskTrackerBackend,
+	cwd: string,
+): Promise<TrackerBackend> {
+	if (configBackend === "beads") return "beads";
+	if (configBackend === "seeds") return "seeds";
+	// "auto" detection: check for .seeds/ directory first (newer tool), then .beads/
+	const dirExists = async (path: string): Promise<boolean> => {
+		try {
+			const s = await stat(path);
+			return s.isDirectory();
+		} catch {
+			return false;
+		}
+	};
+	if (await dirExists(join(cwd, ".seeds"))) return "seeds";
+	if (await dirExists(join(cwd, ".beads"))) return "beads";
+	// Default fallback
+	return "beads";
+}
+
+/**
+ * Return the CLI tool name for a resolved backend.
+ */
+export function trackerCliName(backend: TrackerBackend): string {
+	return backend === "seeds" ? "sd" : "bd";
 }
 
 // Re-export types for convenience
