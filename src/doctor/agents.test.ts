@@ -39,7 +39,8 @@ describe("checkAgents", () => {
 			worktrees: {
 				baseDir: ".overstory/worktrees",
 			},
-			beads: {
+			taskTracker: {
+				backend: "auto",
 				enabled: true,
 			},
 			mulch: {

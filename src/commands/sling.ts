@@ -444,7 +444,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 
 		// 6. Validate bead exists and is in a workable state (if beads enabled)
 		const beads = createBeadsClient(config.project.root);
-		if (config.beads.enabled) {
+		if (config.taskTracker.enabled) {
 			let issue: BeadIssue;
 			try {
 				issue = await beads.show(taskId);
@@ -533,7 +533,7 @@ export async function slingCommand(args: string[]): Promise<void> {
 		await deployHooks(worktreePath, name, capability);
 
 		// 10. Claim beads issue
-		if (config.beads.enabled) {
+		if (config.taskTracker.enabled) {
 			try {
 				await beads.claim(taskId);
 			} catch {
