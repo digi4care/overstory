@@ -6,6 +6,7 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
@@ -26,21 +27,6 @@ const EVENT_LABELS: Record<EventType, { label: string; color: ColorFn }> = {
 	error: { label: "ERROR     ", color: color.red },
 	custom: { label: "CUSTOM    ", color: color.gray },
 };
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Detect whether a target string looks like a bead ID.
@@ -192,56 +178,18 @@ function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime
 	}
 }
 
-const TRACE_HELP = `overstory trace -- Show chronological timeline for an agent or bead
+interface TraceOpts {
+	json?: boolean;
+	since?: string;
+	until?: string;
+	limit?: string;
+}
 
-Usage: overstory trace <target> [options]
-
-Arguments:
-  <target>               Agent name or bead ID
-
-Options:
-  --json                 Output as JSON array of StoredEvent objects
-  --since <timestamp>    Start time filter (ISO 8601)
-  --until <timestamp>    End time filter (ISO 8601)
-  --limit <n>            Max events to show (default: 100)
-  --help, -h             Show this help`;
-
-/**
- * Entry point for `overstory trace <target> [--json] [--since] [--until] [--limit]`.
- */
-export async function traceCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${TRACE_HELP}\n`);
-		return;
-	}
-
-	// Extract positional target: first arg that is not a flag or flag value
-	const flagsWithValues = new Set(["--since", "--until", "--limit"]);
-	const booleanFlags = new Set(["--json", "--help", "-h"]);
-	let target: string | undefined;
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
-		if (arg === undefined) continue;
-		if (booleanFlags.has(arg)) continue;
-		if (flagsWithValues.has(arg)) {
-			i++; // skip the value
-			continue;
-		}
-		if (arg.startsWith("-")) continue;
-		target = arg;
-		break;
-	}
-
-	if (!target) {
-		throw new ValidationError("Missing target. Usage: overstory trace <agent-name|bead-id>", {
-			field: "target",
-		});
-	}
-
-	const json = hasFlag(args, "--json");
-	const sinceStr = getFlag(args, "--since");
-	const untilStr = getFlag(args, "--until");
-	const limitStr = getFlag(args, "--limit");
+async function executeTrace(target: string, opts: TraceOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const sinceStr = opts.since;
+	const untilStr = opts.until;
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 100;
 
 	if (Number.isNaN(limit) || limit < 1) {
@@ -321,5 +269,35 @@ export async function traceCommand(args: string[]): Promise<void> {
 		printTimeline(events, agentName, useAbsoluteTime);
 	} finally {
 		eventStore.close();
+	}
+}
+
+export function createTraceCommand(): Command {
+	return new Command("trace")
+		.description("Chronological event timeline for agent/bead")
+		.argument("<target>", "Agent name or bead ID")
+		.option("--json", "Output as JSON array of StoredEvent objects")
+		.option("--since <timestamp>", "Start time filter (ISO 8601)")
+		.option("--until <timestamp>", "End time filter (ISO 8601)")
+		.option("--limit <n>", "Max events to show (default: 100)")
+		.action(async (target: string, opts: TraceOpts) => {
+			await executeTrace(target, opts);
+		});
+}
+
+export async function traceCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createTraceCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "trace", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

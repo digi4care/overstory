@@ -8,6 +8,7 @@
 
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { color } from "../logging/color.ts";
@@ -15,21 +16,6 @@ import { createMetricsStore } from "../metrics/store.ts";
 import { estimateCost, parseTranscriptUsage } from "../metrics/transcript.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { SessionMetrics } from "../types.ts";
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /** Format a number with thousands separators (e.g., 12345 -> "12,345"). */
 function formatNumber(n: number): string {
@@ -246,36 +232,24 @@ function printByCapability(sessions: SessionMetrics[]): void {
 	);
 }
 
-const COSTS_HELP = `overstory costs -- Token/cost analysis and breakdown
+interface CostsOpts {
+	live?: boolean;
+	self?: boolean;
+	byCapability?: boolean;
+	agent?: string;
+	run?: string;
+	last?: string;
+	json?: boolean;
+}
 
-Usage: overstory costs [options]
-
-Options:
-  --live                 Show real-time token usage for active agents
-  --self                 Show cost for the current orchestrator session
-  --agent <name>         Filter by agent name
-  --run <id>             Filter by run ID
-  --by-capability        Group results by capability with subtotals
-  --last <n>             Number of recent sessions (default: 20)
-  --json                 Output as JSON
-  --help, -h             Show this help`;
-
-/**
- * Entry point for `overstory costs [--agent <name>] [--run <id>] [--by-capability] [--last <n>] [--self] [--json]`.
- */
-export async function costsCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${COSTS_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const live = hasFlag(args, "--live");
-	const self = hasFlag(args, "--self");
-	const byCapability = hasFlag(args, "--by-capability");
-	const agentName = getFlag(args, "--agent");
-	const runId = getFlag(args, "--run");
-	const lastStr = getFlag(args, "--last");
+async function executeCosts(opts: CostsOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const live = opts.live ?? false;
+	const self = opts.self ?? false;
+	const byCapability = opts.byCapability ?? false;
+	const agentName = opts.agent;
+	const runId = opts.run;
+	const lastStr = opts.last;
 
 	if (lastStr !== undefined) {
 		const parsed = Number.parseInt(lastStr, 10);
@@ -572,5 +546,37 @@ export async function costsCommand(args: string[]): Promise<void> {
 		}
 	} finally {
 		metricsStore.close();
+	}
+}
+
+export function createCostsCommand(): Command {
+	return new Command("costs")
+		.description("Token/cost analysis and breakdown")
+		.option("--live", "Show real-time token usage for active agents")
+		.option("--self", "Show cost for the current orchestrator session")
+		.option("--agent <name>", "Filter by agent name")
+		.option("--run <id>", "Filter by run ID")
+		.option("--by-capability", "Group results by capability with subtotals")
+		.option("--last <n>", "Number of recent sessions (default: 20)")
+		.option("--json", "Output as JSON")
+		.action(async (opts: CostsOpts) => {
+			await executeCosts(opts);
+		});
+}
+
+export async function costsCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createCostsCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "costs", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

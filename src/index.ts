@@ -12,31 +12,31 @@ import { agentsCommand } from "./commands/agents.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { completionsCommand } from "./commands/completions.ts";
 import { coordinatorCommand } from "./commands/coordinator.ts";
-import { costsCommand } from "./commands/costs.ts";
-import { dashboardCommand } from "./commands/dashboard.ts";
+import { createCostsCommand } from "./commands/costs.ts";
+import { createDashboardCommand } from "./commands/dashboard.ts";
 import { doctorCommand } from "./commands/doctor.ts";
-import { errorsCommand } from "./commands/errors.ts";
-import { feedCommand } from "./commands/feed.ts";
+import { createErrorsCommand } from "./commands/errors.ts";
+import { createFeedCommand } from "./commands/feed.ts";
 import { groupCommand } from "./commands/group.ts";
 import { hooksCommand } from "./commands/hooks.ts";
 import { initCommand } from "./commands/init.ts";
-import { inspectCommand } from "./commands/inspect.ts";
+import { createInspectCommand } from "./commands/inspect.ts";
 import { logCommand } from "./commands/log.ts";
-import { logsCommand } from "./commands/logs.ts";
+import { createLogsCommand } from "./commands/logs.ts";
 import { mailCommand } from "./commands/mail.ts";
 import { mergeCommand } from "./commands/merge.ts";
-import { metricsCommand } from "./commands/metrics.ts";
+import { createMetricsCommand } from "./commands/metrics.ts";
 import { monitorCommand } from "./commands/monitor.ts";
 import { nudgeCommand } from "./commands/nudge.ts";
 import { primeCommand } from "./commands/prime.ts";
-import { replayCommand } from "./commands/replay.ts";
-import { runCommand } from "./commands/run.ts";
+import { createReplayCommand } from "./commands/replay.ts";
+import { createRunCommand } from "./commands/run.ts";
 import { slingCommand } from "./commands/sling.ts";
 import { specCommand } from "./commands/spec.ts";
-import { statusCommand } from "./commands/status.ts";
+import { createStatusCommand } from "./commands/status.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { supervisorCommand } from "./commands/supervisor.ts";
-import { traceCommand } from "./commands/trace.ts";
+import { createTraceCommand } from "./commands/trace.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { worktreeCommand } from "./commands/worktree.ts";
 import { OverstoryError, WorktreeError } from "./errors.ts";
@@ -182,32 +182,11 @@ program
 		await stopCommand(cmd.args);
 	});
 
-program
-	.command("status")
-	.description("Show all active agents and project state")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await statusCommand(cmd.args);
-	});
+program.addCommand(createStatusCommand());
 
-program
-	.command("dashboard")
-	.description("Live TUI dashboard for agent monitoring")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await dashboardCommand(cmd.args);
-	});
+program.addCommand(createDashboardCommand());
 
-program
-	.command("inspect")
-	.description("Deep inspection of a single agent")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await inspectCommand(cmd.args);
-	});
+program.addCommand(createInspectCommand());
 
 program
 	.command("clean")
@@ -320,14 +299,7 @@ program
 		await logCommand(cmd.args);
 	});
 
-program
-	.command("logs")
-	.description("Query NDJSON logs across agents")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await logsCommand(cmd.args);
-	});
+program.addCommand(createLogsCommand());
 
 program
 	.command("watch")
@@ -338,68 +310,19 @@ program
 		await watchCommand(cmd.args);
 	});
 
-program
-	.command("trace")
-	.description("Chronological event timeline for agent/bead")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await traceCommand(cmd.args);
-	});
+program.addCommand(createTraceCommand());
 
-program
-	.command("feed")
-	.description("Unified real-time event stream across all agents")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await feedCommand(cmd.args);
-	});
+program.addCommand(createFeedCommand());
 
-program
-	.command("errors")
-	.description("Aggregated error view across agents")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await errorsCommand(cmd.args);
-	});
+program.addCommand(createErrorsCommand());
 
-program
-	.command("replay")
-	.description("Interleaved chronological replay across agents")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await replayCommand(cmd.args);
-	});
+program.addCommand(createReplayCommand());
 
-program
-	.command("run")
-	.description("Manage runs (list/show/complete)")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await runCommand(cmd.args);
-	});
+program.addCommand(createRunCommand());
 
-program
-	.command("costs")
-	.description("Token/cost analysis and breakdown")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await costsCommand(cmd.args);
-	});
+program.addCommand(createCostsCommand());
 
-program
-	.command("metrics")
-	.description("Show session metrics")
-	.allowUnknownOption()
-	.allowExcessArguments()
-	.action(async (_opts, cmd) => {
-		await metricsCommand(cmd.args);
-	});
+program.addCommand(createMetricsCommand());
 
 program
 	.command("completions")

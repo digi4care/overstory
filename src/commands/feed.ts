@@ -7,6 +7,7 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
@@ -35,39 +36,6 @@ const AGENT_COLORS: readonly ColorFn[] = [
 	color.cyan,
 	color.magenta,
 ];
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-/**
- * Parse all occurrences of a named flag from args.
- * Returns an array of values (e.g., --agent a --agent b => ["a", "b"]).
- */
-function getAllFlags(args: string[], flag: string): string[] {
-	const values: string[] = [];
-	for (let i = 0; i < args.length; i++) {
-		if (args[i] === flag && i + 1 < args.length) {
-			const value = args[i + 1];
-			if (value !== undefined) {
-				values.push(value);
-			}
-			i++; // skip the value
-		}
-	}
-	return values;
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Format an absolute time from an ISO timestamp.
@@ -168,38 +136,26 @@ function printEvent(event: StoredEvent, colorMap: Map<string, ColorFn>): void {
 	);
 }
 
-const FEED_HELP = `overstory feed -- Unified real-time event stream across all agents
+interface FeedOpts {
+	follow?: boolean;
+	interval?: string;
+	agent: string[]; // repeatable
+	run?: string;
+	since?: string;
+	limit?: string;
+	json?: boolean;
+}
 
-Usage: overstory feed [options]
-
-Options:
-  --follow, -f         Continuously poll for new events (like tail -f)
-  --interval <ms>      Polling interval for --follow (default: 1000, min: 200)
-  --agent <name>       Filter by agent name (can appear multiple times)
-  --run <id>           Filter events by run ID
-  --since <timestamp>  Start time (ISO 8601, default: 5 minutes ago)
-  --limit <n>          Max initial events to show (default: 50)
-  --json               Output events as JSON (one per line in follow mode)
-  --help, -h           Show this help`;
-
-/**
- * Entry point for `overstory feed [--follow] [--agent <name>...] [--run <id>] [--json]`.
- */
-export async function feedCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${FEED_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const follow = hasFlag(args, "--follow") || hasFlag(args, "-f");
-	const runId = getFlag(args, "--run");
-	const agentNames = getAllFlags(args, "--agent");
-	const sinceStr = getFlag(args, "--since");
-	const limitStr = getFlag(args, "--limit");
+async function executeFeed(opts: FeedOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const follow = opts.follow ?? false;
+	const runId = opts.run;
+	const agentNames = opts.agent;
+	const sinceStr = opts.since;
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 50;
 
-	const intervalStr = getFlag(args, "--interval");
+	const intervalStr = opts.interval;
 	const interval = intervalStr ? Number.parseInt(intervalStr, 10) : 1000;
 
 	if (Number.isNaN(limit) || limit < 1) {
@@ -364,5 +320,42 @@ export async function feedCommand(args: string[]): Promise<void> {
 		}
 	} finally {
 		eventStore.close();
+	}
+}
+
+export function createFeedCommand(): Command {
+	return new Command("feed")
+		.description("Unified real-time event stream across all agents")
+		.option("-f, --follow", "Continuously poll for new events (like tail -f)")
+		.option("--interval <ms>", "Polling interval for --follow (default: 1000, min: 200)")
+		.option(
+			"--agent <name>",
+			"Filter by agent name (can appear multiple times)",
+			(val: string, prev: string[]) => [...prev, val],
+			[] as string[],
+		)
+		.option("--run <id>", "Filter events by run ID")
+		.option("--since <timestamp>", "Start time (ISO 8601, default: 5 minutes ago)")
+		.option("--limit <n>", "Max initial events to show (default: 50)")
+		.option("--json", "Output events as JSON (one per line in follow mode)")
+		.action(async (opts: FeedOpts) => {
+			await executeFeed(opts);
+		});
+}
+
+export async function feedCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createFeedCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "feed", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

@@ -11,6 +11,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import type { ColorFn } from "../logging/color.ts";
@@ -49,17 +50,6 @@ const BOX = {
 	teeRight: "┤",
 	cross: "┼",
 };
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
 
 /**
  * Format a duration in ms to a human-readable string.
@@ -736,38 +726,15 @@ function renderDashboard(data: DashboardData, interval: number): void {
 	process.stdout.write(output);
 }
 
-/**
- * Entry point for `overstory dashboard [--interval <ms>] [--all]`.
- */
-const DASHBOARD_HELP = `overstory dashboard — Live TUI dashboard for agent monitoring
+interface DashboardOpts {
+	interval?: string;
+	all?: boolean;
+}
 
-Usage: overstory dashboard [--interval <ms>] [--all]
-
-Options:
-  --interval <ms>    Poll interval in milliseconds (default: 2000, min: 500)
-  --all              Show data from all runs (default: current run only)
-  --help, -h         Show this help
-
-Dashboard panels:
-  - Agent panel: Active agents with status, capability, bead ID, duration
-  - Mail panel: Recent messages with priority and time
-  - Merge queue: Pending/merging/conflict entries
-  - Metrics: Session counts, avg duration, by-capability breakdown
-
-By default the dashboard scopes all panels to the current run (current-run.txt).
-Use --all to see data across all runs.
-
-Press Ctrl+C to exit.`;
-
-export async function dashboardCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${DASHBOARD_HELP}\n`);
-		return;
-	}
-
-	const intervalStr = getFlag(args, "--interval");
+async function executeDashboard(opts: DashboardOpts): Promise<void> {
+	const intervalStr = opts.interval;
 	const interval = intervalStr ? Number.parseInt(intervalStr, 10) : 2000;
-	const showAll = args.includes("--all");
+	const showAll = opts.all ?? false;
 
 	if (Number.isNaN(interval) || interval < 500) {
 		throw new ValidationError("--interval must be a number >= 500 (milliseconds)", {
@@ -814,5 +781,32 @@ export async function dashboardCommand(args: string[]): Promise<void> {
 		const data = await loadDashboardData(root, stores, runId, thresholds);
 		renderDashboard(data, interval);
 		await Bun.sleep(interval);
+	}
+}
+
+export function createDashboardCommand(): Command {
+	return new Command("dashboard")
+		.description("Live TUI dashboard for agent monitoring")
+		.option("--interval <ms>", "Poll interval in milliseconds (default: 2000, min: 500)")
+		.option("--all", "Show data from all runs (default: current run only)")
+		.action(async (opts: DashboardOpts) => {
+			await executeDashboard(opts);
+		});
+}
+
+export async function dashboardCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createDashboardCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "dashboard", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

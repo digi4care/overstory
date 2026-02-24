@@ -6,22 +6,14 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
+import { ValidationError } from "../errors.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
+interface MetricsOpts {
+	last?: string;
+	json?: boolean;
 }
 
 /**
@@ -39,27 +31,9 @@ function formatDuration(ms: number): string {
 	return `${hours}h ${remainMin}m`;
 }
 
-/**
- * Entry point for `overstory metrics [--last <n>] [--json]`.
- */
-const METRICS_HELP = `overstory metrics — Show session metrics
-
-Usage: overstory metrics [--last <n>] [--json]
-
-Options:
-  --last <n>         Number of recent sessions to show (default: 20)
-  --json             Output as JSON
-  --help, -h         Show this help`;
-
-export async function metricsCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${METRICS_HELP}\n`);
-		return;
-	}
-
-	const lastStr = getFlag(args, "--last");
-	const limit = lastStr ? Number.parseInt(lastStr, 10) : 20;
-	const json = hasFlag(args, "--json");
+async function executeMetrics(opts: MetricsOpts): Promise<void> {
+	const limit = opts.last ? Number.parseInt(opts.last, 10) : 20;
+	const json = opts.json ?? false;
 
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
@@ -139,5 +113,32 @@ export async function metricsCommand(args: string[]): Promise<void> {
 		}
 	} finally {
 		store.close();
+	}
+}
+
+export function createMetricsCommand(): Command {
+	return new Command("metrics")
+		.description("Show session metrics")
+		.option("--last <n>", "Number of recent sessions to show (default: 20)")
+		.option("--json", "Output as JSON")
+		.action(async (opts: MetricsOpts) => {
+			await executeMetrics(opts);
+		});
+}
+
+export async function metricsCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createMetricsCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "metrics", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }
