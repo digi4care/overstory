@@ -74,7 +74,7 @@ async function handleClean(
 	json: boolean,
 	canonicalBranch: string,
 ): Promise<void> {
-	const { all, force, completedOnly } = opts;
+	const { force, completedOnly } = opts;
 
 	const worktrees = await listWorktrees(root);
 	const overstoryDir = join(root, ".overstory");

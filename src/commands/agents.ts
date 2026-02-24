@@ -195,37 +195,35 @@ export function createAgentsCommand(): Command {
 		)
 		.option("--all", "Include completed and zombie agents (default: active only)")
 		.option("--json", "Output as JSON")
-		.action(
-			async (opts: { capability?: string; all?: boolean; json?: boolean }) => {
-				const capability = opts.capability;
+		.action(async (opts: { capability?: string; all?: boolean; json?: boolean }) => {
+			const capability = opts.capability;
 
-				// Validate capability if provided
-				if (capability && !SUPPORTED_CAPABILITIES.includes(capability as never)) {
-					throw new ValidationError(
-						`Invalid capability: ${capability}. Must be one of: ${SUPPORTED_CAPABILITIES.join(", ")}`,
-						{
-							field: "capability",
-							value: capability,
-						},
-					);
-				}
+			// Validate capability if provided
+			if (capability && !SUPPORTED_CAPABILITIES.includes(capability as never)) {
+				throw new ValidationError(
+					`Invalid capability: ${capability}. Must be one of: ${SUPPORTED_CAPABILITIES.join(", ")}`,
+					{
+						field: "capability",
+						value: capability,
+					},
+				);
+			}
 
-				const cwd = process.cwd();
-				const config = await loadConfig(cwd);
-				const root = config.project.root;
+			const cwd = process.cwd();
+			const config = await loadConfig(cwd);
+			const root = config.project.root;
 
-				const agents = await discoverAgents(root, {
-					capability,
-					includeAll: opts.all ?? false,
-				});
+			const agents = await discoverAgents(root, {
+				capability,
+				includeAll: opts.all ?? false,
+			});
 
-				if (opts.json) {
-					process.stdout.write(`${JSON.stringify(agents, null, "\t")}\n`);
-				} else {
-					printAgents(agents);
-				}
-			},
-		);
+			if (opts.json) {
+				process.stdout.write(`${JSON.stringify(agents, null, "\t")}\n`);
+			} else {
+				printAgents(agents);
+			}
+		});
 
 	return cmd;
 }

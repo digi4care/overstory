@@ -6,8 +6,8 @@
  * and various filters for listing messages.
  */
 
-import { Command } from "commander";
 import { join } from "node:path";
+import { Command } from "commander";
 import { resolveProjectRoot } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
@@ -677,10 +677,7 @@ export async function mailCommand(args: string[]): Promise<void> {
 	const root = await resolveProjectRoot(process.cwd());
 
 	const program = new Command();
-	program
-		.name("overstory mail")
-		.description("Agent messaging system")
-		.exitOverride();
+	program.name("overstory mail").description("Agent messaging system").exitOverride();
 
 	program
 		.command("send")

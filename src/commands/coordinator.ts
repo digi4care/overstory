@@ -488,10 +488,7 @@ async function startCoordinator(
  * 3. Mark session as completed in SessionStore
  * 4. Auto-complete the active run (if current-run.txt exists)
  */
-async function stopCoordinator(
-	opts: { json: boolean },
-	deps: CoordinatorDeps = {},
-): Promise<void> {
+async function stopCoordinator(opts: { json: boolean }, deps: CoordinatorDeps = {}): Promise<void> {
 	const tmux = deps._tmux ?? {
 		createSession,
 		isSessionAlive,
@@ -703,12 +700,7 @@ export function createCoordinatorCommand(deps: CoordinatorDeps = {}): Command {
 		.option("--monitor", "Auto-start Tier 2 monitor agent with coordinator")
 		.option("--json", "Output as JSON")
 		.action(
-			async (opts: {
-				attach?: boolean;
-				watchdog?: boolean;
-				monitor?: boolean;
-				json?: boolean;
-			}) => {
+			async (opts: { attach?: boolean; watchdog?: boolean; monitor?: boolean; json?: boolean }) => {
 				// opts.attach = true if --attach, false if --no-attach, undefined if neither
 				const shouldAttach = opts.attach !== undefined ? opts.attach : !!process.stdout.isTTY;
 				await startCoordinator(

@@ -343,10 +343,10 @@ async function runLog(opts: {
 }): Promise<void> {
 	const validEvents = ["tool-start", "tool-end", "session-end"];
 	if (!validEvents.includes(opts.event)) {
-		throw new ValidationError(
-			`Invalid event "${opts.event}". Valid: ${validEvents.join(", ")}`,
-			{ field: "event", value: opts.event },
-		);
+		throw new ValidationError(`Invalid event "${opts.event}". Valid: ${validEvents.join(", ")}`, {
+			field: "event",
+			value: opts.event,
+		});
 	}
 
 	// Read stdin payload if --stdin flag is set
@@ -545,11 +545,7 @@ async function runLog(opts: {
 					// without running `overstory coordinator stop`.
 					if (agentSession.capability === "coordinator") {
 						try {
-							const currentRunPath = join(
-								config.project.root,
-								".overstory",
-								"current-run.txt",
-							);
+							const currentRunPath = join(config.project.root, ".overstory", "current-run.txt");
 							const currentRunFile = Bun.file(currentRunPath);
 							if (await currentRunFile.exists()) {
 								const runId = (await currentRunFile.text()).trim();
@@ -579,8 +575,7 @@ async function runLog(opts: {
 						const metricsDbPath = join(config.project.root, ".overstory", "metrics.db");
 						const metricsStore = createMetricsStore(metricsDbPath);
 						const now = new Date().toISOString();
-						const durationMs =
-							new Date(now).getTime() - new Date(agentSession.startedAt).getTime();
+						const durationMs = new Date(now).getTime() - new Date(agentSession.startedAt).getTime();
 
 						// Parse token usage from transcript if path provided
 						let inputTokens = 0;

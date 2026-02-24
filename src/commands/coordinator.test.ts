@@ -1635,4 +1635,3 @@ describe("SessionStore round-trip", () => {
 		expect(exists).toBe(true);
 	});
 });
-

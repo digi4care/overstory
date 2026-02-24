@@ -303,23 +303,24 @@ async function main(): Promise<void> {
 	await program.parseAsync(process.argv);
 }
 
-if (import.meta.main) main().catch((err: unknown) => {
-	// Friendly message when running outside a git repository
-	if (err instanceof WorktreeError && err.message.includes("not a git repository")) {
-		process.stderr.write("Not in an overstory project. Run 'overstory init' first.\n");
-		process.exit(1);
-	}
-	if (err instanceof OverstoryError) {
-		process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
-		process.exit(1);
-	}
-	if (err instanceof Error) {
-		process.stderr.write(`Error: ${err.message}\n`);
-		if (process.argv.includes("--verbose")) {
-			process.stderr.write(`${err.stack}\n`);
+if (import.meta.main)
+	main().catch((err: unknown) => {
+		// Friendly message when running outside a git repository
+		if (err instanceof WorktreeError && err.message.includes("not a git repository")) {
+			process.stderr.write("Not in an overstory project. Run 'overstory init' first.\n");
+			process.exit(1);
 		}
+		if (err instanceof OverstoryError) {
+			process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
+			process.exit(1);
+		}
+		if (err instanceof Error) {
+			process.stderr.write(`Error: ${err.message}\n`);
+			if (process.argv.includes("--verbose")) {
+				process.stderr.write(`${err.stack}\n`);
+			}
+			process.exit(1);
+		}
+		process.stderr.write(`Unknown error: ${String(err)}\n`);
 		process.exit(1);
-	}
-	process.stderr.write(`Unknown error: ${String(err)}\n`);
-	process.exit(1);
-});
+	});

@@ -512,10 +512,7 @@ export function createLogsCommand(): Command {
 		.description("Query NDJSON logs across agents")
 		.option("--agent <name>", "Filter logs by agent name")
 		.option("--level <level>", "Filter by log level: debug, info, warn, error")
-		.option(
-			"--since <time>",
-			"Start time filter (ISO 8601 or relative: 1h, 30m, 2d, 10s)",
-		)
+		.option("--since <time>", "Start time filter (ISO 8601 or relative: 1h, 30m, 2d, 10s)")
 		.option("--until <time>", "End time filter (ISO 8601)")
 		.option("--limit <n>", "Max entries to show (default: 100, returns most recent)")
 		.option("--follow", "Tail logs in real time (poll every 1s, Ctrl+C to stop)")

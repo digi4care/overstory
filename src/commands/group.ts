@@ -309,20 +309,28 @@ export function createGroupCommand(): Command {
 		.argument("<ids...>", "Issue IDs to include")
 		.option("--json", "Output as JSON")
 		.option("--skip-validation", "Skip beads issue validation (for offline use)")
-		.action(async (name: string, ids: string[], opts: { json?: boolean; skipValidation?: boolean }) => {
-			const config = await loadConfig(process.cwd());
-			const projectRoot = config.project.root;
-			const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
-			const tracker = createTrackerClient(resolvedBackend, projectRoot);
+		.action(
+			async (name: string, ids: string[], opts: { json?: boolean; skipValidation?: boolean }) => {
+				const config = await loadConfig(process.cwd());
+				const projectRoot = config.project.root;
+				const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
+				const tracker = createTrackerClient(resolvedBackend, projectRoot);
 
-			const group = await createGroup(projectRoot, name, ids, opts.skipValidation ?? false, tracker);
-			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
-			} else {
-				process.stdout.write(`Created group "${group.name}" (${group.id})\n`);
-				process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
-			}
-		});
+				const group = await createGroup(
+					projectRoot,
+					name,
+					ids,
+					opts.skipValidation ?? false,
+					tracker,
+				);
+				if (opts.json) {
+					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
+				} else {
+					process.stdout.write(`Created group "${group.name}" (${group.id})\n`);
+					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
+				}
+			},
+		);
 
 	cmd
 		.command("status")
@@ -330,51 +338,53 @@ export function createGroupCommand(): Command {
 		.argument("[group-id]", "Group ID (optional, shows all if omitted)")
 		.option("--json", "Output as JSON")
 		.option("--skip-validation", "Skip beads issue validation (for offline use)")
-		.action(async (groupId: string | undefined, opts: { json?: boolean; skipValidation?: boolean }) => {
-			const config = await loadConfig(process.cwd());
-			const projectRoot = config.project.root;
-			const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
-			const tracker = createTrackerClient(resolvedBackend, projectRoot);
-			const json = opts.json ?? false;
+		.action(
+			async (groupId: string | undefined, opts: { json?: boolean; skipValidation?: boolean }) => {
+				const config = await loadConfig(process.cwd());
+				const projectRoot = config.project.root;
+				const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
+				const tracker = createTrackerClient(resolvedBackend, projectRoot);
+				const json = opts.json ?? false;
 
-			const groups = await loadGroups(projectRoot);
+				const groups = await loadGroups(projectRoot);
 
-			if (groupId) {
-				const group = groups.find((g) => g.id === groupId);
-				if (!group) {
-					throw new GroupError(`Group "${groupId}" not found`, { groupId });
-				}
-				const progress = await getGroupProgress(projectRoot, group, groups, tracker);
-				if (json) {
-					process.stdout.write(`${JSON.stringify(progress, null, "\t")}\n`);
-				} else {
-					printGroupProgress(progress);
-				}
-			} else {
-				const activeGroups = groups.filter((g) => g.status === "active");
-				if (activeGroups.length === 0) {
-					if (json) {
-						process.stdout.write("[]\n");
-					} else {
-						process.stdout.write("No active groups\n");
+				if (groupId) {
+					const group = groups.find((g) => g.id === groupId);
+					if (!group) {
+						throw new GroupError(`Group "${groupId}" not found`, { groupId });
 					}
-					return;
-				}
-				const progressList: TaskGroupProgress[] = [];
-				for (const group of activeGroups) {
 					const progress = await getGroupProgress(projectRoot, group, groups, tracker);
-					progressList.push(progress);
-				}
-				if (json) {
-					process.stdout.write(`${JSON.stringify(progressList, null, "\t")}\n`);
-				} else {
-					for (const progress of progressList) {
+					if (json) {
+						process.stdout.write(`${JSON.stringify(progress, null, "\t")}\n`);
+					} else {
 						printGroupProgress(progress);
-						process.stdout.write("\n");
+					}
+				} else {
+					const activeGroups = groups.filter((g) => g.status === "active");
+					if (activeGroups.length === 0) {
+						if (json) {
+							process.stdout.write("[]\n");
+						} else {
+							process.stdout.write("No active groups\n");
+						}
+						return;
+					}
+					const progressList: TaskGroupProgress[] = [];
+					for (const group of activeGroups) {
+						const progress = await getGroupProgress(projectRoot, group, groups, tracker);
+						progressList.push(progress);
+					}
+					if (json) {
+						process.stdout.write(`${JSON.stringify(progressList, null, "\t")}\n`);
+					} else {
+						for (const progress of progressList) {
+							printGroupProgress(progress);
+							process.stdout.write("\n");
+						}
 					}
 				}
-			}
-		});
+			},
+		);
 
 	cmd
 		.command("add")
@@ -383,26 +393,32 @@ export function createGroupCommand(): Command {
 		.argument("<ids...>", "Issue IDs to add")
 		.option("--json", "Output as JSON")
 		.option("--skip-validation", "Skip beads issue validation (for offline use)")
-		.action(async (groupId: string, ids: string[], opts: { json?: boolean; skipValidation?: boolean }) => {
-			const config = await loadConfig(process.cwd());
-			const projectRoot = config.project.root;
-			const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
-			const tracker = createTrackerClient(resolvedBackend, projectRoot);
+		.action(
+			async (
+				groupId: string,
+				ids: string[],
+				opts: { json?: boolean; skipValidation?: boolean },
+			) => {
+				const config = await loadConfig(process.cwd());
+				const projectRoot = config.project.root;
+				const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
+				const tracker = createTrackerClient(resolvedBackend, projectRoot);
 
-			const group = await addToGroup(
-				projectRoot,
-				groupId,
-				ids,
-				opts.skipValidation ?? false,
-				tracker,
-			);
-			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
-			} else {
-				process.stdout.write(`Added ${ids.length} issue(s) to "${group.name}"\n`);
-				process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
-			}
-		});
+				const group = await addToGroup(
+					projectRoot,
+					groupId,
+					ids,
+					opts.skipValidation ?? false,
+					tracker,
+				);
+				if (opts.json) {
+					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
+				} else {
+					process.stdout.write(`Added ${ids.length} issue(s) to "${group.name}"\n`);
+					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
+				}
+			},
+		);
 
 	cmd
 		.command("remove")
