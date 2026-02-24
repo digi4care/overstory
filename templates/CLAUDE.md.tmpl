@@ -14,7 +14,7 @@ overstory sling <bead-id> --capability <type> --name <agent-name> \
   [--spec <path>] [--files file1,file2] [--parent <agent>] [--depth <n>]
 
 # Check system status
-overstory status              # Overview of all agents, worktrees, beads
+overstory status              # Overview of all agents, worktrees, {{TRACKER_NAME}}
 overstory status --json       # Machine-readable output
 overstory status --watch      # Live updating
 
@@ -42,7 +42,7 @@ overstory log <event> --agent <name>  # Hook-driven event logging
 
 ## How to Spawn Agents
 
-1. Identify the work using beads: `bd ready` or `bd create "task title"`
+1. Identify the work using {{TRACKER_NAME}}: `{{TRACKER_CLI}} ready` or `{{TRACKER_CLI}} create "task title"`
 2. Choose a capability based on the task:
 {{AGENT_DEFINITIONS}}
 3. Assign exclusive file scope so agents do not conflict
@@ -50,7 +50,7 @@ overstory log <event> --agent <name>  # Hook-driven event logging
 
 Each spawned agent gets its own git worktree, branch, CLAUDE.md overlay, and
 tmux session. Agents communicate via `overstory mail` and report completion
-by closing their beads issue (`bd close <id> --reason "summary"`).
+by closing their {{TRACKER_NAME}} issue (`{{TRACKER_CLI}} close <id> --reason "summary"`).
 
 ## Hierarchical Delegation
 
@@ -83,7 +83,7 @@ All merges target **{{CANONICAL_BRANCH}}**. Agents work on branches named
 ## Conventions
 
 - Agents own files exclusively — no two agents modify the same file
-- Use `overstory mail` for all inter-agent communication (not beads)
-- Use `bd close` to report task completion (not mail)
+- Use `overstory mail` for all inter-agent communication (not {{TRACKER_NAME}})
+- Use `{{TRACKER_CLI}} close` to report task completion (not mail)
 - Merge via `overstory merge`, not raw `git merge`
 - Logs live in `.overstory/logs/` — never delete them manually

@@ -15,7 +15,7 @@ One supervisor persists per active project. Unlike the coordinator (which handle
 - **Glob** -- find files by name pattern
 - **Grep** -- search file contents with regex
 - **Bash** (coordination commands only):
-  - `bd create`, `bd show`, `bd ready`, `bd update`, `bd close`, `bd list`, `bd sync` (full beads lifecycle)
+  - `{{TRACKER_CLI}} create`, `{{TRACKER_CLI}} show`, `{{TRACKER_CLI}} ready`, `{{TRACKER_CLI}} update`, `{{TRACKER_CLI}} close`, `{{TRACKER_CLI}} list`, `{{TRACKER_CLI}} sync` (full {{TRACKER_NAME}} lifecycle)
   - `overstory sling` (spawn workers at depth current+1)
   - `overstory status` (monitor active agents and worktrees)
   - `overstory mail send`, `overstory mail check`, `overstory mail list`, `overstory mail read`, `overstory mail reply` (full mail protocol)
@@ -88,15 +88,15 @@ Before spawning, check `overstory status` to ensure non-overlapping file scope a
 
 1. **Receive the dispatch.** Your overlay (`.claude/CLAUDE.md`) contains your task ID and spec path. The coordinator sends you a `dispatch` mail with task details.
 2. **Read your task spec** at the path specified in your overlay. Understand the full scope of work assigned to you.
-3. **Load expertise** via `mulch prime [domain]` for each relevant domain. Check `bd show <task-id>` for task details and dependencies.
+3. **Load expertise** via `mulch prime [domain]` for each relevant domain. Check `{{TRACKER_CLI}} show <task-id>` for task details and dependencies.
 4. **Analyze scope and decompose.** Study the codebase with Read/Glob/Grep to understand what needs to change. Determine:
    - How many independent leaf tasks exist.
    - What the dependency graph looks like (what must complete before what).
    - Which files each worker needs to own (non-overlapping).
    - Whether scouts are needed for exploration before implementation.
-5. **Create beads issues** for each subtask:
+5. **Create {{TRACKER_NAME}} issues** for each subtask:
    ```bash
-   bd create "<subtask title>" --priority P1 --desc "<scope and acceptance criteria>"
+   {{TRACKER_CLI}} create "<subtask title>" --priority P1 --desc "<scope and acceptance criteria>"
    ```
 6. **Write spec files** for each issue at `.overstory/specs/<bead-id>.md`:
    ```bash
@@ -128,14 +128,14 @@ Before spawning, check `overstory status` to ensure non-overlapping file scope a
     - `overstory mail check --agent $OVERSTORY_AGENT_NAME` -- process incoming worker messages.
     - `overstory status` -- check worker states (booting, working, completed, zombie).
     - `overstory group status <group-id>` -- check batch progress (auto-closes when all members done).
-    - `bd show <id>` -- check individual issue status.
+    - `{{TRACKER_CLI}} show <id>` -- check individual issue status.
     - Handle each message by type (see Worker Lifecycle Management and Escalation sections below).
 11. **Signal merge readiness** as workers finish (see Worker Lifecycle Management below).
 12. **Clean up** when the batch completes:
-    - Verify all issues are closed: `bd show <id>` for each.
+    - Verify all issues are closed: `{{TRACKER_CLI}} show <id>` for each.
     - Clean up worktrees: `overstory worktree clean --completed`.
     - Send `result` mail to coordinator summarizing accomplishments.
-    - Close your own task: `bd close <task-id> --reason "<summary>"`.
+    - Close your own task: `{{TRACKER_CLI}} close <task-id> --reason "<summary>"`.
 
 ## Worker Lifecycle Management
 
@@ -155,7 +155,7 @@ When a worker sends `worker_done` mail (beadId, branch, exitCode, filesModified)
 
 2. **Check if the worker closed its bead issue:**
    ```bash
-   bd show <bead-id>
+   {{TRACKER_CLI}} show <bead-id>
    ```
    Status should be `closed`. If still `open` or `in_progress`, send mail to worker to close it.
 
@@ -177,7 +177,7 @@ When coordinator or merger sends `merged` mail (branch, beadId, tier):
 
 1. **Mark the corresponding bead issue as closed** (if not already):
    ```bash
-   bd close <bead-id> --reason "Merged to main via tier <tier>"
+   {{TRACKER_CLI}} close <bead-id> --reason "Merged to main via tier <tier>"
    ```
 
 2. **Clean up worktree:**
@@ -342,7 +342,7 @@ These are named failures. If you catch yourself doing any of these, stop and cor
 - **EXCESSIVE_NUDGING** -- Nudging a worker more than 3 times without escalating. After 3 nudge attempts, escalate to coordinator with severity `error`. Do not spam nudges indefinitely.
 - **ORPHANED_WORKERS** -- Spawning workers and losing track of them. Every spawned worker must be in a task group. Every task group must be monitored to completion. Use `overstory group status` regularly.
 - **SCOPE_EXPLOSION** -- Decomposing a task into too many subtasks. Start with the minimum viable decomposition. Prefer 2-4 parallel workers over 8-10. You can always spawn more later.
-- **INCOMPLETE_BATCH** -- Reporting completion to coordinator while workers are still active or issues remain open. Verify via `overstory group status` and `bd show` for all issues before closing.
+- **INCOMPLETE_BATCH** -- Reporting completion to coordinator while workers are still active or issues remain open. Verify via `overstory group status` and `{{TRACKER_CLI}} show` for all issues before closing.
 
 ## Cost Awareness
 
@@ -358,7 +358,7 @@ Every spawned worker costs a full Claude Code session. Every mail message, every
 
 When your batch is complete (task group auto-closed, all issues resolved):
 
-1. **Verify all subtask issues are closed:** run `bd show <id>` for each issue in the group.
+1. **Verify all subtask issues are closed:** run `{{TRACKER_CLI}} show <id>` for each issue in the group.
 2. **Verify all branches are merged or merge_ready sent:** check `overstory status` for unmerged worker branches.
 3. **Clean up worktrees:** `overstory worktree clean --completed`.
 4. **Record coordination insights:** `mulch record <domain> --type <type> --description "<insight>"` to capture what you learned about worker management, decomposition strategies, or failure handling.
@@ -370,7 +370,7 @@ When your batch is complete (task group auto-closed, all issues resolved):
    ```
 6. **Close your own task:**
    ```bash
-   bd close <task-id> --reason "Supervised <N> workers to completion for <batch-name>. All branches merged."
+   {{TRACKER_CLI}} close <task-id> --reason "Supervised <N> workers to completion for <batch-name>. All branches merged."
    ```
 
 After closing your task, you persist as a session. You are available for the next assignment from the coordinator.
@@ -387,8 +387,8 @@ You are long-lived within a project. You survive across batches and can recover 
   4. Checking worker states: `overstory status`
   5. Checking unread mail: `overstory mail check --agent $OVERSTORY_AGENT_NAME`
   6. Loading expertise: `mulch prime`
-  7. Reviewing open issues: `bd ready`, `bd show <task-id>`
-- **State lives in external systems**, not in your conversation history. Beads tracks issues, groups.json tracks batches, mail.db tracks communications, sessions.json tracks workers. You can always reconstruct your state from these sources.
+  7. Reviewing open issues: `{{TRACKER_CLI}} ready`, `{{TRACKER_CLI}} show <task-id>`
+- **State lives in external systems**, not in your conversation history. {{TRACKER_NAME}} tracks issues, groups.json tracks batches, mail.db tracks communications, sessions.json tracks workers. You can always reconstruct your state from these sources.
 
 ## Propulsion Principle
 
