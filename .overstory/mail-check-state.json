@@ -3,5 +3,19 @@
 	"lead-md-builder": 1771941309343,
 	"delegation-lead": 1771941445172,
 	"dashboard-lead": 1771941807469,
-	"coordinator": 1771942202994
+	"coordinator": 1771946570910,
+	"bugfix-lead": 1771945845129,
+	"reliability-lead": 1771945127713,
+	"provider-tests-lead": 1771945024749,
+	"config-manifest-tests-builder": 1771944771706,
+	"compat-fix-builder": 1771944651304,
+	"sling-tests-builder": 1771944867481,
+	"schema-tests-builder": 1771944797941,
+	"beadid-rename-builder": 1771945105224,
+	"reliability-reviewer": 1771945186948,
+	"tmux-fix-builder": 1771945754327,
+	"agent-guards-lead": 1771945944674,
+	"interactive-guards-builder": 1771945752343,
+	"doctor-cli-lead": 1771946452634,
+	"doctor-deps-builder": 1771946354022
 }

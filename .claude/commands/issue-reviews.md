@@ -1,3 +1,5 @@
+## intro
+
 Review open GitHub issues for priority, feasibility, project alignment, and risks.
 
 **Argument:** `$ARGUMENTS` — optional issue number(s) to review (e.g., `5` or `5 8 12`). If empty, review all open issues.
