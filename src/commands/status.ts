@@ -6,6 +6,7 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createMailStore } from "../mail/store.ts";
@@ -62,21 +63,6 @@ export async function getCachedTmuxSessions(
 	} catch {
 		return tmuxCache?.data ?? [];
 	}
-}
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
 }
 
 /**
@@ -323,33 +309,21 @@ export function printStatus(data: StatusData): void {
 	w(`📈 Sessions recorded: ${data.recentMetricsCount}\n`);
 }
 
-/**
- * Entry point for `overstory status [--json] [--watch]`.
- */
-const STATUS_HELP = `overstory status — Show all active agents and project state
+interface StatusOpts {
+	json?: boolean;
+	watch?: boolean;
+	verbose?: boolean;
+	all?: boolean;
+	interval?: string;
+	agent?: string;
+}
 
-Usage: overstory status [--json] [--verbose] [--agent <name>] [--all]
-
-Options:
-  --json             Output as JSON
-  --verbose          Show extra detail per agent (worktree, logs, mail timestamps)
-  --agent <name>     Show unread mail for this agent (default: orchestrator)
-  --all              Show sessions from all runs (default: current run only)
-  --watch            (deprecated) Use 'overstory dashboard' for live monitoring
-  --interval <ms>    Poll interval for --watch in milliseconds (default: 3000)
-  --help, -h         Show this help`;
-
-export async function statusCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${STATUS_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const watch = hasFlag(args, "--watch");
-	const verbose = hasFlag(args, "--verbose");
-	const all = hasFlag(args, "--all");
-	const intervalStr = getFlag(args, "--interval");
+async function executeStatus(opts: StatusOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const watch = opts.watch ?? false;
+	const verbose = opts.verbose ?? false;
+	const all = opts.all ?? false;
+	const intervalStr = opts.interval;
 	const interval = intervalStr ? Number.parseInt(intervalStr, 10) : 3000;
 
 	if (Number.isNaN(interval) || interval < 500) {
@@ -359,7 +333,7 @@ export async function statusCommand(args: string[]): Promise<void> {
 		});
 	}
 
-	const agentName = getFlag(args, "--agent") ?? "orchestrator";
+	const agentName = opts.agent ?? "orchestrator";
 
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
@@ -394,5 +368,42 @@ export async function statusCommand(args: string[]): Promise<void> {
 		} else {
 			printStatus(data);
 		}
+	}
+}
+
+export function createStatusCommand(): Command {
+	return new Command("status")
+		.description("Show all active agents and project state")
+		.option("--json", "Output as JSON")
+		.option("--verbose", "Show extra detail per agent (worktree, logs, mail timestamps)")
+		.option("--agent <name>", "Show unread mail for this agent (default: orchestrator)")
+		.option("--all", "Show sessions from all runs (default: current run only)")
+		.option(
+			"--watch",
+			"(deprecated) Use 'overstory dashboard' for live monitoring",
+		)
+		.option(
+			"--interval <ms>",
+			"Poll interval for --watch in milliseconds (default: 3000)",
+		)
+		.action(async (opts: StatusOpts) => {
+			await executeStatus(opts);
+		});
+}
+
+export async function statusCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createStatusCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "status", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

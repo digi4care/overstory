@@ -10,26 +10,12 @@
 
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { LogEvent } from "../types.ts";
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Parse relative time formats like "1h", "30m", "2d", "10s" into a Date object.
@@ -415,36 +401,24 @@ async function followLogs(
 	}
 }
 
-const LOGS_HELP = `overstory logs -- Query NDJSON log files from .overstory/logs
+interface LogsOpts {
+	agent?: string;
+	level?: string;
+	since?: string;
+	until?: string;
+	limit?: string;
+	follow?: boolean;
+	json?: boolean;
+}
 
-Usage: overstory logs [options]
-
-Options:
-  --agent <name>         Filter logs by agent name
-  --level <level>        Filter by log level: debug, info, warn, error
-  --since <time>         Start time filter (ISO 8601 or relative: 1h, 30m, 2d, 10s)
-  --until <time>         End time filter (ISO 8601)
-  --limit <n>            Max entries to show (default: 100, returns most recent)
-  --follow               Tail logs in real time (poll every 1s, Ctrl+C to stop)
-  --json                 Output as JSON array of LogEvent objects
-  --help, -h             Show this help`;
-
-/**
- * Entry point for `overstory logs` command.
- */
-export async function logsCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${LOGS_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const follow = hasFlag(args, "--follow");
-	const agentName = getFlag(args, "--agent");
-	const level = getFlag(args, "--level");
-	const sinceStr = getFlag(args, "--since");
-	const untilStr = getFlag(args, "--until");
-	const limitStr = getFlag(args, "--limit");
+async function executeLogs(opts: LogsOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const follow = opts.follow ?? false;
+	const agentName = opts.agent;
+	const level = opts.level;
+	const sinceStr = opts.since;
+	const untilStr = opts.until;
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 100;
 
 	if (Number.isNaN(limit) || limit < 1) {
@@ -531,4 +505,39 @@ export async function logsCommand(args: string[]): Promise<void> {
 	}
 
 	printLogs(limited);
+}
+
+export function createLogsCommand(): Command {
+	return new Command("logs")
+		.description("Query NDJSON logs across agents")
+		.option("--agent <name>", "Filter logs by agent name")
+		.option("--level <level>", "Filter by log level: debug, info, warn, error")
+		.option(
+			"--since <time>",
+			"Start time filter (ISO 8601 or relative: 1h, 30m, 2d, 10s)",
+		)
+		.option("--until <time>", "End time filter (ISO 8601)")
+		.option("--limit <n>", "Max entries to show (default: 100, returns most recent)")
+		.option("--follow", "Tail logs in real time (poll every 1s, Ctrl+C to stop)")
+		.option("--json", "Output as JSON array of LogEvent objects")
+		.action(async (opts: LogsOpts) => {
+			await executeLogs(opts);
+		});
+}
+
+export async function logsCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createLogsCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "logs", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
+	}
 }

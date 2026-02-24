@@ -7,6 +7,7 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
@@ -35,39 +36,6 @@ const AGENT_COLORS: readonly ColorFn[] = [
 	color.cyan,
 	color.magenta,
 ];
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-/**
- * Parse all occurrences of a named flag from args.
- * Returns an array of values (e.g., --agent a --agent b => ["a", "b"]).
- */
-function getAllFlags(args: string[], flag: string): string[] {
-	const values: string[] = [];
-	for (let i = 0; i < args.length; i++) {
-		if (args[i] === flag && i + 1 < args.length) {
-			const value = args[i + 1];
-			if (value !== undefined) {
-				values.push(value);
-			}
-			i++; // skip the value
-		}
-	}
-	return values;
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Format a relative time string from a timestamp.
@@ -230,39 +198,22 @@ function printReplay(events: StoredEvent[], useAbsoluteTime: boolean): void {
 	}
 }
 
-const REPLAY_HELP = `overstory replay -- Interleaved chronological replay across agents
+interface ReplayOpts {
+	run?: string;
+	agent: string[]; // repeatable
+	since?: string;
+	until?: string;
+	limit?: string;
+	json?: boolean;
+}
 
-Usage: overstory replay [options]
-
-Options:
-  --run <id>             Filter events by run ID
-  --agent <name>         Filter by agent name (can appear multiple times)
-  --since <timestamp>    Start time filter (ISO 8601)
-  --until <timestamp>    End time filter (ISO 8601)
-  --limit <n>            Max events to show (default: 200)
-  --json                 Output as JSON array of StoredEvent objects
-  --help, -h             Show this help
-
-If --run is specified, shows all events from that run.
-If --agent is specified, shows events from those agents merged chronologically.
-If neither is specified, tries to read the current run from .overstory/current-run.txt.
-Falls back to a 24-hour timeline of all events.`;
-
-/**
- * Entry point for `overstory replay [--run <id>] [--agent <name>...] [--json]`.
- */
-export async function replayCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${REPLAY_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const runId = getFlag(args, "--run");
-	const agentNames = getAllFlags(args, "--agent");
-	const sinceStr = getFlag(args, "--since");
-	const untilStr = getFlag(args, "--until");
-	const limitStr = getFlag(args, "--limit");
+async function executeReplay(opts: ReplayOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const runId = opts.run;
+	const agentNames = opts.agent;
+	const sinceStr = opts.since;
+	const untilStr = opts.until;
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 200;
 
 	if (Number.isNaN(limit) || limit < 1) {
@@ -363,5 +314,41 @@ export async function replayCommand(args: string[]): Promise<void> {
 		printReplay(events, useAbsoluteTime);
 	} finally {
 		eventStore.close();
+	}
+}
+
+export function createReplayCommand(): Command {
+	return new Command("replay")
+		.description("Interleaved chronological replay across agents")
+		.option("--run <id>", "Filter events by run ID")
+		.option(
+			"--agent <name>",
+			"Filter by agent name (can appear multiple times)",
+			(val: string, prev: string[]) => [...prev, val],
+			[] as string[],
+		)
+		.option("--since <timestamp>", "Start time filter (ISO 8601)")
+		.option("--until <timestamp>", "End time filter (ISO 8601)")
+		.option("--limit <n>", "Max events to show (default: 200)")
+		.option("--json", "Output as JSON array of StoredEvent objects")
+		.action(async (opts: ReplayOpts) => {
+			await executeReplay(opts);
+		});
+}
+
+export async function replayCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createReplayCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "replay", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

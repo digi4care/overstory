@@ -6,6 +6,7 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
@@ -13,21 +14,6 @@ import { color } from "../logging/color.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession, StoredEvent, ToolStats } from "../types.ts";
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Format a duration in ms to a human-readable string.
@@ -343,44 +329,21 @@ export function printInspectData(data: InspectData): void {
 	}
 }
 
-const INSPECT_HELP = `overstory inspect <agent-name> — Deep inspection of a single agent
+interface InspectOpts {
+	json?: boolean;
+	follow?: boolean;
+	interval?: string;
+	limit?: string;
+	tmux?: boolean; // Commander: --no-tmux sets tmux=false
+}
 
-Usage: overstory inspect <agent-name> [options]
+async function executeInspect(agentName: string, opts: InspectOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const follow = opts.follow ?? false;
+	// Commander --no-tmux sets opts.tmux = false
+	const noTmux = opts.tmux === false;
 
-Options:
-  --json             Output as JSON
-  --follow           Poll and refresh (clears screen, re-gathers, re-prints)
-  --interval <ms>    Polling interval for --follow in milliseconds (default: 3000, min: 500)
-  --limit <n>        Number of recent tool calls to show (default: 20)
-  --no-tmux          Skip tmux capture-pane
-  --help, -h         Show this help
-
-Examples:
-  overstory inspect builder-1
-  overstory inspect scout-alpha --json
-  overstory inspect builder-1 --follow --interval 2000`;
-
-/**
- * Entry point for `overstory inspect <agent-name>`.
- */
-export async function inspectCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${INSPECT_HELP}\n`);
-		return;
-	}
-
-	const agentName = args[0];
-	if (!agentName) {
-		throw new ValidationError("Agent name is required", {
-			field: "agent-name",
-		});
-	}
-
-	const json = hasFlag(args, "--json");
-	const follow = hasFlag(args, "--follow");
-	const noTmux = hasFlag(args, "--no-tmux");
-
-	const intervalStr = getFlag(args, "--interval");
+	const intervalStr = opts.interval;
 	const interval = intervalStr ? Number.parseInt(intervalStr, 10) : 3000;
 	if (Number.isNaN(interval) || interval < 500) {
 		throw new ValidationError("--interval must be a number >= 500 (milliseconds)", {
@@ -389,7 +352,7 @@ export async function inspectCommand(args: string[]): Promise<void> {
 		});
 	}
 
-	const limitStr = getFlag(args, "--limit");
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 20;
 	if (Number.isNaN(limit) || limit < 1) {
 		throw new ValidationError("--limit must be a number >= 1", {
@@ -427,5 +390,36 @@ export async function inspectCommand(args: string[]): Promise<void> {
 		} else {
 			printInspectData(data);
 		}
+	}
+}
+
+export function createInspectCommand(): Command {
+	return new Command("inspect")
+		.description("Deep inspection of a single agent")
+		.argument("<agent-name>", "Agent name to inspect")
+		.option("--json", "Output as JSON")
+		.option("--follow", "Poll and refresh continuously")
+		.option("--interval <ms>", "Polling interval for --follow in milliseconds (default: 3000)")
+		.option("--limit <n>", "Number of recent tool calls to show (default: 20)")
+		.option("--no-tmux", "Skip tmux capture-pane")
+		.action(async (agentName: string, opts: InspectOpts) => {
+			await executeInspect(agentName, opts);
+		});
+}
+
+export async function inspectCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createInspectCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "inspect", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

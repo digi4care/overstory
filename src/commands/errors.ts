@@ -7,26 +7,12 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { color } from "../logging/color.ts";
 import type { StoredEvent } from "../types.ts";
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Format an absolute time from an ISO timestamp.
@@ -145,34 +131,22 @@ function printErrors(events: StoredEvent[]): void {
 	}
 }
 
-const ERRORS_HELP = `overstory errors -- Aggregated error view across agents
+interface ErrorsOpts {
+	agent?: string;
+	run?: string;
+	since?: string;
+	until?: string;
+	limit?: string;
+	json?: boolean;
+}
 
-Usage: overstory errors [options]
-
-Options:
-  --agent <name>         Filter errors by agent name
-  --run <id>             Filter errors by run ID
-  --since <timestamp>    Start time filter (ISO 8601)
-  --until <timestamp>    End time filter (ISO 8601)
-  --limit <n>            Max errors to show (default: 100)
-  --json                 Output as JSON array of StoredEvent objects
-  --help, -h             Show this help`;
-
-/**
- * Entry point for `overstory errors [--agent <name>] [--run <id>] [--json] [--since] [--until] [--limit]`.
- */
-export async function errorsCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${ERRORS_HELP}\n`);
-		return;
-	}
-
-	const json = hasFlag(args, "--json");
-	const agentName = getFlag(args, "--agent");
-	const runId = getFlag(args, "--run");
-	const sinceStr = getFlag(args, "--since");
-	const untilStr = getFlag(args, "--until");
-	const limitStr = getFlag(args, "--limit");
+async function executeErrors(opts: ErrorsOpts): Promise<void> {
+	const json = opts.json ?? false;
+	const agentName = opts.agent;
+	const runId = opts.run;
+	const sinceStr = opts.since;
+	const untilStr = opts.until;
+	const limitStr = opts.limit;
 	const limit = limitStr ? Number.parseInt(limitStr, 10) : 100;
 
 	if (Number.isNaN(limit) || limit < 1) {
@@ -242,5 +216,36 @@ export async function errorsCommand(args: string[]): Promise<void> {
 		printErrors(events);
 	} finally {
 		eventStore.close();
+	}
+}
+
+export function createErrorsCommand(): Command {
+	return new Command("errors")
+		.description("Aggregated error view across agents")
+		.option("--agent <name>", "Filter errors by agent name")
+		.option("--run <id>", "Filter errors by run ID")
+		.option("--since <timestamp>", "Start time filter (ISO 8601)")
+		.option("--until <timestamp>", "End time filter (ISO 8601)")
+		.option("--limit <n>", "Max errors to show (default: 100)")
+		.option("--json", "Output as JSON array of StoredEvent objects")
+		.action(async (opts: ErrorsOpts) => {
+			await executeErrors(opts);
+		});
+}
+
+export async function errorsCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createErrorsCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "errors", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
+		}
+		throw err;
 	}
 }

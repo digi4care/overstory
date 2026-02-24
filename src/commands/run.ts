@@ -12,38 +12,11 @@
  */
 
 import { join } from "node:path";
+import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
+import { ValidationError } from "../errors.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import type { AgentSession, Run } from "../types.ts";
-
-const RUN_HELP = `overstory run -- Manage runs (coordinator session groupings)
-
-Usage: overstory run [subcommand] [options]
-
-Subcommands:
-  (default)          Show current run status
-  list [--last <n>]  List recent runs (default last 10)
-  complete           Mark current run as completed
-  show <id>          Show run details (agents, duration)
-
-Options:
-  --json             Output as JSON
-  --help, -h         Show this help`;
-
-/**
- * Parse a named flag value from args.
- */
-function getFlag(args: string[], flag: string): string | undefined {
-	const idx = args.indexOf(flag);
-	if (idx === -1 || idx + 1 >= args.length) {
-		return undefined;
-	}
-	return args[idx + 1];
-}
-
-function hasFlag(args: string[], flag: string): boolean {
-	return args.includes(flag);
-}
 
 /**
  * Format milliseconds as human-readable duration.
@@ -87,6 +60,18 @@ async function readCurrentRunId(overstoryDir: string): Promise<string | null> {
 function runDuration(run: Run): string {
 	const start = new Date(run.startedAt).getTime();
 	const end = run.completedAt ? new Date(run.completedAt).getTime() : Date.now();
+	return formatDuration(end - start);
+}
+
+/**
+ * Format an agent's duration from startedAt to now (or completion).
+ */
+function formatAgentDuration(agent: AgentSession): string {
+	const start = new Date(agent.startedAt).getTime();
+	const end =
+		agent.state === "completed" || agent.state === "zombie"
+			? new Date(agent.lastActivity).getTime()
+			: Date.now();
 	return formatDuration(end - start);
 }
 
@@ -291,61 +276,96 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 	}
 }
 
-/**
- * Format an agent's duration from startedAt to now (or completion).
- */
-function formatAgentDuration(agent: AgentSession): string {
-	const start = new Date(agent.startedAt).getTime();
-	const end =
-		agent.state === "completed" || agent.state === "zombie"
-			? new Date(agent.lastActivity).getTime()
-			: Date.now();
-	return formatDuration(end - start);
+interface RunDefaultOpts {
+	json?: boolean;
 }
 
-/**
- * Entry point for `overstory run [subcommand] [options]`.
- */
-export async function runCommand(args: string[]): Promise<void> {
-	if (args.includes("--help") || args.includes("-h")) {
-		process.stdout.write(`${RUN_HELP}\n`);
-		return;
-	}
+interface RunListOpts {
+	last?: string;
+	json?: boolean;
+}
 
-	const json = hasFlag(args, "--json");
-	const cwd = process.cwd();
-	const config = await loadConfig(cwd);
-	const overstoryDir = join(config.project.root, ".overstory");
+interface RunShowOpts {
+	json?: boolean;
+}
 
-	const subcommand = args[0];
+interface RunCompleteOpts {
+	json?: boolean;
+}
 
-	switch (subcommand) {
-		case "list": {
-			const lastStr = getFlag(args, "--last");
+export function createRunCommand(): Command {
+	const cmd = new Command("run").description("Manage runs (coordinator session groupings)");
+
+	// Default action (bare `overstory run`)
+	cmd.option("--json", "Output as JSON").action(async (opts: RunDefaultOpts) => {
+		const cwd = process.cwd();
+		const config = await loadConfig(cwd);
+		const overstoryDir = join(config.project.root, ".overstory");
+		await showCurrentRun(overstoryDir, opts.json ?? false);
+	});
+
+	// `overstory run list`
+	cmd
+		.command("list")
+		.description("List recent runs")
+		.option("--last <n>", "Number of recent runs to show (default: 10)")
+		.option("--json", "Output as JSON")
+		.action(async (opts: RunListOpts) => {
+			const lastStr = opts.last;
 			const limit = lastStr ? Number.parseInt(lastStr, 10) : 10;
-			await listRuns(overstoryDir, limit, json);
-			break;
-		}
-		case "complete":
-			await completeCurrentRun(overstoryDir, json);
-			break;
-		case "show": {
-			const runId = args[1];
-			if (!runId || runId.startsWith("--")) {
-				if (json) {
-					process.stdout.write('{"error":"Missing run ID. Usage: overstory run show <id>"}\n');
-				} else {
-					process.stderr.write("Missing run ID. Usage: overstory run show <id>\n");
-				}
-				process.exitCode = 1;
-				return;
+			if (Number.isNaN(limit) || limit < 1) {
+				throw new ValidationError("--last must be a positive integer", {
+					field: "last",
+					value: lastStr,
+				});
 			}
-			await showRun(overstoryDir, runId, json);
-			break;
+			const cwd = process.cwd();
+			const config = await loadConfig(cwd);
+			const overstoryDir = join(config.project.root, ".overstory");
+			await listRuns(overstoryDir, limit, opts.json ?? false);
+		});
+
+	// `overstory run show <id>`
+	cmd
+		.command("show")
+		.description("Show run details (agents, duration)")
+		.argument("<id>", "Run ID")
+		.option("--json", "Output as JSON")
+		.action(async (id: string, opts: RunShowOpts) => {
+			const cwd = process.cwd();
+			const config = await loadConfig(cwd);
+			const overstoryDir = join(config.project.root, ".overstory");
+			await showRun(overstoryDir, id, opts.json ?? false);
+		});
+
+	// `overstory run complete`
+	cmd
+		.command("complete")
+		.description("Mark current run as completed")
+		.option("--json", "Output as JSON")
+		.action(async (opts: RunCompleteOpts) => {
+			const cwd = process.cwd();
+			const config = await loadConfig(cwd);
+			const overstoryDir = join(config.project.root, ".overstory");
+			await completeCurrentRun(overstoryDir, opts.json ?? false);
+		});
+
+	return cmd;
+}
+
+export async function runCommand(args: string[]): Promise<void> {
+	const program = new Command("overstory").exitOverride().configureOutput({
+		writeOut: (str) => process.stdout.write(str),
+		writeErr: (str) => process.stderr.write(str),
+	});
+	program.addCommand(createRunCommand());
+	try {
+		await program.parseAsync(["node", "overstory", "run", ...args]);
+	} catch (err: unknown) {
+		if (err instanceof CommanderError) {
+			if (err.code === "commander.helpDisplayed" || err.code === "commander.version") return;
+			throw new ValidationError(err.message, { field: "args" });
 		}
-		default:
-			// Default: show current run status
-			await showCurrentRun(overstoryDir, json);
-			break;
+		throw err;
 	}
 }
