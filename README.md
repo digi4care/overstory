@@ -273,13 +273,13 @@ Global Flags:
 - **Dependencies**: Zero runtime dependencies — only Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2090 tests across 75 files, colocated with source)
+- **Testing**: `bun test` (2137 tests across 76 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2090 tests across 75 files)
+# Run tests (2137 tests across 76 files)
 bun test
 
 # Run a single test
@@ -308,7 +308,7 @@ Use the bump script to update both:
 bun run version:bump <major|minor|patch>
 ```
 
-Git tags are created automatically by GitHub Actions when a version bump is pushed to `main`.
+Git tags, npm publishing, and GitHub releases are handled automatically by the `publish.yml` workflow when a version bump is pushed to `main`.
 
 ## Project Structure
 

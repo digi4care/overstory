@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-02-24
+
+### Added
+
+#### Interactive Tool Blocking for Agents
+- **PreToolUse guards block interactive tools** — `AskUserQuestion`, `EnterPlanMode`, and `EnterWorktree` are now blocked for all overstory agents via hooks-deployer, preventing indefinite hangs in non-interactive tmux sessions; agents must use `overstory mail --type question` to escalate instead
+
+#### Doctor Ecosystem CLI Checks
+- **Expanded `overstory doctor` dependency checks** — now validates all ecosystem CLIs (overstory, mulch, seeds, canopy) with alias availability checks (`ov`, `ml`) and install hints (`npm install -g @os-eco/<pkg>`)
+- Short alias detection: when a primary tool passes, doctor also checks if its short alias (e.g., `ov` for `overstory`, `ml` for `mulch`) is available, with actionable fix hints
+
+#### CLI Improvements
+- **`ov` short alias** — `overstory` CLI is now also available as `ov` via `package.json` bin entry
+- **`/prioritize` skill** — new Claude Code command that analyzes open GitHub Issues and Seeds issues, cross-references with codebase health, and recommends the top ~5 issues to tackle next
+- **Skill headers** — all Claude Code slash commands now include descriptive headers for better discoverability
+
+#### CI/CD
+- **Publish workflow** — replaced `auto-tag.yml` with `publish.yml` that runs quality gates, checks version against npm, publishes with provenance, creates git tags and GitHub releases automatically
+
+#### Performance
+- **`SessionStore.count()`** — lightweight `SELECT COUNT(*)` method replacing `getAll().length` pattern in `openSessionStore()` existence checks
+
+#### Testing
+- Test suite grew from 2090 to 2137 tests across 76 files (5370 expect() calls)
+- SQL schema consistency tests for all four SQLite stores (sessions.db, mail.db, events.db, metrics.db)
+- Provider config and model resolution edge case tests
+- Sling provider environment variable injection building block tests
+
+### Fixed
+- **Tmux dead session detection in `waitForTuiReady()`** — now checks `isSessionAlive()` on each poll iteration and returns early if the session died, preventing 15-second timeout waits on already-dead sessions
+- **`ensureTmuxAvailable()` guard** — new pre-flight check throws a clear `AgentError` when tmux is not installed, replacing cryptic spawn failures
+- **`package.json` files array** — reformatted for Biome compatibility
+
+### Changed
+- **CI workflow**: `auto-tag.yml` replaced by `publish.yml` with npm publish, provenance, and GitHub release creation
+- Config field references updated: `beads` → `taskTracker` in remaining locations
+
 ## [0.6.2] - 2026-02-24
 
 ### Added
@@ -584,7 +621,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/jayminwest/overstory/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/jayminwest/overstory/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/jayminwest/overstory/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/jayminwest/overstory/compare/v0.5.9...v0.6.0
