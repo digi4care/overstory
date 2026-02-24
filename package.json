@@ -25,7 +25,11 @@
 		"ov": "./src/index.ts"
 	},
 	"main": "src/index.ts",
-	"files": ["src", "agents", "templates"],
+	"files": [
+		"src",
+		"agents",
+		"templates"
+	],
 	"publishConfig": {
 		"access": "public"
 	},
