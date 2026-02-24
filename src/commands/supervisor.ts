@@ -20,7 +20,7 @@ import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import { openSessionStore } from "../sessions/compat.ts";
-import { createTrackerClient, type TrackerBackend } from "../tracker/factory.ts";
+import { createTrackerClient, resolveBackend, trackerCliName } from "../tracker/factory.ts";
 import type { AgentSession } from "../types.ts";
 import {
 	createSession,
@@ -44,12 +44,14 @@ export function buildSupervisorBeacon(opts: {
 	beadId: string;
 	depth: number;
 	parent: string;
+	trackerCli?: string;
 }): string {
+	const cli = opts.trackerCli ?? "bd";
 	const timestamp = new Date().toISOString();
 	const parts = [
 		`[OVERSTORY] ${opts.name} (supervisor) ${timestamp} task:${opts.beadId}`,
 		`Depth: ${opts.depth} | Parent: ${opts.parent} | Role: per-project supervisor`,
-		`Startup: run mulch prime, check mail (overstory mail check --agent ${opts.name}), read task (bd show ${opts.beadId}), then begin supervising`,
+		`Startup: run mulch prime, check mail (overstory mail check --agent ${opts.name}), read task (${cli} show ${opts.beadId}), then begin supervising`,
 	];
 	return parts.join(" — ");
 }
@@ -146,8 +148,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 	const projectRoot = config.project.root;
 
 	// Validate task exists and is workable (open or in_progress)
-	const resolvedBackend: TrackerBackend =
-		config.taskTracker.backend === "auto" ? "beads" : config.taskTracker.backend;
+	const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
 	const tracker = createTrackerClient(resolvedBackend, projectRoot);
 	const issue = await tracker.show(flags.task);
 	if (issue.status !== "open" && issue.status !== "in_progress") {
@@ -231,6 +232,7 @@ async function startSupervisor(args: string[]): Promise<void> {
 			beadId: flags.task,
 			depth: flags.depth,
 			parent: flags.parent,
+			trackerCli: trackerCliName(resolvedBackend),
 		});
 		await sendKeys(tmuxSession, beacon);
 

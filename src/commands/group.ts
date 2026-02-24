@@ -10,11 +10,7 @@
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { GroupError, ValidationError } from "../errors.ts";
-import {
-	createTrackerClient,
-	type TrackerBackend,
-	type TrackerClient,
-} from "../tracker/factory.ts";
+import { createTrackerClient, resolveBackend, type TrackerClient } from "../tracker/factory.ts";
 import type { TaskGroup, TaskGroupProgress } from "../types.ts";
 
 /** Boolean flags that do NOT consume the next arg. */
@@ -358,8 +354,7 @@ export async function groupCommand(args: string[]): Promise<void> {
 
 	const config = await loadConfig(process.cwd());
 	const projectRoot = config.project.root;
-	const resolvedBackend: TrackerBackend =
-		config.taskTracker.backend === "auto" ? "beads" : config.taskTracker.backend;
+	const resolvedBackend = await resolveBackend(config.taskTracker.backend, projectRoot);
 	const tracker = createTrackerClient(resolvedBackend, projectRoot);
 
 	switch (subcommand) {

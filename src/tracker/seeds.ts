@@ -46,26 +46,38 @@ function parseSdJson<T>(stdout: string, context: string): T {
 	}
 }
 
-/** Seeds JSON envelope for list-style responses. */
-interface SdListEnvelope {
+/** Base envelope shape shared by all sd JSON responses. */
+interface SdEnvelopeBase {
 	success: boolean;
 	command: string;
+	error?: string;
+}
+
+/** Seeds JSON envelope for list-style responses. */
+interface SdListEnvelope extends SdEnvelopeBase {
 	issues: SdRawIssue[];
 }
 
 /** Seeds JSON envelope for single-issue responses. */
-interface SdShowEnvelope {
-	success: boolean;
-	command: string;
+interface SdShowEnvelope extends SdEnvelopeBase {
 	issue: SdRawIssue;
 }
 
 /** Seeds JSON envelope for create responses. */
-interface SdCreateEnvelope {
-	success: boolean;
-	command: string;
+interface SdCreateEnvelope extends SdEnvelopeBase {
 	id?: string;
 	issue?: { id: string };
+}
+
+/**
+ * Validate that an sd envelope indicates success.
+ * Throws AgentError if the envelope reports failure.
+ */
+function assertEnvelopeSuccess(envelope: SdEnvelopeBase, context: string): void {
+	if (envelope.success === false) {
+		const detail = envelope.error ?? "unknown error";
+		throw new AgentError(`sd ${context} returned failure: ${detail}`);
+	}
 }
 
 /** Raw issue shape from the sd CLI. Seeds uses `type` directly (no issue_type mapping). */
@@ -105,12 +117,14 @@ export function createSeedsTracker(cwd: string): TrackerClient {
 		async ready() {
 			const { stdout } = await runSd(["ready", "--json"], cwd, "ready");
 			const envelope = parseSdJson<SdListEnvelope>(stdout, "ready");
+			assertEnvelopeSuccess(envelope, "ready");
 			return envelope.issues.map(normalizeIssue);
 		},
 
 		async show(id) {
 			const { stdout } = await runSd(["show", id, "--json"], cwd, `show ${id}`);
 			const envelope = parseSdJson<SdShowEnvelope>(stdout, `show ${id}`);
+			assertEnvelopeSuccess(envelope, `show ${id}`);
 			return normalizeIssue(envelope.issue);
 		},
 
@@ -127,6 +141,7 @@ export function createSeedsTracker(cwd: string): TrackerClient {
 			}
 			const { stdout } = await runSd(args, cwd, "create");
 			const envelope = parseSdJson<SdCreateEnvelope>(stdout, "create");
+			assertEnvelopeSuccess(envelope, "create");
 			const id = envelope.id ?? envelope.issue?.id;
 			if (!id) {
 				throw new AgentError("sd create did not return an issue ID");
@@ -156,6 +171,7 @@ export function createSeedsTracker(cwd: string): TrackerClient {
 			}
 			const { stdout } = await runSd(args, cwd, "list");
 			const envelope = parseSdJson<SdListEnvelope>(stdout, "list");
+			assertEnvelopeSuccess(envelope, "list");
 			return envelope.issues.map(normalizeIssue);
 		},
 
