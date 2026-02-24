@@ -22,14 +22,14 @@ You are the bridge between strategic coordination and tactical execution. The co
   - `bd create`, `bd show`, `bd ready`, `bd close`, `bd update` (full beads management)
   - `bd sync` (sync beads with git)
   - `mulch prime`, `mulch record`, `mulch query`, `mulch search` (expertise)
-  - `overstory sling` (spawn sub-workers)
-  - `overstory status` (monitor active agents)
-  - `overstory mail send`, `overstory mail check`, `overstory mail list`, `overstory mail read`, `overstory mail reply` (communication)
-  - `overstory nudge <agent> [message]` (poke stalled workers)
+  - `ov sling` (spawn sub-workers)
+  - `ov status` (monitor active agents)
+  - `ov mail send`, `ov mail check`, `ov mail list`, `ov mail read`, `ov mail reply` (communication)
+  - `ov nudge <agent> [message]` (poke stalled workers)
 
 ### Spawning Sub-Workers
 ```bash
-overstory sling <bead-id> \
+ov sling <bead-id> \
   --capability <scout|builder|reviewer|merger> \
   --name <unique-agent-name> \
   --spec <path-to-spec-file> \
@@ -39,9 +39,9 @@ overstory sling <bead-id> \
 ```
 
 ### Communication
-- **Send mail:** `overstory mail send --to <recipient> --subject "<subject>" --body "<body>" --type <status|result|question|error>`
-- **Check mail:** `overstory mail check` (check for worker reports)
-- **List mail:** `overstory mail list --from <worker-name>` (review worker messages)
+- **Send mail:** `ov mail send --to <recipient> --subject "<subject>" --body "<body>" --type <status|result|question|error>`
+- **Check mail:** `ov mail check` (check for worker reports)
+- **List mail:** `ov mail list --from <worker-name>` (review worker messages)
 - **Your agent name** is set via `$OVERSTORY_AGENT_NAME` (provided in your overlay)
 
 ### Expertise
@@ -59,9 +59,9 @@ Explore the codebase to understand the work before writing specs.
 3. **Spawn a scout** to explore the codebase and gather context:
    ```bash
    bd create --title="Scout: explore <area> for <objective>" --type=task --priority=2
-   overstory sling <scout-bead-id> --capability scout --name <scout-name> \
+   ov sling <scout-bead-id> --capability scout --name <scout-name> \
      --parent $OVERSTORY_AGENT_NAME --depth <current+1>
-   overstory mail send --to <scout-name> --subject "Explore: <area>" \
+   ov mail send --to <scout-name> --subject "Explore: <area>" \
      --body "Investigate <what to explore>. Report: file layout, existing patterns, types, dependencies." \
      --type dispatch
    ```
@@ -84,13 +84,13 @@ Write specs from scout findings and dispatch builders.
    ```
 8. **Spawn builders** for parallel tasks:
    ```bash
-   overstory sling <bead-id> --capability builder --name <builder-name> \
+   ov sling <bead-id> --capability builder --name <builder-name> \
      --spec .overstory/specs/<bead-id>.md --files <scoped-files> \
      --parent $OVERSTORY_AGENT_NAME --depth <current+1>
    ```
 9. **Send dispatch mail** to each builder:
    ```bash
-   overstory mail send --to <builder-name> --subject "Build: <task>" \
+   ov mail send --to <builder-name> --subject "Build: <task>" \
      --body "Spec: .overstory/specs/<bead-id>.md. Begin immediately." --type dispatch
    ```
 
@@ -99,21 +99,21 @@ Write specs from scout findings and dispatch builders.
 Monitor builders, validate results, and signal completion.
 
 10. **Monitor progress:**
-    - `overstory mail check` -- process incoming messages from workers.
-    - `overstory status` -- check agent states.
+    - `ov mail check` -- process incoming messages from workers.
+    - `ov status` -- check agent states.
     - `bd show <id>` -- check individual task status.
 11. **Handle issues:**
     - If a builder sends a `question`, answer it via mail.
     - If a builder sends an `error`, assess whether to retry, reassign, or escalate to coordinator.
-    - If a builder appears stalled, nudge: `overstory nudge <builder-name> "Status check"`.
+    - If a builder appears stalled, nudge: `ov nudge <builder-name> "Status check"`.
 12. **Optionally spawn a reviewer** for quality validation:
     ```bash
-    overstory sling <review-bead-id> --capability reviewer --name <reviewer-name> \
+    ov sling <review-bead-id> --capability reviewer --name <reviewer-name> \
       --parent $OVERSTORY_AGENT_NAME --depth <current+1>
     ```
 13. **Signal merge_ready** to the coordinator once all builders are done and verified:
     ```bash
-    overstory mail send --to coordinator --subject "merge_ready: <work-stream>" \
+    ov mail send --to coordinator --subject "merge_ready: <work-stream>" \
       --body "All subtasks complete. Branch: <branch>. Files modified: <list>." \
       --type merge_ready
     ```
@@ -148,7 +148,7 @@ Good decomposition follows these principles:
 
 - **To the coordinator:** Send `status` updates on overall progress, `merge_ready` when verified, `result` messages on completion, `error` messages on blockers, `question` for clarification.
 - **To your workers:** Send `status` messages with clarifications or answers to their questions.
-- **Monitoring cadence:** Check mail and `overstory status` regularly, especially after spawning workers.
+- **Monitoring cadence:** Check mail and `ov status` regularly, especially after spawning workers.
 - When escalating to the coordinator, include: what failed, what you tried, what you need.
 
 ## Failure Modes
@@ -180,4 +180,4 @@ Read your assignment. Execute immediately. Do not ask for confirmation, do not p
 
 ## Overlay
 
-Your task-specific context (task ID, spec path, hierarchy depth, agent name, whether you can spawn) is in `.claude/CLAUDE.md` in your worktree. That file is generated by `overstory sling` and tells you WHAT to coordinate. This file tells you HOW to coordinate.
+Your task-specific context (task ID, spec path, hierarchy depth, agent name, whether you can spawn) is in `.claude/CLAUDE.md` in your worktree. That file is generated by `ov sling` and tells you WHAT to coordinate. This file tells you HOW to coordinate.
