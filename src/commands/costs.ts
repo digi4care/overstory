@@ -156,11 +156,11 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const separator = "\u2500".repeat(70);
 
-	w(`${color.bold}Cost Summary${color.reset}\n`);
+	w(`${color.bold("Cost Summary")}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (sessions.length === 0) {
-		w(`${color.dim}No session data found.${color.reset}\n`);
+		w(`${color.dim("No session data found.")}\n`);
 		return;
 	}
 
@@ -169,7 +169,7 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 			`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 			`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 	);
-	w(`${color.dim}${separator}${color.reset}\n`);
+	w(`${color.dim(separator)}\n`);
 
 	for (const s of sessions) {
 		const cacheTotal = s.cacheReadTokens + s.cacheCreationTokens;
@@ -183,13 +183,17 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 	}
 
 	const totals = computeTotals(sessions);
-	w(`${color.dim}${separator}${color.reset}\n`);
+	w(`${color.dim(separator)}\n`);
 	w(
-		`${color.green}${color.bold}${padRight("Total", 31)}` +
-			`${padLeft(formatNumber(totals.inputTokens), 10)}` +
-			`${padLeft(formatNumber(totals.outputTokens), 10)}` +
-			`${padLeft(formatNumber(totals.cacheTokens), 10)}` +
-			`${padLeft(formatCost(totals.costUsd), 10)}${color.reset}\n`,
+		`${color.green(
+			color.bold(
+				padRight("Total", 31) +
+					padLeft(formatNumber(totals.inputTokens), 10) +
+					padLeft(formatNumber(totals.outputTokens), 10) +
+					padLeft(formatNumber(totals.cacheTokens), 10) +
+					padLeft(formatCost(totals.costUsd), 10),
+			),
+		)}\n`,
 	);
 }
 
@@ -198,11 +202,11 @@ function printByCapability(sessions: SessionMetrics[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const separator = "\u2500".repeat(70);
 
-	w(`${color.bold}Cost by Capability${color.reset}\n`);
+	w(`${color.bold("Cost by Capability")}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (sessions.length === 0) {
-		w(`${color.dim}No session data found.${color.reset}\n`);
+		w(`${color.dim("No session data found.")}\n`);
 		return;
 	}
 
@@ -211,7 +215,7 @@ function printByCapability(sessions: SessionMetrics[]): void {
 			`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 			`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 	);
-	w(`${color.dim}${separator}${color.reset}\n`);
+	w(`${color.dim(separator)}\n`);
 
 	const groups = groupByCapability(sessions);
 
@@ -227,14 +231,18 @@ function printByCapability(sessions: SessionMetrics[]): void {
 	}
 
 	const totals = computeTotals(sessions);
-	w(`${color.dim}${separator}${color.reset}\n`);
+	w(`${color.dim(separator)}\n`);
 	w(
-		`${color.green}${color.bold}${padRight("Total", 14)}` +
-			`${padLeft(formatNumber(sessions.length), 10)}` +
-			`${padLeft(formatNumber(totals.inputTokens), 10)}` +
-			`${padLeft(formatNumber(totals.outputTokens), 10)}` +
-			`${padLeft(formatNumber(totals.cacheTokens), 10)}` +
-			`${padLeft(formatCost(totals.costUsd), 10)}${color.reset}\n`,
+		`${color.green(
+			color.bold(
+				padRight("Total", 14) +
+					padLeft(formatNumber(sessions.length), 10) +
+					padLeft(formatNumber(totals.inputTokens), 10) +
+					padLeft(formatNumber(totals.outputTokens), 10) +
+					padLeft(formatNumber(totals.cacheTokens), 10) +
+					padLeft(formatCost(totals.costUsd), 10),
+			),
+		)}\n`,
 	);
 }
 
@@ -323,17 +331,17 @@ export async function costsCommand(args: string[]): Promise<void> {
 			const w = process.stdout.write.bind(process.stdout);
 			const separator = "\u2500".repeat(70);
 
-			w(`${color.bold}Orchestrator Session Cost${color.reset}\n`);
+			w(`${color.bold("Orchestrator Session Cost")}\n`);
 			w(`${"=".repeat(70)}\n`);
 			w(`${padRight("Model:", 12)}${usage.modelUsed ?? "unknown"}\n`);
 			w(`${padRight("Transcript:", 12)}${transcriptPath}\n`);
-			w(`${color.dim}${separator}${color.reset}\n`);
+			w(`${color.dim(separator)}\n`);
 			w(`${padRight("Input tokens:", 22)}${padLeft(formatNumber(usage.inputTokens), 12)}\n`);
 			w(`${padRight("Output tokens:", 22)}${padLeft(formatNumber(usage.outputTokens), 12)}\n`);
 			w(`${padRight("Cache tokens:", 22)}${padLeft(formatNumber(cacheTotal), 12)}\n`);
-			w(`${color.dim}${separator}${color.reset}\n`);
+			w(`${color.dim(separator)}\n`);
 			w(
-				`${color.green}${color.bold}${padRight("Estimated cost:", 22)}${padLeft(formatCost(cost), 12)}${color.reset}\n`,
+				`${color.green(color.bold(padRight("Estimated cost:", 22) + padLeft(formatCost(cost), 12)))}\n`,
 			);
 		}
 		return;
@@ -463,14 +471,14 @@ export async function costsCommand(args: string[]): Promise<void> {
 				const w = process.stdout.write.bind(process.stdout);
 				const separator = "\u2500".repeat(70);
 
-				w(`${color.bold}Live Token Usage (${agentData.length} active agents)${color.reset}\n`);
+				w(`${color.bold(`Live Token Usage (${agentData.length} active agents)`)}\n`);
 				w(`${"=".repeat(70)}\n`);
 				w(
 					`${padRight("Agent", 19)}${padRight("Capability", 12)}` +
 						`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 						`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 				);
-				w(`${color.dim}${separator}${color.reset}\n`);
+				w(`${color.dim(separator)}\n`);
 
 				for (const agent of agentData) {
 					const cacheTotal = agent.cacheReadTokens + agent.cacheCreationTokens;
@@ -483,13 +491,17 @@ export async function costsCommand(args: string[]): Promise<void> {
 					);
 				}
 
-				w(`${color.dim}${separator}${color.reset}\n`);
+				w(`${color.dim(separator)}\n`);
 				w(
-					`${color.green}${color.bold}${padRight("Total", 31)}` +
-						`${padLeft(formatNumber(totalInput), 10)}` +
-						`${padLeft(formatNumber(totalOutput), 10)}` +
-						`${padLeft(formatNumber(totalCacheTokens), 10)}` +
-						`${padLeft(formatCost(totalCost), 10)}${color.reset}\n\n`,
+					`${color.green(
+						color.bold(
+							padRight("Total", 31) +
+								padLeft(formatNumber(totalInput), 10) +
+								padLeft(formatNumber(totalOutput), 10) +
+								padLeft(formatNumber(totalCacheTokens), 10) +
+								padLeft(formatCost(totalCost), 10),
+						),
+					)}\n\n`,
 				);
 
 				// Format elapsed time

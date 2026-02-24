@@ -13,7 +13,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
-import { color } from "../logging/color.ts";
+import type { ColorFn } from "../logging/color.ts";
+import { color, noColor, visibleLength } from "../logging/color.ts";
 import { createMailStore, type MailStore } from "../mail/store.ts";
 import { createMergeQueue, type MergeQueue } from "../merge/queue.ts";
 import { createMetricsStore, type MetricsStore } from "../metrics/store.ts";
@@ -408,21 +409,20 @@ async function loadDashboardData(
  * Render the header bar (line 1).
  */
 function renderHeader(width: number, interval: number, currentRunId?: string | null): string {
-	const left = `${color.bold}overstory dashboard v0.2.0${color.reset}`;
+	const left = color.bold("overstory dashboard v0.2.0");
 	const now = new Date().toLocaleTimeString();
 	const scope = currentRunId ? ` [run: ${currentRunId.slice(0, 8)}]` : " [all runs]";
 	const right = `${now}${scope} | refresh: ${interval}ms`;
-	const leftStripped = "overstory dashboard v0.2.0"; // for length calculation
-	const padding = width - leftStripped.length - right.length;
+	const padding = width - visibleLength(left) - right.length;
 	const line = left + " ".repeat(Math.max(0, padding)) + right;
 	const separator = horizontalLine(width, BOX.topLeft, BOX.horizontal, BOX.topRight);
 	return `${line}\n${separator}`;
 }
 
 /**
- * Get color for agent state.
+ * Get color function for agent state.
  */
-function getStateColor(state: string): string {
+function getStateColor(state: string): ColorFn {
 	switch (state) {
 		case "working":
 			return color.green;
@@ -435,7 +435,7 @@ function getStateColor(state: string): string {
 		case "completed":
 			return color.cyan;
 		default:
-			return color.white;
+			return noColor;
 	}
 }
 
@@ -472,10 +472,8 @@ function renderAgentPanel(
 	let output = "";
 
 	// Panel header
-	const headerLine = `${BOX.vertical} ${color.bold}Agents${color.reset} (${data.status.agents.length})`;
-	const headerPadding = " ".repeat(
-		Math.max(0, width - headerLine.length - 1 + color.bold.length + color.reset.length),
-	);
+	const headerLine = `${BOX.vertical} ${color.bold("Agents")} (${data.status.agents.length})`;
+	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
 	// Column headers
@@ -517,9 +515,9 @@ function renderAgentPanel(
 		const duration = formatDuration(endTime - new Date(agent.startedAt).getTime());
 		const durationPadded = pad(duration, 9);
 		const tmuxAlive = data.status.tmuxSessions.some((s) => s.name === agent.tmuxSession);
-		const tmuxDot = tmuxAlive ? `${color.green}●${color.reset}` : `${color.red}○${color.reset}`;
+		const tmuxDot = tmuxAlive ? color.green("●") : color.red("○");
 
-		const line = `${BOX.vertical} ${stateColor}${icon}${color.reset}  ${name} ${capability} ${stateColor}${state}${color.reset} ${beadId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
+		const line = `${BOX.vertical} ${stateColor(icon)}  ${name} ${capability} ${stateColor(state)} ${beadId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${line}\n`;
 	}
 
@@ -537,20 +535,20 @@ function renderAgentPanel(
 }
 
 /**
- * Get color for mail priority.
+ * Get color function for mail priority.
  */
-function getPriorityColor(priority: string): string {
+function getPriorityColor(priority: string): ColorFn {
 	switch (priority) {
 		case "urgent":
 			return color.red;
 		case "high":
 			return color.yellow;
 		case "normal":
-			return color.white;
+			return noColor;
 		case "low":
 			return color.dim;
 		default:
-			return color.white;
+			return noColor;
 	}
 }
 
@@ -568,10 +566,8 @@ function renderMailPanel(
 	let output = "";
 
 	const unreadCount = data.status.unreadMailCount;
-	const headerLine = `${BOX.vertical} ${color.bold}Mail${color.reset} (${unreadCount} unread)`;
-	const headerPadding = " ".repeat(
-		Math.max(0, panelWidth - headerLine.length - 1 + color.bold.length + color.reset.length),
-	);
+	const headerLine = `${BOX.vertical} ${color.bold("Mail")} (${unreadCount} unread)`;
+	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
 	const separator = horizontalLine(panelWidth, BOX.tee, BOX.horizontal, BOX.cross);
@@ -584,26 +580,16 @@ function renderMailPanel(
 		const msg = messages[i];
 		if (!msg) continue;
 
-		const priorityColor = getPriorityColor(msg.priority);
+		const priorityColorFn = getPriorityColor(msg.priority);
 		const priority = msg.priority === "normal" ? "" : `[${msg.priority}] `;
 		const from = truncate(msg.from, 12);
 		const to = truncate(msg.to, 12);
 		const subject = truncate(msg.subject, panelWidth - 40);
 		const time = timeAgo(msg.createdAt);
 
-		const line = `${BOX.vertical} ${priorityColor}${priority}${color.reset}${from} → ${to}: ${subject} (${time})`;
-		const padding = " ".repeat(
-			Math.max(
-				0,
-				panelWidth -
-					line.length -
-					1 +
-					priorityColor.length +
-					color.reset.length +
-					priorityColor.length +
-					color.reset.length,
-			),
-		);
+		const coloredPriority = priority ? priorityColorFn(priority) : "";
+		const line = `${BOX.vertical} ${coloredPriority}${from} → ${to}: ${subject} (${time})`;
+		const padding = " ".repeat(Math.max(0, panelWidth - visibleLength(line) - 1));
 		output += `${CURSOR.cursorTo(startRow + 2 + i, 1)}${line}${padding}${BOX.vertical}\n`;
 	}
 
@@ -617,9 +603,9 @@ function renderMailPanel(
 }
 
 /**
- * Get color for merge queue status.
+ * Get color function for merge queue status.
  */
-function getMergeStatusColor(status: string): string {
+function getMergeStatusColor(status: string): ColorFn {
 	switch (status) {
 		case "pending":
 			return color.yellow;
@@ -630,7 +616,7 @@ function getMergeStatusColor(status: string): string {
 		case "merged":
 			return color.green;
 		default:
-			return color.white;
+			return noColor;
 	}
 }
 
@@ -648,10 +634,8 @@ function renderMergeQueuePanel(
 	const panelWidth = width - startCol + 1;
 	let output = "";
 
-	const headerLine = `${BOX.vertical} ${color.bold}Merge Queue${color.reset} (${data.mergeQueue.length})`;
-	const headerPadding = " ".repeat(
-		Math.max(0, panelWidth - headerLine.length - 1 + color.bold.length + color.reset.length),
-	);
+	const headerLine = `${BOX.vertical} ${color.bold("Merge Queue")} (${data.mergeQueue.length})`;
+	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
 	const separator = horizontalLine(panelWidth, BOX.cross, BOX.horizontal, BOX.teeRight);
@@ -664,15 +648,13 @@ function renderMergeQueuePanel(
 		const entry = entries[i];
 		if (!entry) continue;
 
-		const statusColor = getMergeStatusColor(entry.status);
+		const statusColorFn = getMergeStatusColor(entry.status);
 		const status = pad(entry.status, 10);
 		const agent = truncate(entry.agentName, 15);
 		const branch = truncate(entry.branchName, panelWidth - 30);
 
-		const line = `${BOX.vertical} ${statusColor}${status}${color.reset} ${agent} ${branch}`;
-		const padding = " ".repeat(
-			Math.max(0, panelWidth - line.length - 1 + statusColor.length + color.reset.length),
-		);
+		const line = `${BOX.vertical} ${statusColorFn(status)} ${agent} ${branch}`;
+		const padding = " ".repeat(Math.max(0, panelWidth - visibleLength(line) - 1));
 		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${line}${padding}${BOX.vertical}\n`;
 	}
 
@@ -699,10 +681,8 @@ function renderMetricsPanel(
 	const separator = horizontalLine(width, BOX.tee, BOX.horizontal, BOX.teeRight);
 	output += `${CURSOR.cursorTo(startRow, 1)}${separator}\n`;
 
-	const headerLine = `${BOX.vertical} ${color.bold}Metrics${color.reset}`;
-	const headerPadding = " ".repeat(
-		Math.max(0, width - headerLine.length - 1 + color.bold.length + color.reset.length),
-	);
+	const headerLine = `${BOX.vertical} ${color.bold("Metrics")}`;
+	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow + 1, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
 	const totalSessions = data.metrics.totalSessions;
