@@ -80,7 +80,8 @@ describe("checkConsistency", () => {
 			worktrees: {
 				baseDir: join(overstoryDir, "worktrees"),
 			},
-			beads: {
+			taskTracker: {
+				backend: "auto",
 				enabled: false,
 			},
 			mulch: {

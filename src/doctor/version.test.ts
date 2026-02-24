@@ -20,7 +20,8 @@ const mockConfig: OverstoryConfig = {
 	worktrees: {
 		baseDir: "/tmp/.overstory/worktrees",
 	},
-	beads: {
+	taskTracker: {
+		backend: "auto",
 		enabled: false,
 	},
 	mulch: {

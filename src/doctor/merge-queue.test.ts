@@ -25,7 +25,7 @@ describe("checkMergeQueue", () => {
 				maxSessionsPerRun: 0,
 			},
 			worktrees: { baseDir: "" },
-			beads: { enabled: true },
+			taskTracker: { backend: "auto", enabled: true },
 			mulch: { enabled: true, domains: [], primeFormat: "markdown" },
 			merge: { aiResolveEnabled: false, reimagineEnabled: false },
 			providers: {

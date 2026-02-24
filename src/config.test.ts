@@ -34,7 +34,7 @@ describe("loadConfig", () => {
 		expect(config.project.canonicalBranch).toBe("main");
 		expect(config.agents.maxConcurrent).toBe(25);
 		expect(config.agents.maxDepth).toBe(2);
-		expect(config.beads.enabled).toBe(true);
+		expect(config.taskTracker.enabled).toBe(true);
 		expect(config.mulch.enabled).toBe(true);
 		expect(config.mulch.primeFormat).toBe("markdown");
 		expect(config.logging.verbose).toBe(false);
@@ -62,7 +62,7 @@ agents:
 		expect(config.agents.maxConcurrent).toBe(10);
 		// Non-overridden values keep defaults
 		expect(config.agents.maxDepth).toBe(2);
-		expect(config.beads.enabled).toBe(true);
+		expect(config.taskTracker.enabled).toBe(true);
 	});
 
 	test("always sets project.root to the actual projectRoot", async () => {
@@ -90,7 +90,7 @@ logging:
 
 		const config = await loadConfig(tempDir);
 
-		expect(config.beads.enabled).toBe(false);
+		expect(config.taskTracker.enabled).toBe(false);
 		expect(config.mulch.enabled).toBe(true);
 		expect(config.logging.verbose).toBe(true);
 		expect(config.logging.redactSecrets).toBe(false);
@@ -297,6 +297,51 @@ watchdog:
 		expect(config.watchdog.tier0IntervalMs).toBe(20000);
 		expect(config.watchdog.tier1Enabled).toBe(true);
 	});
+
+	test("migrates deprecated beads: key to taskTracker:", async () => {
+		await ensureOverstoryDir();
+		await writeConfig(`
+beads:
+  enabled: false
+`);
+
+		const config = await loadConfig(tempDir);
+		expect(config.taskTracker.backend).toBe("beads");
+		expect(config.taskTracker.enabled).toBe(false);
+	});
+
+	test("migrates deprecated seeds: key to taskTracker:", async () => {
+		await ensureOverstoryDir();
+		await writeConfig(`
+seeds:
+  enabled: true
+`);
+
+		const config = await loadConfig(tempDir);
+		expect(config.taskTracker.backend).toBe("seeds");
+		expect(config.taskTracker.enabled).toBe(true);
+	});
+
+	test("taskTracker: key takes precedence over legacy keys", async () => {
+		await ensureOverstoryDir();
+		await writeConfig(`
+taskTracker:
+  backend: auto
+  enabled: true
+beads:
+  enabled: false
+`);
+
+		const config = await loadConfig(tempDir);
+		// taskTracker present — beads key ignored
+		expect(config.taskTracker.backend).toBe("auto");
+		expect(config.taskTracker.enabled).toBe(true);
+	});
+
+	test("defaults taskTracker.backend to auto", async () => {
+		const config = await loadConfig(tempDir);
+		expect(config.taskTracker.backend).toBe("auto");
+	});
 });
 
 describe("validateConfig", () => {
@@ -386,6 +431,15 @@ agents:
 		await writeConfig(`
 mulch:
   primeFormat: yaml
+`);
+		await expect(loadConfig(tempDir)).rejects.toThrow(ValidationError);
+	});
+
+	test("rejects invalid taskTracker.backend", async () => {
+		await writeConfig(`
+taskTracker:
+  backend: invalid
+  enabled: true
 `);
 		await expect(loadConfig(tempDir)).rejects.toThrow(ValidationError);
 	});
@@ -726,7 +780,7 @@ describe("DEFAULT_CONFIG", () => {
 		expect(DEFAULT_CONFIG.project).toBeDefined();
 		expect(DEFAULT_CONFIG.agents).toBeDefined();
 		expect(DEFAULT_CONFIG.worktrees).toBeDefined();
-		expect(DEFAULT_CONFIG.beads).toBeDefined();
+		expect(DEFAULT_CONFIG.taskTracker).toBeDefined();
 		expect(DEFAULT_CONFIG.mulch).toBeDefined();
 		expect(DEFAULT_CONFIG.merge).toBeDefined();
 		expect(DEFAULT_CONFIG.providers).toBeDefined();

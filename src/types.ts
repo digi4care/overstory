@@ -22,6 +22,11 @@ export interface ResolvedModel {
 	env?: Record<string, string>;
 }
 
+// === Task Tracker ===
+
+/** Backend for the task tracker. Defined here for use in OverstoryConfig. */
+export type TaskTrackerBackend = "auto" | "seeds" | "beads";
+
 // === Project Configuration ===
 
 /** A single quality gate command that agents must pass before reporting completion. */
@@ -52,7 +57,8 @@ export interface OverstoryConfig {
 	worktrees: {
 		baseDir: string; // Where worktrees live
 	};
-	beads: {
+	taskTracker: {
+		backend: TaskTrackerBackend; // "auto" | "seeds" | "beads"
 		enabled: boolean;
 	};
 	mulch: {
@@ -294,6 +300,8 @@ export interface OverlayConfig {
 	mulchExpertise?: string;
 	/** When true, lead agents should skip Phase 1 (scout) and go straight to Phase 2 (build). */
 	skipScout?: boolean;
+	trackerCli?: string; // "sd" or "bd"
+	trackerName?: string; // "seeds" or "beads"
 	/** Quality gate commands for the agent overlay. Falls back to defaults if undefined. */
 	qualityGates?: QualityGate[];
 }
