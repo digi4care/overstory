@@ -246,5 +246,17 @@
 		"status": "completed",
 		"createdAt": "2026-02-21T14:52:27.174Z",
 		"completedAt": "2026-02-21T15:20:56.387Z"
+	},
+	{
+		"id": "group-ddcf561d",
+		"name": "tracker-abstraction",
+		"memberIssueIds": [
+			"overstory-wz22",
+			"overstory-wius",
+			"overstory-xe1b"
+		],
+		"status": "active",
+		"createdAt": "2026-02-23T23:41:24.315Z",
+		"completedAt": null
 	}
 ]

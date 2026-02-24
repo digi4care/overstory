@@ -23,7 +23,8 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 	worktrees: {
 		baseDir: ".overstory/worktrees",
 	},
-	seeds: {
+	taskTracker: {
+		backend: "auto" as const,
 		enabled: true,
 	},
 	mulch: {
@@ -336,6 +337,39 @@ function migrateDeprecatedWatchdogKeys(parsed: Record<string, unknown>): void {
 }
 
 /**
+ * Migrate deprecated `beads:` or `seeds:` config key to new `taskTracker:` key.
+ *
+ * Handles both legacy key names:
+ * - `beads: { enabled }` → `taskTracker: { backend: "beads", enabled }`
+ * - `seeds: { enabled }` → `taskTracker: { backend: "seeds", enabled }`
+ */
+function migrateDeprecatedTaskTrackerKeys(parsed: Record<string, unknown>): void {
+	if (parsed.taskTracker !== undefined) return; // Already migrated
+
+	if (parsed.beads !== undefined) {
+		const beadsConfig = parsed.beads as Record<string, unknown>;
+		parsed.taskTracker = {
+			backend: "beads",
+			enabled: beadsConfig.enabled ?? true,
+		};
+		delete parsed.beads;
+		process.stderr.write(
+			"[overstory] DEPRECATED: beads: -> use taskTracker: { backend: beads, enabled: true }\n",
+		);
+	} else if (parsed.seeds !== undefined) {
+		const seedsConfig = parsed.seeds as Record<string, unknown>;
+		parsed.taskTracker = {
+			backend: "seeds",
+			enabled: seedsConfig.enabled ?? true,
+		};
+		delete parsed.seeds;
+		process.stderr.write(
+			"[overstory] DEPRECATED: seeds: -> use taskTracker: { backend: seeds, enabled: true }\n",
+		);
+	}
+}
+
+/**
  * Validate that a config object has the required structure and sane values.
  * Throws ValidationError on failure.
  */
@@ -421,6 +455,18 @@ function validateConfig(config: OverstoryConfig): void {
 			field: "watchdog.zombieThresholdMs",
 			value: config.watchdog.zombieThresholdMs,
 		});
+	}
+
+	// taskTracker.backend must be one of the valid options
+	const validBackends = ["auto", "seeds", "beads"] as const;
+	if (!validBackends.includes(config.taskTracker.backend as (typeof validBackends)[number])) {
+		throw new ValidationError(
+			`taskTracker.backend must be one of: ${validBackends.join(", ")}`,
+			{
+				field: "taskTracker.backend",
+				value: config.taskTracker.backend,
+			},
+		);
 	}
 
 	// mulch.primeFormat must be one of the valid options
@@ -547,6 +593,7 @@ async function mergeLocalConfig(
 	}
 
 	migrateDeprecatedWatchdogKeys(parsed);
+	migrateDeprecatedTaskTrackerKeys(parsed);
 
 	return deepMerge(
 		config as unknown as Record<string, unknown>,
@@ -665,6 +712,7 @@ export async function loadConfig(projectRoot: string): Promise<OverstoryConfig> 
 	// Old naming: tier1 = mechanical daemon, tier2 = AI triage
 	// New naming: tier0 = mechanical daemon, tier1 = AI triage, tier2 = monitor agent
 	migrateDeprecatedWatchdogKeys(parsed);
+	migrateDeprecatedTaskTrackerKeys(parsed);
 
 	// Deep merge parsed config over defaults
 	let merged = deepMerge(
