@@ -596,6 +596,36 @@ describe("checkBeadLock", () => {
 	});
 });
 
+describe("checkBeadLock parent bypass", () => {
+	test("parent matching lock holder is allowed (returns lock holder name for caller to compare)", () => {
+		// checkBeadLock is a pure function — it returns the lock holder name or null.
+		// The parent bypass logic is in slingCommand, not checkBeadLock.
+		// These tests verify the building blocks work correctly.
+		const sessions = [makeBeadSession("lead-alpha", "overstory-abc")];
+		// checkBeadLock still returns the holder — the caller (slingCommand) decides
+		// whether to allow based on parentAgent match.
+		expect(checkBeadLock(sessions, "overstory-abc")).toBe("lead-alpha");
+	});
+
+	test("non-parent lock holder blocks spawn", () => {
+		const sessions = [makeBeadSession("other-agent", "overstory-abc")];
+		const lockHolder = checkBeadLock(sessions, "overstory-abc");
+		const parentAgent = "lead-alpha";
+		// lockHolder is 'other-agent', parentAgent is 'lead-alpha' — not equal, should block
+		expect(lockHolder).not.toBeNull();
+		expect(lockHolder).not.toBe(parentAgent);
+	});
+
+	test("null parent with lock holder blocks spawn", () => {
+		const sessions = [makeBeadSession("lead-alpha", "overstory-abc")];
+		const lockHolder = checkBeadLock(sessions, "overstory-abc");
+		const parentAgent = null;
+		// lockHolder is non-null and parentAgent is null — should block
+		expect(lockHolder).not.toBeNull();
+		expect(lockHolder).not.toBe(parentAgent);
+	});
+});
+
 /**
  * Tests for checkRunSessionLimit.
  *
