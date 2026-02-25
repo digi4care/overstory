@@ -2,17 +2,13 @@
  * Mulch CLI client.
  *
  * Wraps the `mulch` command-line tool for structured expertise operations.
- * record(), search(), and query() use the @os-eco/mulch-cli programmatic API.
+ * record(), search(), and query() use the @os-eco/mulch-cli programmatic API
+ * via a variable-based dynamic import so tsc cannot statically resolve the
+ * module (avoiding type errors in mulch's raw .ts source files).
  * Remaining methods (prime, status, diff, learn, prune, doctor, ready, compact)
  * remain as Bun.spawn CLI wrappers.
  */
 
-import type { ExpertiseRecord as MulchExpertiseRecord } from "@os-eco/mulch-cli";
-import {
-	queryDomain as mulchQueryDomain,
-	recordExpertise,
-	searchExpertise,
-} from "@os-eco/mulch-cli";
 import { AgentError } from "../errors.ts";
 import type {
 	MulchCompactResult,
@@ -93,6 +89,149 @@ export interface MulchClient {
 			records?: string[];
 		},
 	): Promise<MulchCompactResult>;
+}
+
+/**
+ * Local type matching @os-eco/mulch-cli ExpertiseRecord.
+ * Defined locally to avoid tsc following into mulch's raw .ts source
+ * (which conflicts with our noUncheckedIndexedAccess setting).
+ */
+type MulchClassification = "foundational" | "tactical" | "observational";
+
+interface MulchEvidence {
+	commit?: string;
+	date?: string;
+	issue?: string;
+	file?: string;
+	bead?: string;
+}
+
+interface MulchOutcome {
+	status: "success" | "failure" | "partial";
+	duration?: number;
+	test_results?: string;
+	agent?: string;
+	notes?: string;
+	recorded_at?: string;
+}
+
+type MulchExpertiseRecord =
+	| {
+			type: "convention";
+			content: string;
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  }
+	| {
+			type: "pattern";
+			name: string;
+			description: string;
+			files?: string[];
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  }
+	| {
+			type: "failure";
+			description: string;
+			resolution: string;
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  }
+	| {
+			type: "decision";
+			title: string;
+			rationale: string;
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  }
+	| {
+			type: "reference";
+			name: string;
+			description: string;
+			files?: string[];
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  }
+	| {
+			type: "guide";
+			name: string;
+			description: string;
+			classification: MulchClassification;
+			recorded_at: string;
+			id?: string;
+			tags?: string[];
+			evidence?: MulchEvidence;
+			outcomes?: MulchOutcome[];
+			relates_to?: string[];
+			supersedes?: string[];
+	  };
+
+/**
+ * Interface for mulch programmatic API functions.
+ * Uses a dynamic import with a variable specifier so tsc cannot statically
+ * resolve the module (avoiding type errors in mulch's raw .ts source files).
+ */
+interface MulchProgrammaticApi {
+	recordExpertise(
+		domain: string,
+		record: MulchExpertiseRecord,
+		options?: { force?: boolean; cwd?: string },
+	): Promise<{ action: "created" | "updated" | "skipped"; record: MulchExpertiseRecord }>;
+	searchExpertise(
+		query: string,
+		options?: {
+			domain?: string;
+			type?: string;
+			tag?: string;
+			classification?: string;
+			file?: string;
+			cwd?: string;
+		},
+	): Promise<Array<{ domain: string; records: MulchExpertiseRecord[] }>>;
+	queryDomain(
+		domain: string,
+		options?: { type?: string; classification?: string; file?: string; cwd?: string },
+	): Promise<MulchExpertiseRecord[]>;
+}
+
+const MULCH_PKG = "@os-eco/mulch-cli";
+let _mulchApi: MulchProgrammaticApi | undefined;
+
+async function loadMulchApi(): Promise<MulchProgrammaticApi> {
+	if (!_mulchApi) {
+		_mulchApi = (await import(MULCH_PKG)) as MulchProgrammaticApi;
+	}
+	return _mulchApi;
 }
 
 /**
@@ -297,13 +436,14 @@ export function createMulchClient(cwd: string): MulchClient {
 			}
 
 			const expertiseRecord = buildExpertiseRecord(options);
+			const api = await loadMulchApi();
 			try {
-				await recordExpertise(domain, expertiseRecord, { cwd });
+				await api.recordExpertise(domain, expertiseRecord, { cwd });
 			} catch (error) {
 				if (error instanceof Error && error.message.includes("not found in config")) {
 					// Auto-create domain (matching mulch CLI 0.6.1+ behavior)
 					await runMulch(["add", domain], `add ${domain}`);
-					await recordExpertise(domain, expertiseRecord, { cwd });
+					await api.recordExpertise(domain, expertiseRecord, { cwd });
 				} else {
 					throw new AgentError(
 						`mulch record ${domain} failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -317,7 +457,8 @@ export function createMulchClient(cwd: string): MulchClient {
 				throw new AgentError("mulch query failed (exit 1): domain argument required");
 			}
 			try {
-				const records = await mulchQueryDomain(domain, { cwd });
+				const api = await loadMulchApi();
+				const records = await api.queryDomain(domain, { cwd });
 				return formatSearchResults([{ domain, records }]);
 			} catch (error) {
 				throw new AgentError(
@@ -328,7 +469,8 @@ export function createMulchClient(cwd: string): MulchClient {
 
 		async search(query, options) {
 			try {
-				const results = await searchExpertise(query, {
+				const api = await loadMulchApi();
+				const results = await api.searchExpertise(query, {
 					file: options?.file,
 					cwd,
 				});
