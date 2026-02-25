@@ -874,7 +874,8 @@ export function completionsCommand(args: string[]): void {
 
 	if (!shell) {
 		printError("missing shell argument", "Usage: ov --completions <bash|zsh|fish>");
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 
 	let script: string;
@@ -890,7 +891,8 @@ export function completionsCommand(args: string[]): void {
 			break;
 		default:
 			printError(`unknown shell '${shell}'`, "Supported shells: bash, zsh, fish");
-			process.exit(1);
+			process.exitCode = 1;
+			return;
 	}
 
 	process.stdout.write(script);

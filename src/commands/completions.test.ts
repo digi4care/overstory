@@ -203,15 +203,9 @@ describe("completionsCommand", () => {
 	});
 
 	it("should exit with error for missing shell argument", () => {
-		const originalExit = process.exit;
+		const originalExitCode = process.exitCode;
 		const originalStderr = process.stderr.write;
-		let exitCode: number | undefined;
 		let stderrOutput = "";
-
-		process.exit = mock((code?: string | number | null | undefined) => {
-			exitCode = typeof code === "number" ? code : 1;
-			throw new Error("process.exit called");
-		}) as never;
 
 		process.stderr.write = mock((chunk: unknown) => {
 			stderrOutput += String(chunk);
@@ -219,25 +213,19 @@ describe("completionsCommand", () => {
 		});
 
 		try {
-			expect(() => completionsCommand([])).toThrow("process.exit called");
-			expect(exitCode).toBe(1);
+			completionsCommand([]);
+			expect(process.exitCode).toBe(1);
 			expect(stderrOutput).toContain("missing shell argument");
 		} finally {
-			process.exit = originalExit;
+			process.exitCode = originalExitCode;
 			process.stderr.write = originalStderr;
 		}
 	});
 
 	it("should exit with error for unknown shell", () => {
-		const originalExit = process.exit;
+		const originalExitCode = process.exitCode;
 		const originalStderr = process.stderr.write;
-		let exitCode: number | undefined;
 		let stderrOutput = "";
-
-		process.exit = mock((code?: string | number | null | undefined) => {
-			exitCode = typeof code === "number" ? code : 1;
-			throw new Error("process.exit called");
-		}) as never;
 
 		process.stderr.write = mock((chunk: unknown) => {
 			stderrOutput += String(chunk);
@@ -245,12 +233,12 @@ describe("completionsCommand", () => {
 		});
 
 		try {
-			expect(() => completionsCommand(["powershell"])).toThrow("process.exit called");
-			expect(exitCode).toBe(1);
+			completionsCommand(["powershell"]);
+			expect(process.exitCode).toBe(1);
 			expect(stderrOutput).toContain("unknown shell");
 			expect(stderrOutput).toContain("powershell");
 		} finally {
-			process.exit = originalExit;
+			process.exitCode = originalExitCode;
 			process.stderr.write = originalStderr;
 		}
 	});
