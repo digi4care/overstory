@@ -20,6 +20,7 @@ import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createTrackerClient, resolveBackend, trackerCliName } from "../tracker/factory.ts";
@@ -230,7 +231,7 @@ async function startSupervisor(opts: {
 		};
 
 		if (opts.json) {
-			process.stdout.write(`${JSON.stringify(output)}\n`);
+			jsonOutput("supervisor start", output);
 		} else {
 			printSuccess("Supervisor started", opts.name);
 			process.stdout.write(`  Tmux:    ${tmuxSession}\n`);
@@ -291,7 +292,7 @@ async function stopSupervisor(opts: { name: string; json: boolean }): Promise<vo
 		store.updateLastActivity(opts.name);
 
 		if (opts.json) {
-			process.stdout.write(`${JSON.stringify({ stopped: true, sessionId: session.id })}\n`);
+			jsonOutput("supervisor stop", { stopped: true, sessionId: session.id });
 		} else {
 			printSuccess("Supervisor stopped", opts.name);
 		}
@@ -325,7 +326,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 				session.state === "zombie"
 			) {
 				if (opts.json) {
-					process.stdout.write(`${JSON.stringify({ running: false })}\n`);
+					jsonOutput("supervisor status", { running: false });
 				} else {
 					printHint("Supervisor not running");
 				}
@@ -357,7 +358,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 			};
 
 			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(status)}\n`);
+				jsonOutput("supervisor status", status);
 			} else {
 				const stateLabel = alive ? "running" : session.state;
 				process.stdout.write(`Supervisor '${opts.name}': ${stateLabel}\n`);
@@ -377,7 +378,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 
 			if (supervisors.length === 0) {
 				if (opts.json) {
-					process.stdout.write(`${JSON.stringify([])}\n`);
+					jsonOutput("supervisor status", { supervisors: [] });
 				} else {
 					printHint("No supervisor sessions found");
 				}
@@ -411,7 +412,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 			);
 
 			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(statuses)}\n`);
+				jsonOutput("supervisor status", { supervisors: statuses });
 			} else {
 				process.stdout.write("Supervisor sessions:\n");
 				for (const status of statuses) {

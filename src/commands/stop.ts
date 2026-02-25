@@ -11,6 +11,7 @@
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printSuccess, printWarning } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { removeWorktree } from "../worktree/manager.ts";
@@ -109,17 +110,15 @@ export async function stopCommand(
 		}
 
 		if (json) {
-			process.stdout.write(
-				`${JSON.stringify({
-					stopped: true,
-					agentName,
-					sessionId: session.id,
-					capability: session.capability,
-					tmuxKilled: alive,
-					worktreeRemoved,
-					force,
-				})}\n`,
-			);
+			jsonOutput("stop", {
+				stopped: true,
+				agentName,
+				sessionId: session.id,
+				capability: session.capability,
+				tmuxKilled: alive,
+				worktreeRemoved,
+				force,
+			});
 		} else {
 			printSuccess("Agent stopped", agentName);
 			if (alive) {

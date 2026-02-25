@@ -21,6 +21,7 @@ import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession } from "../types.ts";
@@ -190,7 +191,7 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 		};
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(output)}\n`);
+			jsonOutput("monitor start", output);
 		} else {
 			printSuccess("Monitor started");
 			process.stdout.write(`  Tmux:    ${tmuxSession}\n`);
@@ -248,7 +249,7 @@ async function stopMonitor(opts: { json: boolean }): Promise<void> {
 		store.updateLastActivity(MONITOR_NAME);
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ stopped: true, sessionId: session.id })}\n`);
+			jsonOutput("monitor stop", { stopped: true, sessionId: session.id });
 		} else {
 			printSuccess("Monitor stopped", session.id);
 		}
@@ -280,7 +281,7 @@ async function statusMonitor(opts: { json: boolean }): Promise<void> {
 			session.state === "zombie"
 		) {
 			if (json) {
-				process.stdout.write(`${JSON.stringify({ running: false })}\n`);
+				jsonOutput("monitor status", { running: false });
 			} else {
 				printHint("Monitor is not running");
 			}
@@ -307,7 +308,7 @@ async function statusMonitor(opts: { json: boolean }): Promise<void> {
 		};
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(status)}\n`);
+			jsonOutput("monitor status", status);
 		} else {
 			const stateLabel = alive ? "running" : session.state;
 			process.stdout.write(`Monitor: ${stateLabel}\n`);

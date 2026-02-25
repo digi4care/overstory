@@ -27,6 +27,7 @@ import { writeOverlay } from "../agents/overlay.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, HierarchyError, ValidationError } from "../errors.ts";
 import { inferDomain } from "../insights/analyzer.ts";
+import { jsonOutput } from "../json.ts";
 import { printSuccess } from "../logging/color.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
@@ -708,7 +709,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		};
 
 		if (opts.json ?? false) {
-			process.stdout.write(`${JSON.stringify(output)}\n`);
+			jsonOutput("sling", output);
 		} else {
 			printSuccess("Agent launched", name);
 			process.stdout.write(`   Task:     ${taskId}\n`);
