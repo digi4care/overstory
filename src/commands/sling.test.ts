@@ -8,8 +8,7 @@ import {
 	buildAutoDispatch,
 	buildBeacon,
 	calculateStaggerDelay,
-	checkBeadLock,
-	checkDuplicateLead,
+	checkTaskLock,
 	checkRunSessionLimit,
 	inferDomainsFromFiles,
 	isRunningAsRoot,
@@ -555,66 +554,66 @@ describe("isRunningAsRoot", () => {
 });
 
 /**
- * Tests for checkBeadLock.
+ * Tests for checkTaskLock.
  *
- * checkBeadLock prevents concurrent agents from working the same task ID.
+ * checkTaskLock prevents concurrent agents from working the same task ID.
  * It checks the active session list and returns the agent name that holds
- * the lock (i.e., is already working on the bead), or null if the bead is free.
+ * the lock (i.e., is already working on the task), or null if the task is free.
  */
 
-function makeBeadSession(agentName: string, taskId: string): { agentName: string; taskId: string } {
+function makeTaskSession(agentName: string, taskId: string): { agentName: string; taskId: string } {
 	return { agentName, taskId };
 }
 
-describe("checkBeadLock", () => {
+describe("checkTaskLock", () => {
 	test("returns null when no sessions exist", () => {
-		expect(checkBeadLock([], "overstory-abc")).toBeNull();
+		expect(checkTaskLock([], "overstory-abc")).toBeNull();
 	});
 
 	test("returns null when no session matches the task ID", () => {
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-xyz"),
-			makeBeadSession("builder-2", "overstory-def"),
+			makeTaskSession("builder-1", "overstory-xyz"),
+			makeTaskSession("builder-2", "overstory-def"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBeNull();
+		expect(checkTaskLock(sessions, "overstory-abc")).toBeNull();
 	});
 
 	test("returns the agent name when a session matches", () => {
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-abc"),
-			makeBeadSession("builder-2", "overstory-xyz"),
+			makeTaskSession("builder-1", "overstory-abc"),
+			makeTaskSession("builder-2", "overstory-xyz"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBe("builder-1");
+		expect(checkTaskLock(sessions, "overstory-abc")).toBe("builder-1");
 	});
 
 	test("returns the first matching agent when multiple sessions match", () => {
 		// Multiple sessions can have the same taskId (e.g., retried agent)
-		// checkBeadLock returns the first match
+		// checkTaskLock returns the first match
 		const sessions = [
-			makeBeadSession("builder-1", "overstory-abc"),
-			makeBeadSession("builder-2", "overstory-abc"),
+			makeTaskSession("builder-1", "overstory-abc"),
+			makeTaskSession("builder-2", "overstory-abc"),
 		];
 
-		expect(checkBeadLock(sessions, "overstory-abc")).toBe("builder-1");
+		expect(checkTaskLock(sessions, "overstory-abc")).toBe("builder-1");
 	});
 });
 
-describe("checkBeadLock parent bypass", () => {
+describe("checkTaskLock parent bypass", () => {
 	test("parent matching lock holder is allowed (returns lock holder name for caller to compare)", () => {
-		// checkBeadLock is a pure function — it returns the lock holder name or null.
-		// The parent bypass logic is in slingCommand, not checkBeadLock.
+		// checkTaskLock is a pure function — it returns the lock holder name or null.
+		// The parent bypass logic is in slingCommand, not checkTaskLock.
 		// These tests verify the building blocks work correctly.
-		const sessions = [makeBeadSession("lead-alpha", "overstory-abc")];
-		// checkBeadLock still returns the holder — the caller (slingCommand) decides
+		const sessions = [makeTaskSession("lead-alpha", "overstory-abc")];
+		// checkTaskLock still returns the holder — the caller (slingCommand) decides
 		// whether to allow based on parentAgent match.
-		expect(checkBeadLock(sessions, "overstory-abc")).toBe("lead-alpha");
+		expect(checkTaskLock(sessions, "overstory-abc")).toBe("lead-alpha");
 	});
 
 	test("non-parent lock holder blocks spawn", () => {
-		const sessions = [makeBeadSession("other-agent", "overstory-abc")];
-		const lockHolder = checkBeadLock(sessions, "overstory-abc");
+		const sessions = [makeTaskSession("other-agent", "overstory-abc")];
+		const lockHolder = checkTaskLock(sessions, "overstory-abc");
 		const parentAgent = "lead-alpha";
 		// lockHolder is 'other-agent', parentAgent is 'lead-alpha' — not equal, should block
 		expect(lockHolder).not.toBeNull();
@@ -622,8 +621,8 @@ describe("checkBeadLock parent bypass", () => {
 	});
 
 	test("null parent with lock holder blocks spawn", () => {
-		const sessions = [makeBeadSession("lead-alpha", "overstory-abc")];
-		const lockHolder = checkBeadLock(sessions, "overstory-abc");
+		const sessions = [makeTaskSession("lead-alpha", "overstory-abc")];
+		const lockHolder = checkTaskLock(sessions, "overstory-abc");
 		const parentAgent = null;
 		// lockHolder is non-null and parentAgent is null — should block
 		expect(lockHolder).not.toBeNull();

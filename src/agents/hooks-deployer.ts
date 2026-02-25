@@ -20,13 +20,13 @@ const NON_IMPLEMENTATION_CAPABILITIES = new Set([
 
 /**
  * Capabilities that coordinate work and need git add/commit for syncing
- * beads, mulch, and other metadata — but must NOT git push.
+ * tasks, mulch, and other metadata — but must NOT git push.
  */
 const COORDINATION_CAPABILITIES = new Set(["coordinator", "supervisor", "monitor"]);
 
 /**
  * Additional safe Bash prefixes for coordination capabilities.
- * Allows git add/commit for beads sync, mulch records, etc.
+ * Allows git add/commit for task sync, mulch records, etc.
  * git push remains blocked via DANGEROUS_BASH_PATTERNS.
  */
 const COORDINATION_SAFE_PREFIXES = ["git add", "git commit"];
@@ -295,7 +295,7 @@ function buildBashGuardScript(agentName: string): string {
 		"if echo \"$CMD\" | grep -qE 'git\\s+checkout\\s+-b\\s'; then",
 		`  BRANCH=$(echo "$CMD" | sed 's/.*git\\s*checkout\\s*-b\\s*\\([^ ]*\\).*/\\1/');`,
 		`  if ! echo "$BRANCH" | grep -qE '^overstory/${agentName}/'; then`,
-		`    echo '{"decision":"block","reason":"Branch must follow overstory/${agentName}/{bead-id} convention"}';`,
+		`    echo '{"decision":"block","reason":"Branch must follow overstory/${agentName}/{task-id} convention"}';`,
 		"    exit 0;",
 		"  fi;",
 		"fi;",
@@ -512,7 +512,7 @@ export function getCapabilityGuards(capability: string, qualityGates?: QualityGa
 		);
 		guards.push(...toolGuards);
 
-		// Coordination capabilities get git add/commit whitelisted for beads/mulch sync
+		// Coordination capabilities get git add/commit whitelisted for task/mulch sync
 		const extraSafe = COORDINATION_CAPABILITIES.has(capability)
 			? [...COORDINATION_SAFE_PREFIXES, ...gatePrefixes]
 			: gatePrefixes;

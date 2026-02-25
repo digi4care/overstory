@@ -3,10 +3,10 @@
  *
  * Manages per-project supervisor agent lifecycle. The supervisor is a persistent
  * agent that runs at the project root (NOT in a worktree), assigned to a specific
- * bead task, and operates at depth 1 (between coordinator and leaf workers).
+ * task, and operates at depth 1 (between coordinator and leaf workers).
  *
  * Unlike the coordinator:
- * - Has a bead assignment (required via --task flag)
+ * - Has a task assignment (required via --task flag)
  * - Has a parent agent (typically "coordinator")
  * - Has depth 1 (default)
  * - Multiple supervisors can run concurrently (distinguished by --name)
@@ -80,7 +80,7 @@ async function startSupervisor(opts: {
 	json: boolean;
 }): Promise<void> {
 	if (!opts.task) {
-		throw new ValidationError("--task <bead-id> is required", {
+		throw new ValidationError("--task <task-id> is required", {
 			field: "task",
 			value: opts.task,
 		});
@@ -437,7 +437,7 @@ export function createSupervisorCommand(): Command {
 	cmd
 		.command("start")
 		.description("Start a supervisor (spawns Claude Code at project root)")
-		.requiredOption("--task <bead-id>", "Bead task ID (required)")
+		.requiredOption("--task <task-id>", "Task ID (required)")
 		.requiredOption("--name <name>", "Unique supervisor name (required)")
 		.option("--parent <agent>", "Parent agent name", "coordinator")
 		.option("--depth <n>", "Hierarchy depth", "1")

@@ -1,7 +1,7 @@
 /**
  * CLI command: ov trace <target> [--json] [--since <ts>] [--until <ts>] [--limit <n>]
  *
- * Shows a chronological timeline of events for an agent or bead task.
+ * Shows a chronological timeline of events for an agent or task.
  * Target can be an agent name or a task ID (resolved to agent name via SessionStore).
  */
 
@@ -275,7 +275,7 @@ async function executeTrace(target: string, opts: TraceOpts): Promise<void> {
 
 export function createTraceCommand(): Command {
 	return new Command("trace")
-		.description("Chronological event timeline for agent/bead")
+		.description("Chronological event timeline for agent or task")
 		.argument("<target>", "Agent name or task ID")
 		.option("--json", "Output as JSON array of StoredEvent objects")
 		.option("--since <timestamp>", "Start time filter (ISO 8601)")

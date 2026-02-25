@@ -2,7 +2,7 @@
  * CLI command: ov group create|status|add|remove|list
  *
  * Manages TaskGroups for batch work coordination. Groups track collections
- * of beads issues and auto-close when all member issues are closed.
+ * of issues and auto-close when all member issues are closed.
  *
  * Storage: `.overstory/groups.json` (array of TaskGroup objects).
  */
@@ -312,7 +312,7 @@ export function createGroupCommand(): Command {
 		.argument("<name>", "Group name")
 		.argument("<ids...>", "Issue IDs to include")
 		.option("--json", "Output as JSON")
-		.option("--skip-validation", "Skip beads issue validation (for offline use)")
+		.option("--skip-validation", "Skip task validation (for offline use)")
 		.action(
 			async (name: string, ids: string[], opts: { json?: boolean; skipValidation?: boolean }) => {
 				const config = await loadConfig(process.cwd());
@@ -343,7 +343,7 @@ export function createGroupCommand(): Command {
 		.description("Show progress for one or all groups")
 		.argument("[group-id]", "Group ID (optional, shows all if omitted)")
 		.option("--json", "Output as JSON")
-		.option("--skip-validation", "Skip beads issue validation (for offline use)")
+		.option("--skip-validation", "Skip task validation (for offline use)")
 		.action(
 			async (groupId: string | undefined, opts: { json?: boolean; skipValidation?: boolean }) => {
 				const config = await loadConfig(process.cwd());
@@ -398,7 +398,7 @@ export function createGroupCommand(): Command {
 		.argument("<group-id>", "Group ID")
 		.argument("<ids...>", "Issue IDs to add")
 		.option("--json", "Output as JSON")
-		.option("--skip-validation", "Skip beads issue validation (for offline use)")
+		.option("--skip-validation", "Skip task validation (for offline use)")
 		.action(
 			async (
 				groupId: string,

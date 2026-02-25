@@ -8,7 +8,7 @@
  *
  * Unlike regular agents spawned by sling, the monitor:
  * - Has no worktree (operates on the main working tree)
- * - Has no bead assignment (it monitors, not implements)
+ * - Has no task assignment (it monitors, not implements)
  * - Has no overlay CLAUDE.md (context comes via ov status + mail)
  * - Persists across patrol cycles
  */
@@ -158,7 +158,7 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 			capability: "monitor",
 			worktreePath: projectRoot, // Monitor uses project root, not a worktree
 			branchName: config.project.canonicalBranch, // Operates on canonical branch
-			taskId: "", // No specific bead assignment
+			taskId: "", // No specific task assignment
 			tmuxSession,
 			state: "booting",
 			pid,

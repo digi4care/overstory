@@ -261,7 +261,7 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 
 	const replacements: Record<string, string> = {
 		"{{AGENT_NAME}}": config.agentName,
-		"{{BEAD_ID}}": config.taskId,
+		"{{TASK_ID}}": config.taskId,
 		"{{SPEC_PATH}}": config.specPath ?? "No spec file provided",
 		"{{BRANCH_NAME}}": config.branchName,
 		"{{WORKTREE_PATH}}": config.worktreePath,
@@ -281,7 +281,7 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 		"{{QUALITY_GATE_BASH}}": formatQualityGatesBash(config.qualityGates),
 		"{{QUALITY_GATE_CAPABILITIES}}": formatQualityGatesCapabilities(config.qualityGates),
 		"{{TRACKER_CLI}}": config.trackerCli ?? "bd",
-		"{{TRACKER_NAME}}": config.trackerName ?? "beads",
+		"{{TRACKER_NAME}}": config.trackerName ?? "seeds",
 	};
 
 	let result = template;

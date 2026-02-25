@@ -236,7 +236,7 @@ export const COMMANDS: readonly CommandDef[] = [
 	},
 	{
 		name: "trace",
-		desc: "Chronological event timeline for agent/bead",
+		desc: "Chronological event timeline for agent or task",
 		flags: [
 			{ name: "--json", desc: "JSON output" },
 			{ name: "--since", desc: "Time range filter (ISO 8601)", takesValue: true },
@@ -366,7 +366,7 @@ export const COMMANDS: readonly CommandDef[] = [
 				name: "start",
 				desc: "Start supervisor",
 				flags: [
-					{ name: "--task", desc: "Bead task ID", takesValue: true },
+					{ name: "--task", desc: "Task ID", takesValue: true },
 					{ name: "--name", desc: "Unique name", takesValue: true },
 					{ name: "--parent", desc: "Parent agent", takesValue: true },
 					{ name: "--depth", desc: "Hierarchy depth", takesValue: true },
@@ -543,7 +543,7 @@ export const COMMANDS: readonly CommandDef[] = [
 		desc: "Task groups",
 		flags: [
 			{ name: "--json", desc: "JSON output" },
-			{ name: "--skip-validation", desc: "Skip beads checks" },
+			{ name: "--skip-validation", desc: "Skip task validation" },
 			{ name: "--help", desc: "Show help" },
 		],
 		subcommands: [

@@ -1,7 +1,7 @@
 /**
  * CLI command: overstory status [--json] [--watch]
  *
- * Shows active agents, worktree status, beads summary, mail queue depth,
+ * Shows active agents, worktree status, task summary, mail queue depth,
  * and merge queue state. --watch mode uses polling for live updates.
  */
 
