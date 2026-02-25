@@ -223,7 +223,9 @@ describe("deployHooks", () => {
 		const content = await Bun.file(outputPath).text();
 		const parsed = JSON.parse(content);
 		const userPrompt = parsed.hooks.UserPromptSubmit[0];
-		expect(userPrompt.hooks[0].command).toContain("ov mail check --inject --agent mail-agent");
+		expect(userPrompt.hooks[0].command).toContain(
+			"ov mail check --inject --agent mail-agent",
+		);
 		expect(userPrompt.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -237,7 +239,9 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const preCompact = parsed.hooks.PreCompact[0];
 		expect(preCompact.hooks[0].type).toBe("command");
-		expect(preCompact.hooks[0].command).toContain("ov prime --agent compact-agent --compact");
+		expect(preCompact.hooks[0].command).toContain(
+			"ov prime --agent compact-agent --compact",
+		);
 		expect(preCompact.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -696,6 +700,7 @@ describe("deployHooks", () => {
 		const lastOverstoryIdx = preToolUse.reduce(
 			(last: number, h: { hooks: Array<{ command: string }> }, i: number) => {
 				if (
+					h.hooks[0]?.command?.includes("ov ") ||
 					h.hooks[0]?.command?.includes("overstory") ||
 					h.hooks[0]?.command?.includes("OVERSTORY_")
 				) {
@@ -820,11 +825,11 @@ describe("deployHooks", () => {
 });
 
 describe("isOverstoryHookEntry", () => {
-	test("identifies entries with overstory CLI commands", () => {
+	test("identifies entries with ov CLI commands", () => {
 		expect(
 			isOverstoryHookEntry({
 				matcher: "",
-				hooks: [{ type: "command", command: "overstory prime --agent test" }],
+				hooks: [{ type: "command", command: "ov prime --agent test" }],
 			}),
 		).toBe(true);
 	});
@@ -881,7 +886,7 @@ describe("isOverstoryHookEntry", () => {
 				matcher: "",
 				hooks: [
 					{ type: "command", command: "echo user-thing" },
-					{ type: "command", command: "overstory mail check" },
+					{ type: "command", command: "ov mail check" },
 				],
 			}),
 		).toBe(true);
@@ -1001,7 +1006,7 @@ describe("getCapabilityGuards", () => {
 			const guards = getCapabilityGuards(cap);
 			const taskGuard = guards.find((g) => g.matcher === "Task");
 			expect(taskGuard).toBeDefined();
-			expect(taskGuard?.hooks[0]?.command).toContain("overstory sling");
+			expect(taskGuard?.hooks[0]?.command).toContain("ov sling");
 		}
 	});
 
@@ -1063,7 +1068,7 @@ describe("getCapabilityGuards", () => {
 			const guard = guards.find((g) => g.matcher === "AskUserQuestion");
 			expect(guard).toBeDefined();
 			expect(guard?.hooks[0]?.command).toContain("human interaction");
-			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+			expect(guard?.hooks[0]?.command).toContain("ov mail");
 		}
 	});
 
@@ -1082,7 +1087,7 @@ describe("getCapabilityGuards", () => {
 			const guard = guards.find((g) => g.matcher === "EnterPlanMode");
 			expect(guard).toBeDefined();
 			expect(guard?.hooks[0]?.command).toContain("human interaction");
-			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+			expect(guard?.hooks[0]?.command).toContain("ov mail");
 		}
 	});
 
@@ -1101,7 +1106,7 @@ describe("getCapabilityGuards", () => {
 			const guard = guards.find((g) => g.matcher === "EnterWorktree");
 			expect(guard).toBeDefined();
 			expect(guard?.hooks[0]?.command).toContain("human interaction");
-			expect(guard?.hooks[0]?.command).toContain("overstory mail");
+			expect(guard?.hooks[0]?.command).toContain("ov mail");
 		}
 	});
 
@@ -1642,7 +1647,7 @@ describe("structural enforcement integration", () => {
 
 			const taskGuard = preToolUse.find((h: { matcher: string }) => h.matcher === "Task");
 			expect(taskGuard).toBeDefined();
-			expect(taskGuard.hooks[0].command).toContain("overstory sling");
+			expect(taskGuard.hooks[0].command).toContain("ov sling");
 		}
 	});
 
@@ -2146,6 +2151,6 @@ describe("escapeForSingleQuotedShell", () => {
 		await proc.exited;
 		const parsed = JSON.parse(output.trim());
 		expect(parsed.decision).toBe("block");
-		expect(parsed.reason).toContain("overstory sling");
+		expect(parsed.reason).toContain("ov sling");
 	});
 });
