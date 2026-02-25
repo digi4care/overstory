@@ -12,6 +12,7 @@ import { checkConfig } from "../doctor/config-check.ts";
 import { checkConsistency } from "../doctor/consistency.ts";
 import { checkDatabases } from "../doctor/databases.ts";
 import { checkDependencies } from "../doctor/dependencies.ts";
+import { checkEcosystem } from "../doctor/ecosystem.ts";
 import { checkLogs } from "../doctor/logs.ts";
 import { checkMergeQueue } from "../doctor/merge-queue.ts";
 import { checkStructure } from "../doctor/structure.ts";
@@ -32,6 +33,7 @@ const ALL_CHECKS: Array<{ category: DoctorCategory; fn: DoctorCheckFn }> = [
 	{ category: "merge", fn: checkMergeQueue },
 	{ category: "logs", fn: checkLogs },
 	{ category: "version", fn: checkVersion },
+	{ category: "ecosystem", fn: checkEcosystem },
 ];
 
 /**
@@ -135,7 +137,7 @@ export function createDoctorCommand(options?: DoctorCommandOptions): Command {
 		.option("--category <name>", "Run only one category")
 		.addHelpText(
 			"after",
-			"\nCategories: dependencies, structure, config, databases, consistency, agents, merge, logs, version",
+			"\nCategories: dependencies, structure, config, databases, consistency, agents, merge, logs, version, ecosystem",
 		)
 		.action(async (opts: { json?: boolean; verbose?: boolean; category?: string }) => {
 			const json = opts.json ?? false;
