@@ -15,7 +15,7 @@ import { createMulchClient } from "./client.ts";
 // Check if mulch is available
 let hasMulch = false;
 try {
-	const proc = Bun.spawn(["which", "mulch"], { stdout: "pipe", stderr: "pipe" });
+	const proc = Bun.spawn(["which", "ml"], { stdout: "pipe", stderr: "pipe" });
 	const exitCode = await proc.exited;
 	hasMulch = exitCode === 0;
 } catch {
@@ -66,7 +66,7 @@ describe("createMulchClient", () => {
 	 */
 	async function initMulch(): Promise<void> {
 		if (!hasMulch) return;
-		const proc = Bun.spawn(["mulch", "init"], {
+		const proc = Bun.spawn(["ml", "init"], {
 			cwd: tempDir,
 			stdout: "pipe",
 			stderr: "pipe",
@@ -87,7 +87,7 @@ describe("createMulchClient", () => {
 		test.skipIf(!hasMulch)("passes domain args when provided", async () => {
 			await initMulch();
 			// Add a domain first so we can prime it
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -108,7 +108,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("passes both domains and format", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -131,7 +131,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("passes --exclude-domain flag", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -148,7 +148,7 @@ describe("createMulchClient", () => {
 		test.skipIf(!hasMulch)("passes both --files and --exclude-domain", async () => {
 			await initMulch();
 			// Add a domain to exclude
-			const addProc = Bun.spawn(["mulch", "add", "internal"], {
+			const addProc = Bun.spawn(["ml", "add", "internal"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -183,7 +183,7 @@ describe("createMulchClient", () => {
 		test.skipIf(!hasMulch)("includes domain data when domains exist", async () => {
 			await initMulch();
 			// Add a domain
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -202,7 +202,7 @@ describe("createMulchClient", () => {
 		test.skipIf(!hasMulch)("with required args succeeds", async () => {
 			await initMulch();
 			// Add domain first
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -220,7 +220,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with optional args succeeds", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -242,7 +242,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with multiple tags", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "typescript"], {
+			const addProc = Bun.spawn(["ml", "add", "typescript"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -261,7 +261,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with --stdin flag passes flag to CLI", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -282,7 +282,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with outcome flags passes them to CLI", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -308,7 +308,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with outcomeStatus: failure passes flag to CLI", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -330,7 +330,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with outcomeDuration: 0 passes zero value to CLI", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -352,7 +352,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("with --evidence-bead flag passes flag to CLI", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -382,7 +382,7 @@ describe("createMulchClient", () => {
 	describe("query", () => {
 		test.skipIf(!hasMulch)("passes domain arg when provided", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "architecture"], {
+			const addProc = Bun.spawn(["ml", "add", "architecture"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -414,7 +414,7 @@ describe("createMulchClient", () => {
 		test.skipIf(!hasMulch)("searches across domains", async () => {
 			await initMulch();
 			// Add a domain and record
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -558,7 +558,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("passes --domain flag", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "testing"], {
+			const addProc = Bun.spawn(["ml", "add", "testing"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -592,7 +592,7 @@ describe("createMulchClient", () => {
 
 		test.skipIf(!hasMulch)("compacts specific domain with --analyze", async () => {
 			await initMulch();
-			const addProc = Bun.spawn(["mulch", "add", "large"], {
+			const addProc = Bun.spawn(["ml", "add", "large"], {
 				cwd: tempDir,
 				stdout: "pipe",
 				stderr: "pipe",
