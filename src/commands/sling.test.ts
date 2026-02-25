@@ -9,6 +9,7 @@ import {
 	buildBeacon,
 	calculateStaggerDelay,
 	checkBeadLock,
+	checkDuplicateLead,
 	checkRunSessionLimit,
 	inferDomainsFromFiles,
 	isRunningAsRoot,
@@ -627,6 +628,73 @@ describe("checkBeadLock parent bypass", () => {
 		// lockHolder is non-null and parentAgent is null — should block
 		expect(lockHolder).not.toBeNull();
 		expect(lockHolder).not.toBe(parentAgent);
+	});
+});
+
+/**
+ * Tests for checkDuplicateLead.
+ *
+ * checkDuplicateLead prevents spawning a second lead agent for the same task ID.
+ * It filters the active session list to only "lead" capability sessions, so
+ * builder/scout children working the same bead via parent delegation do not
+ * trigger this check.
+ *
+ * The activeSessions input is pre-filtered by store.getActive() to exclude
+ * completed and zombie sessions.
+ */
+
+function makeLeadSession(
+	agentName: string,
+	taskId: string,
+	capability: string,
+): { agentName: string; taskId: string; capability: string } {
+	return { agentName, taskId, capability };
+}
+
+describe("checkDuplicateLead", () => {
+	test("returns lead agent name when an active lead exists for the task", () => {
+		const sessions = [
+			makeLeadSession("lead-alpha", "overstory-abc", "lead"),
+			makeLeadSession("builder-1", "overstory-xyz", "builder"),
+		];
+		expect(checkDuplicateLead(sessions, "overstory-abc")).toBe("lead-alpha");
+	});
+
+	test("returns null when no lead exists for the task", () => {
+		const sessions = [
+			makeLeadSession("lead-alpha", "overstory-xyz", "lead"),
+			makeLeadSession("builder-1", "overstory-abc", "builder"),
+		];
+		expect(checkDuplicateLead(sessions, "overstory-abc")).toBeNull();
+	});
+
+	test("returns null when no sessions exist (completed/zombie filtered out)", () => {
+		// activeSessions from store.getActive() already excludes completed/zombie
+		expect(checkDuplicateLead([], "overstory-abc")).toBeNull();
+	});
+
+	test("ignores non-lead agents working the same bead", () => {
+		const sessions = [
+			makeLeadSession("builder-1", "overstory-abc", "builder"),
+			makeLeadSession("scout-1", "overstory-abc", "scout"),
+			makeLeadSession("reviewer-1", "overstory-abc", "reviewer"),
+		];
+		expect(checkDuplicateLead(sessions, "overstory-abc")).toBeNull();
+	});
+
+	test("returns first matching lead when multiple leads exist for the same bead", () => {
+		const sessions = [
+			makeLeadSession("lead-alpha", "overstory-abc", "lead"),
+			makeLeadSession("lead-beta", "overstory-abc", "lead"),
+		];
+		expect(checkDuplicateLead(sessions, "overstory-abc")).toBe("lead-alpha");
+	});
+
+	test("differentiates between task IDs", () => {
+		const sessions = [
+			makeLeadSession("lead-alpha", "overstory-abc", "lead"),
+		];
+		expect(checkDuplicateLead(sessions, "overstory-xyz")).toBeNull();
 	});
 });
 

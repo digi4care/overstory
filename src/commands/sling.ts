@@ -225,6 +225,30 @@ export function checkBeadLock(
 }
 
 /**
+ * Check if an active lead agent is already assigned to the given task ID.
+ * Returns the lead agent name if found, or null if no active lead exists.
+ *
+ * This prevents the duplicate-lead anti-pattern where two leads run
+ * simultaneously on the same bead, causing duplicate work streams and
+ * wasted tokens (overstory-gktc postmortem).
+ *
+ * Only checks sessions with capability "lead". Builder/scout children
+ * working the same bead (via parent delegation) do not trigger this check.
+ *
+ * @param activeSessions - Currently active (non-zombie, non-completed) sessions
+ * @param taskId - The task ID to check for an existing lead
+ */
+export function checkDuplicateLead(
+	activeSessions: ReadonlyArray<{ agentName: string; taskId: string; capability: string }>,
+	taskId: string,
+): string | null {
+	const existing = activeSessions.find(
+		(s) => s.taskId === taskId && s.capability === "lead",
+	);
+	return existing?.agentName ?? null;
+}
+
+/**
  * Check if spawning another agent would exceed the per-run session limit.
  * Returns true if the limit is reached. A limit of 0 means unlimited.
  *
@@ -442,7 +466,22 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			});
 		}
 
-		// 5d. Bead-level locking: prevent concurrent agents on the same task ID.
+		// 5d. Lead-specific dedup: prevent spawning a second lead for the same bead.
+		// The general checkBeadLock (below) catches most duplicate-agent cases, but
+		// this provides a lead-specific error for the most common postmortem failure.
+		if (capability === "lead") {
+			const existingLead = checkDuplicateLead(activeSessions, taskId);
+			if (existingLead !== null) {
+				throw new AgentError(
+					`A lead agent "${existingLead}" is already active for bead "${taskId}". ` +
+						`Spawning a duplicate lead causes parallel work streams that conflict. ` +
+						`Wait for the existing lead to complete, or stop it with \`ov stop ${existingLead}\`.`,
+					{ agentName: name },
+				);
+			}
+		}
+
+		// 5e. Bead-level locking: prevent concurrent agents on the same task ID.
 		// Exception: the parent agent may delegate its own task to a child.
 		const lockHolder = checkBeadLock(activeSessions, taskId);
 		if (lockHolder !== null && lockHolder !== parentAgent) {
