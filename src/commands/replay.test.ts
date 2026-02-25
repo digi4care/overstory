@@ -228,7 +228,7 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001"]);
 			const out = output();
 
-			expect(out).toContain("=".repeat(70));
+			expect(out).toContain("─".repeat(70));
 		});
 
 		test("shows event count", async () => {
@@ -742,7 +742,7 @@ describe("replayCommand", () => {
 			const out = output();
 
 			expect(out).not.toContain(longValue);
-			expect(out).toContain("...");
+			expect(out).toContain("…");
 		});
 	});
 });

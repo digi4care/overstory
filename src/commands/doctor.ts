@@ -21,6 +21,7 @@ import { checkVersion } from "../doctor/version.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
+import { renderHeader } from "../logging/theme.ts";
 
 /** Registry of all check modules in execution order. */
 const ALL_CHECKS: Array<{ category: DoctorCategory; fn: DoctorCheckFn }> = [
@@ -63,8 +64,7 @@ function printHumanReadable(
 ): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold("Overstory Doctor")}\n`);
-	w("================\n\n");
+	w(`${renderHeader("Overstory Doctor")}\n\n`);
 
 	// Group checks by category
 	const byCategory = new Map<DoctorCategory, DoctorCheck[]>();

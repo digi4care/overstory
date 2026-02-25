@@ -8,6 +8,7 @@
 import { Command } from "commander";
 import { jsonError, jsonOutput } from "../json.ts";
 import { accent, brand, color, muted } from "../logging/color.ts";
+import { thickSeparator } from "../logging/theme.ts";
 
 const TOOLS = [
 	{ name: "overstory", cli: "ov", npm: "@os-eco/overstory-cli" },
@@ -167,7 +168,7 @@ function formatDoctorLine(summary: DoctorSummary): string {
 
 function printHumanOutput(results: ToolResult[]): void {
 	process.stdout.write(`${brand.bold("os-eco Ecosystem")}\n`);
-	process.stdout.write(`${"═".repeat(60)}\n`);
+	process.stdout.write(`${thickSeparator()}\n`);
 	process.stdout.write("\n");
 
 	for (const tool of results) {

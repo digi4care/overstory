@@ -11,23 +11,16 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
-import type { ColorFn } from "../logging/color.ts";
 import { accent, color } from "../logging/color.ts";
+import {
+	buildEventDetail,
+	formatAbsoluteTime,
+	formatDate,
+	formatRelativeTime,
+} from "../logging/format.ts";
+import { eventLabel, renderHeader } from "../logging/theme.ts";
 import { openSessionStore } from "../sessions/compat.ts";
-import type { EventType, StoredEvent } from "../types.ts";
-
-/** Labels and colors for each event type. */
-const EVENT_LABELS: Record<EventType, { label: string; color: ColorFn }> = {
-	tool_start: { label: "TOOL START", color: color.blue },
-	tool_end: { label: "TOOL END  ", color: color.blue },
-	session_start: { label: "SESSION  +", color: color.green },
-	session_end: { label: "SESSION  -", color: color.yellow },
-	mail_sent: { label: "MAIL SENT ", color: color.cyan },
-	mail_received: { label: "MAIL RECV ", color: color.cyan },
-	spawn: { label: "SPAWN     ", color: color.magenta },
-	error: { label: "ERROR     ", color: color.red },
-	custom: { label: "CUSTOM    ", color: color.gray },
-};
+import type { StoredEvent } from "../types.ts";
 
 /**
  * Detect whether a target string looks like a task ID.
@@ -38,100 +31,12 @@ function looksLikeTaskId(target: string): boolean {
 }
 
 /**
- * Format a relative time string from a timestamp.
- * Returns strings like "2m ago", "1h ago", "3d ago".
- */
-function formatRelativeTime(timestamp: string): string {
-	const eventTime = new Date(timestamp).getTime();
-	const now = Date.now();
-	const diffMs = now - eventTime;
-
-	if (diffMs < 0) return "just now";
-
-	const seconds = Math.floor(diffMs / 1000);
-	if (seconds < 60) return `${seconds}s ago`;
-
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
-
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h ago`;
-
-	const days = Math.floor(hours / 24);
-	return `${days}d ago`;
-}
-
-/**
- * Format an absolute time from an ISO timestamp.
- * Returns "HH:MM:SS" portion.
- */
-function formatAbsoluteTime(timestamp: string): string {
-	const match = /T(\d{2}:\d{2}:\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return timestamp;
-}
-
-/**
- * Format the date portion of an ISO timestamp.
- * Returns "YYYY-MM-DD".
- */
-function formatDate(timestamp: string): string {
-	const match = /^(\d{4}-\d{2}-\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return "";
-}
-
-/**
- * Build a detail string for a timeline event based on its type and fields.
- */
-function buildEventDetail(event: StoredEvent): string {
-	const parts: string[] = [];
-
-	if (event.toolName) {
-		parts.push(`tool=${event.toolName}`);
-	}
-
-	if (event.toolDurationMs !== null) {
-		parts.push(`duration=${event.toolDurationMs}ms`);
-	}
-
-	if (event.data) {
-		try {
-			const parsed: unknown = JSON.parse(event.data);
-			if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-				const data = parsed as Record<string, unknown>;
-				for (const [key, value] of Object.entries(data)) {
-					if (value !== null && value !== undefined) {
-						const strValue = typeof value === "string" ? value : JSON.stringify(value);
-						// Truncate long values
-						const truncated = strValue.length > 80 ? `${strValue.slice(0, 77)}...` : strValue;
-						parts.push(`${key}=${truncated}`);
-					}
-				}
-			}
-		} catch {
-			// data is not valid JSON; show it raw if short enough
-			if (event.data.length <= 80) {
-				parts.push(event.data);
-			}
-		}
-	}
-
-	return parts.join(" ");
-}
-
-/**
  * Print events as a formatted timeline with ANSI colors.
  */
 function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime: boolean): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold(`Timeline for ${accent(agentName)}`)}\n`);
-	w(`${"=".repeat(70)}\n`);
+	w(`${renderHeader(`Timeline for ${accent(agentName)}`)}\n`);
 
 	if (events.length === 0) {
 		w(`${color.dim("No events found.")}\n`);
@@ -157,10 +62,7 @@ function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime
 			? formatAbsoluteTime(event.createdAt)
 			: formatRelativeTime(event.createdAt);
 
-		const eventInfo = EVENT_LABELS[event.eventType] ?? {
-			label: event.eventType.padEnd(10),
-			color: color.gray,
-		};
+		const label = eventLabel(event.eventType);
 
 		const levelColorFn =
 			event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
@@ -173,7 +75,7 @@ function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime
 
 		w(
 			`${color.dim(timeStr.padStart(10))} ` +
-				`${applyLevel(eventInfo.color(color.bold(eventInfo.label)))}` +
+				`${applyLevel(label.color(color.bold(label.full)))}` +
 				`${agentLabel}${detailSuffix}\n`,
 		);
 	}

@@ -226,7 +226,7 @@ describe("errorsCommand", () => {
 			const out = output();
 
 			expect(out).toContain("Errors");
-			expect(out).toContain("=".repeat(70));
+			expect(out).toContain("─".repeat(70));
 		});
 
 		test("shows error count", async () => {
@@ -344,8 +344,7 @@ describe("errorsCommand", () => {
 			await errorsCommand([]);
 			const out = output();
 
-			expect(out).toContain("reason=disk full");
-			expect(out).toContain("code=500");
+			expect(out).toContain('data={"reason":"disk full","code":500}');
 		});
 
 		test("long data values are truncated", async () => {
@@ -364,8 +363,8 @@ describe("errorsCommand", () => {
 
 			// The full 200-char value should not appear
 			expect(out).not.toContain(longValue);
-			// But a truncated version with "..." should
-			expect(out).toContain("...");
+			// But a truncated version with "…" should
+			expect(out).toContain("…");
 		});
 
 		test("non-JSON data is shown raw if short", async () => {
