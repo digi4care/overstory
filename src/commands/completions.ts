@@ -5,6 +5,7 @@
  */
 
 import { Command } from "commander";
+import { printError } from "../logging/color.ts";
 
 interface FlagDef {
 	name: string;
@@ -872,8 +873,7 @@ export function completionsCommand(args: string[]): void {
 	const shell = args[0];
 
 	if (!shell) {
-		process.stderr.write("Error: missing shell argument\n");
-		process.stderr.write("Usage: ov --completions <bash|zsh|fish>\n");
+		printError("missing shell argument", "Usage: ov --completions <bash|zsh|fish>");
 		process.exit(1);
 	}
 
@@ -889,8 +889,7 @@ export function completionsCommand(args: string[]): void {
 			script = generateFish();
 			break;
 		default:
-			process.stderr.write(`Error: unknown shell '${shell}'\n`);
-			process.stderr.write("Supported shells: bash, zsh, fish\n");
+			printError(`unknown shell '${shell}'`, "Supported shells: bash, zsh, fish");
 			process.exit(1);
 	}
 
