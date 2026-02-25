@@ -127,17 +127,18 @@ describe("color module", () => {
 		const { printSuccess, setQuiet } = await import("./color.ts");
 		setQuiet(false);
 		const logged: string[] = [];
-		const originalLog = console.log;
-		console.log = (...args: unknown[]) => {
-			logged.push(args.map(String).join(" "));
-		};
+		const originalWrite = process.stdout.write;
+		process.stdout.write = ((chunk: string | Uint8Array) => {
+			logged.push(String(chunk));
+			return true;
+		}) as typeof process.stdout.write;
 		try {
 			printSuccess("Created issue");
 			expect(logged.length).toBe(1);
 			expect(logged[0]).toContain("\u2713");
 			expect(logged[0]).toContain("Created issue");
 		} finally {
-			console.log = originalLog;
+			process.stdout.write = originalWrite;
 		}
 	});
 
@@ -145,17 +146,18 @@ describe("color module", () => {
 		const { printSuccess, setQuiet } = await import("./color.ts");
 		setQuiet(false);
 		const logged: string[] = [];
-		const originalLog = console.log;
-		console.log = (...args: unknown[]) => {
-			logged.push(args.map(String).join(" "));
-		};
+		const originalWrite = process.stdout.write;
+		process.stdout.write = ((chunk: string | Uint8Array) => {
+			logged.push(String(chunk));
+			return true;
+		}) as typeof process.stdout.write;
 		try {
 			printSuccess("Created issue", "seeds-a1b2");
 			expect(logged.length).toBe(1);
 			expect(logged[0]).toContain("Created issue");
 			expect(logged[0]).toContain("seeds-a1b2");
 		} finally {
-			console.log = originalLog;
+			process.stdout.write = originalWrite;
 		}
 	});
 
@@ -163,10 +165,11 @@ describe("color module", () => {
 		const { printWarning, setQuiet } = await import("./color.ts");
 		setQuiet(false);
 		const logged: string[] = [];
-		const originalLog = console.log;
-		console.log = (...args: unknown[]) => {
-			logged.push(args.map(String).join(" "));
-		};
+		const originalWrite = process.stdout.write;
+		process.stdout.write = ((chunk: string | Uint8Array) => {
+			logged.push(String(chunk));
+			return true;
+		}) as typeof process.stdout.write;
 		try {
 			printWarning("3 prompts stale", "run cn emit --all");
 			expect(logged.length).toBe(1);
@@ -174,17 +177,18 @@ describe("color module", () => {
 			expect(logged[0]).toContain("3 prompts stale");
 			expect(logged[0]).toContain("run cn emit --all");
 		} finally {
-			console.log = originalLog;
+			process.stdout.write = originalWrite;
 		}
 	});
 
 	test("printError outputs to stderr with cross, message, and dim hint", async () => {
 		const { printError } = await import("./color.ts");
 		const errored: string[] = [];
-		const originalError = console.error;
-		console.error = (...args: unknown[]) => {
-			errored.push(args.map(String).join(" "));
-		};
+		const originalWrite = process.stderr.write;
+		process.stderr.write = ((chunk: string | Uint8Array) => {
+			errored.push(String(chunk));
+			return true;
+		}) as typeof process.stderr.write;
 		try {
 			printError("Config not found", "run sd init");
 			expect(errored.length).toBe(1);
@@ -192,7 +196,7 @@ describe("color module", () => {
 			expect(errored[0]).toContain("Config not found");
 			expect(errored[0]).toContain("run sd init");
 		} finally {
-			console.error = originalError;
+			process.stderr.write = originalWrite;
 		}
 	});
 
@@ -200,32 +204,37 @@ describe("color module", () => {
 		const { printHint, setQuiet } = await import("./color.ts");
 		setQuiet(false);
 		const logged: string[] = [];
-		const originalLog = console.log;
-		console.log = (...args: unknown[]) => {
-			logged.push(args.map(String).join(" "));
-		};
+		const originalWrite = process.stdout.write;
+		process.stdout.write = ((chunk: string | Uint8Array) => {
+			logged.push(String(chunk));
+			return true;
+		}) as typeof process.stdout.write;
 		try {
 			printHint("Run without --dry-run");
 			expect(logged.length).toBe(1);
 			expect(logged[0]).toContain("Run without --dry-run");
 		} finally {
-			console.log = originalLog;
+			process.stdout.write = originalWrite;
 		}
 	});
 
 	test("quiet mode suppresses printSuccess, printWarning, printHint but not printError", async () => {
-		const { printSuccess, printWarning, printHint, printError, setQuiet } = await import("./color.ts");
+		const { printSuccess, printWarning, printHint, printError, setQuiet } = await import(
+			"./color.ts"
+		);
 		setQuiet(true);
 		const logged: string[] = [];
 		const errored: string[] = [];
-		const originalLog = console.log;
-		const originalError = console.error;
-		console.log = (...args: unknown[]) => {
-			logged.push(args.map(String).join(" "));
-		};
-		console.error = (...args: unknown[]) => {
-			errored.push(args.map(String).join(" "));
-		};
+		const originalStdoutWrite = process.stdout.write;
+		const originalStderrWrite = process.stderr.write;
+		process.stdout.write = ((chunk: string | Uint8Array) => {
+			logged.push(String(chunk));
+			return true;
+		}) as typeof process.stdout.write;
+		process.stderr.write = ((chunk: string | Uint8Array) => {
+			errored.push(String(chunk));
+			return true;
+		}) as typeof process.stderr.write;
 		try {
 			printSuccess("suppressed success");
 			printWarning("suppressed warning");
@@ -235,8 +244,8 @@ describe("color module", () => {
 			expect(errored.length).toBe(1);
 			expect(errored[0]).toContain("visible error");
 		} finally {
-			console.log = originalLog;
-			console.error = originalError;
+			process.stdout.write = originalStdoutWrite;
+			process.stderr.write = originalStderrWrite;
 			setQuiet(false);
 		}
 	});

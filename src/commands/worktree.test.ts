@@ -309,7 +309,7 @@ describe("worktreeCommand", () => {
 			const out = output();
 
 			expect(out).toContain("Removed");
-		expect(out).toContain("overstory/completed-agent/task-done");
+			expect(out).toContain("overstory/completed-agent/task-done");
 			expect(out).toContain("Cleaned 1 worktree");
 
 			// Verify the worktree directory is gone
