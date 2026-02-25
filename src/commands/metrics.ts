@@ -9,26 +9,13 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { jsonOutput } from "../json.ts";
+import { formatDuration } from "../logging/format.ts";
+import { renderHeader } from "../logging/theme.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 
 interface MetricsOpts {
 	last?: string;
 	json?: boolean;
-}
-
-/**
- * Format milliseconds as human-readable duration.
- */
-function formatDuration(ms: number): string {
-	if (ms === 0) return "0s";
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainSec = seconds % 60;
-	if (minutes < 60) return `${minutes}m ${remainSec}s`;
-	const hours = Math.floor(minutes / 60);
-	const remainMin = minutes % 60;
-	return `${hours}h ${remainMin}m`;
 }
 
 async function executeMetrics(opts: MetricsOpts): Promise<void> {
@@ -64,8 +51,7 @@ async function executeMetrics(opts: MetricsOpts): Promise<void> {
 			return;
 		}
 
-		process.stdout.write("Session Metrics\n");
-		process.stdout.write(`${"═".repeat(60)}\n\n`);
+		process.stdout.write(`${renderHeader("Session Metrics")}\n\n`);
 
 		// Summary stats
 		const completed = sessions.filter((s) => s.completedAt !== null);
