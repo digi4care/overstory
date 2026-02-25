@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.11] - 2026-02-25
+
+### Added
+
+#### Per-Lead Agent Budget Ceiling
+- **`agents.maxAgentsPerLead` config** (default: 5) — limits how many active children a single lead agent can spawn; set to 0 for unlimited
+- **`--max-agents <n>` flag on `ov sling`** — CLI override for the per-lead ceiling when spawning under a parent
+- **`checkParentAgentLimit()`** — pure-function guard that counts active children per parent and blocks spawns at the limit
+
+#### Dispatch-Level Overrides
+- **`--skip-review` flag on `ov sling`** — instructs a lead agent to skip Phase 3 review and self-verify instead (reads builder diff + runs quality gates)
+- **`--dispatch-max-agents <n>` flag on `ov sling`** — per-lead agent ceiling override injected into the overlay so the lead knows its budget
+- **`formatDispatchOverrides()`** in overlay system — generates a `## Dispatch Overrides` section in lead overlays when `skipReview` or `maxAgentsOverride` are set
+- **`dispatch-overrides` section in `agents/lead.md`** — documents the override protocol so leads know to check their overlay before following the default three-phase workflow
+- **`DispatchPayload` extended** with `skipScouts`, `skipReview`, and `maxAgents` optional fields
+
+#### Duplicate Lead Prevention
+- **`checkDuplicateLead()`** — prevents two lead agents from concurrently working the same task ID, avoiding the duplicate work stream anti-pattern (overstory-gktc postmortem)
+
+#### Mail Refactoring
+- **`shouldAutoNudge()` and `isDispatchNudge()`** exported from mail.ts for testability — previously inlined logic now unit-testable
+- **`AUTO_NUDGE_TYPES`** exported as `ReadonlySet` for direct test assertions
+
+#### Testing
+- **`sling.test.ts`** — expanded (201 lines added) covering `checkDuplicateLead`, `checkParentAgentLimit`, per-lead budget ceiling enforcement, and dispatch override validation
+- **`overlay.test.ts`** — expanded (236 lines added) covering `formatDispatchOverrides`, skip-review overlay, max-agents overlay, and combined overrides
+- **`mail.test.ts`** — expanded (64 lines added) covering `shouldAutoNudge`, `isDispatchNudge`, and dispatch nudge behavior
+- **`hooks-deployer.test.ts`** — new test file (105 lines) covering hooks deployment and configurable safe prefix extraction
+- **`config.test.ts`** — expanded (22 lines added) covering `maxAgentsPerLead` validation
+
+### Changed
+
+- **Terminology normalization** — replaced "beads" with "task" throughout CLI copy and generic code: `checkBeadLock` → `checkTaskLock`, `{{BEAD_ID}}` → `{{TASK_ID}}` in overlay template, error messages updated ("Bead is already being worked" → "Task is already being worked")
+- **README unified** to canonical os-eco template — shortened, restructured with table-based CLI reference, consistent badge style
+- **`agents/lead.md`** — added `dispatch-overrides` section documenting SKIP REVIEW and MAX AGENTS override protocol
+- **Default tracker name** changed from `"beads"` to `"seeds"` in overlay fallback
+
+### Fixed
+
+- **`ov trace` description** — changed from "agent/bead" to "agent or task" for consistency with terminology normalization
+
+### Testing
+- 2283 tests across 79 files (5749 `expect()` calls)
+
 ## [0.6.10] - 2026-02-25
 
 ### Added
@@ -851,7 +895,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.10...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.11...HEAD
+[0.6.11]: https://github.com/jayminwest/overstory/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/jayminwest/overstory/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/jayminwest/overstory/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/jayminwest/overstory/compare/v0.6.7...v0.6.8

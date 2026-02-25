@@ -75,7 +75,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | Command | Description |
 |---------|-------------|
 | `ov init` | Initialize `.overstory/` in current project (`--yes`, `--name`) |
-| `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-task-check`, `--json`) |
+| `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-review`, `--max-agents`, `--dispatch-max-agents`, `--skip-task-check`, `--json`) |
 | `ov stop <agent-name>` | Terminate a running agent (`--clean-worktree`, `--json`) |
 | `ov prime` | Load context for orchestrator/agent (`--agent`, `--compact`) |
 | `ov spec write <task-id>` | Write a task specification (`--body`) |
@@ -124,7 +124,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | `ov status` | Show all active agents, worktrees, tracker state (`--json`, `--verbose`, `--all`) |
 | `ov dashboard` | Live TUI dashboard for agent monitoring (`--interval`, `--all`) |
 | `ov inspect <agent>` | Deep per-agent inspection (`--follow`, `--interval`, `--no-tmux`, `--limit`, `--json`) |
-| `ov trace` | View agent/bead timeline (`--agent`, `--run`, `--since`, `--until`, `--limit`, `--json`) |
+| `ov trace` | View agent/task timeline (`--agent`, `--run`, `--since`, `--until`, `--limit`, `--json`) |
 | `ov errors` | Aggregated error view across agents (`--agent`, `--run`, `--since`, `--until`, `--limit`, `--json`) |
 | `ov replay` | Interleaved chronological replay (`--run`, `--agent`, `--since`, `--until`, `--limit`, `--json`) |
 | `ov feed` | Unified real-time event stream (`--follow`, `--interval`, `--agent`, `--run`, `--json`) |
@@ -226,7 +226,7 @@ overstory/
       logs.ts                     NDJSON log query
       feed.ts                     Unified real-time event stream
       run.ts                      Orchestration run lifecycle
-      trace.ts                    Agent/bead timeline viewing
+      trace.ts                    Agent/task timeline viewing
       clean.ts                    Worktree/session cleanup
       doctor.ts                   Health check runner (10 check modules)
       inspect.ts                  Deep per-agent inspection

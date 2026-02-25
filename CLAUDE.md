@@ -255,6 +255,9 @@ ov sling <task-id>              Spawn a worker agent
   --parent <agent-name>                  Parent (for hierarchy tracking)
   --depth <n>                            Current hierarchy depth (default: 0)
   --skip-scout                           Skip scout phase (passed to lead overlay)
+  --skip-review                          Skip review phase for lead agents
+  --max-agents <n>                       Max children per lead (overrides config)
+  --dispatch-max-agents <n>              Per-lead max agents ceiling (injected into overlay)
   --skip-task-check                      Skip task existence validation
   --force-hierarchy                      Bypass hierarchy validation (debugging only)
   --json                                 JSON output
@@ -367,7 +370,7 @@ ov inspect <agent>               Deep inspection of a single agent
   --no-tmux                              Skip tmux capture-pane
   --json                                 JSON output
 
-ov trace <target>               Chronological event timeline for agent/bead
+ov trace <target>               Chronological event timeline for agent or task
   --since <ts>  --until <ts>             Time range filter (ISO 8601)
   --limit <n>                            Max events (default: 100)
   --json                                 JSON output
