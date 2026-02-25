@@ -9,7 +9,7 @@ Project-agnostic swarm system for Claude Code agent orchestration. Overstory tur
 - **Runtime:** Bun (runs TypeScript directly, no build step)
 - **Language:** TypeScript with strict mode (`noUncheckedIndexedAccess`, no `any`)
 - **Linting:** Biome (formatter + linter in one tool)
-- **Runtime dependencies:** `chalk` (v5, ESM-only color output). Core I/O uses Bun built-in APIs (`bun:sqlite`, `Bun.spawn`, `Bun.file`, etc.)
+- **Runtime dependencies:** `chalk` (v5, ESM-only color output), `@os-eco/mulch-cli` (programmatic API for record/search/query). Core I/O uses Bun built-in APIs (`bun:sqlite`, `Bun.spawn`, `Bun.file`, etc.)
 - **CLI framework:** Commander.js (typed options, subcommands, auto-generated help)
 - **Dev dependencies:** `@types/bun`, `typescript`, `@biomejs/biome`
 - **External CLIs (not npm deps):** `bd` (beads) or `sd` (seeds) for issue tracking, `mulch` for expertise, `git`, `tmux`
@@ -118,7 +118,7 @@ overstory/                        # This repo (the overstory tool itself)
       client.ts                   # Mail operations (send/check/list/read/reply)
       broadcast.ts                # Group address resolution (@all, @builders, etc.)
     mulch/
-      client.ts                   # mulch CLI wrapper
+      client.ts                   # mulch client (programmatic API for record/search/query, CLI wrapper for rest)
     merge/
       queue.ts                    # FIFO merge queue
       resolver.ts                 # Tiered conflict resolution (4 tiers)
@@ -131,6 +131,8 @@ overstory/                        # This repo (the overstory tool itself)
       sanitizer.ts                # Secret redaction
       reporter.ts                 # Console reporter (ANSI colors)
       color.ts                    # Central color control (NO_COLOR, --quiet)
+      theme.ts                    # Canonical visual theme (state colors, event labels, separators)
+      format.ts                   # Shared formatting (duration, timestamps, agent colors)
     metrics/
       store.ts                    # SQLite metrics storage
       summary.ts                  # Metrics reporting
@@ -197,7 +199,7 @@ target-project/
 
 ### Dependencies
 
-- **Minimal runtime dependencies.** Only `chalk` (color output) and `commander` (CLI framework) are allowed as runtime deps.
+- **Minimal runtime dependencies.** Only `chalk` (color output), `commander` (CLI framework), and `@os-eco/mulch-cli` (programmatic expertise API) are allowed as runtime deps.
 - Use Bun built-in APIs: `bun:sqlite` for databases, `Bun.spawn` for subprocesses, `Bun.file` for file I/O, `Bun.write` for writes
 - External tools (`bd`, `mulch`, `git`, `tmux`) are invoked as subprocesses via `Bun.spawn`, never as npm imports
 - Dev dependencies are limited to types and tooling

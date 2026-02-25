@@ -250,12 +250,12 @@ overstory/
     mail/                         SQLite mail system (typed protocol, broadcast)
     merge/                        FIFO queue + conflict resolution
     watchdog/                     Tiered health monitoring (daemon, triage, health)
-    logging/                      Multi-format logger + sanitizer + reporter + color control
+    logging/                      Multi-format logger + sanitizer + reporter + color control + shared theme/format
     metrics/                      SQLite metrics + transcript parsing
     doctor/                       Health check modules (10 checks)
     insights/                     Session insight analyzer for auto-expertise
     tracker/                      Pluggable task tracker (beads + seeds backends)
-    mulch/                        mulch CLI wrapper
+    mulch/                        mulch client (programmatic API + CLI wrapper)
     e2e/                          End-to-end lifecycle tests
   agents/                         Base agent definitions (.md, 8 roles) + skill definitions
   templates/                      Templates for overlays and hooks

@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.12] - 2026-02-25
+
+### Added
+
+#### Shared Visual Primitives
+- **`src/logging/theme.ts`** — canonical visual theme for CLI output: agent state colors/icons, event type labels (compact + full), agent color palette for multi-agent displays, separator characters, and header/sub-header rendering helpers
+- **`src/logging/format.ts`** — shared formatting utilities: duration formatting (`formatDuration`), absolute/relative/date timestamp formatting, event detail builder (`buildEventDetail`), agent color mapping (`buildAgentColorMap`/`extendAgentColorMap`), status color helpers for merge/priority/log-level
+
+#### Theme/Format Adoption Across Observability Commands
+- Dashboard, status, inspect, metrics, run, and costs commands refactored to use shared theme/format primitives — eliminates duplicated color maps, duration formatters, and separator rendering across 6 commands
+- Errors, feed, logs, replay, and trace commands refactored to use shared theme/format primitives — eliminates duplicated event label rendering, timestamp formatting, and agent color assignment across 5 commands
+- Net code reduction: ~826 lines removed, replaced by ~214+132 lines of shared primitives
+
+#### Mulch Programmatic API Migration
+- `MulchClient.record()`, `search()`, and `query()` migrated from `Bun.spawn` CLI wrappers to `@os-eco/mulch-cli` programmatic API — eliminates subprocess overhead for high-frequency expertise operations
+- **`@os-eco/mulch-cli` added as runtime dependency** (^0.6.2) — first programmatic API dependency in the ecosystem
+- Variable-based dynamic import pattern (`const MULCH_PKG = "..."; import(MULCH_PKG)`) prevents tsc from statically resolving into mulch's raw `.ts` source files
+- Local `MulchExpertiseRecord` and `MulchProgrammaticApi` type definitions avoid cross-project `noUncheckedIndexedAccess` conflicts
+
+#### MetricsStore Improvements
+- **`countSessions()`** method — returns total session count without the `LIMIT` cap that `getRecentSessions()` applies, fixing accurate session count reporting in metrics views
+
+#### Lead Agent Workflow Improvements
+- **`WORKTREE_ISSUE_CREATE` failure mode** — prevents leads from running `{{TRACKER_CLI}} create` in worktrees, where issues are lost on cleanup
+- Lead workflow updated to **mail coordinator for issue creation** instead of direct tracker CLI calls — coordinator creates issues on main branch
+- Scout/builder/reviewer spawning simplified with `--skip-task-check` — removes the pattern of creating separate tracker issues for each sub-agent
+- `{{TRACKER_CLI}} create` removed from lead capabilities list
+
+#### Testing
+- Test suite grew from 2283 to 2288 tests across 79 files (5744 expect() calls)
+
+### Changed
+- 12 observability commands consolidated onto shared `theme.ts` + `format.ts` primitives — reduces per-command boilerplate and ensures visual consistency across all CLI output
+- `@types/js-yaml` added as dev dependency (^4.0.9)
+
+### Fixed
+- Static imports of `theme.ts`/`format.ts` replaced with variable-based dynamic pattern to fix typecheck errors when tsc follows into mulch's raw `.ts` source files
+- `getRecentSessions()` limit cap no longer affects session count reporting — dedicated `countSessions()` method provides uncapped counts
+
 ## [0.6.11] - 2026-02-25
 
 ### Added
@@ -895,7 +934,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.11...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.12...HEAD
+[0.6.12]: https://github.com/jayminwest/overstory/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/jayminwest/overstory/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/jayminwest/overstory/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/jayminwest/overstory/compare/v0.6.8...v0.6.9
