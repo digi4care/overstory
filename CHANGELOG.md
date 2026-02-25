@@ -23,12 +23,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Global CLI Flag
 - **`--timing` flag** — prints command execution time to stderr after any command completes (e.g., `Done in 42ms`)
 
+#### Configurable Quality Gates
+- **Quality gate placeholders in agent prompts** — agent base definitions (builder, merger, reviewer, lead) now use `{{QUALITY_GATE_*}}` placeholders instead of hardcoded `bun test`/`bun run lint`/`bun run typecheck` commands, driven by `project.qualityGates` config
+- **4 quality gate formatter functions** — `formatQualityGatesInline`, `formatQualityGateSteps`, `formatQualityGateBash`, `formatQualityGateCapabilities` added to overlay system for flexible placeholder resolution
+- **Configurable safe command prefixes** — `SAFE_BASH_PREFIXES` in hooks-deployer now dynamically extracted from quality gate config via `extractQualityGatePrefixes()`, replacing hardcoded `bun test`/`bun run lint`/`bun run typecheck` entries
+- **Config-driven hooks deployment** — `sling.ts` now passes `config.project.qualityGates` through to `deployHooks()` so non-implementation agents can run project-specific quality gate commands
+
 #### Testing
 - **`ecosystem.test.ts`** — new test file (307 lines) covering ecosystem command output, JSON mode, and tool detection
 - **`upgrade.test.ts`** — new test file (46 lines) covering upgrade command registration and option parsing
 - **`databases.test.ts`** — new test file (38 lines) covering database health check fix closures
 - **`merge-queue.test.ts`** — new test file (98 lines) covering merge queue health check and fix closures
 - **`structure.test.ts`** — expanded (131 lines added) covering structure check fix closures for missing directories
+- **`overlay.test.ts`** — expanded (157 lines added) covering quality gate formatters and placeholder resolution
+- **`hooks-deployer.test.ts`** — expanded (52 lines added) covering configurable safe prefix extraction
+
+### Changed
+
+- **Agent base definitions updated** — builder, merger, reviewer, and lead `.md` files now use `{{QUALITY_GATE_*}}` template placeholders instead of hardcoded bun commands
+- **`DEFAULT_QUALITY_GATES` consolidated** — removed duplicate definition from `overlay.ts`, now imported from `config.ts` as single source of truth
 
 ### Fixed
 
@@ -38,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`process.exit(1)` in completions.ts** — replaced with `process.exitCode = 1; return` to avoid abrupt process termination
 
 ### Testing
-- 2221 tests across 79 files (5653 `expect()` calls)
+- 2241 tests across 79 files (5694 `expect()` calls)
 
 ## [0.6.9] - 2026-02-25
 

@@ -285,13 +285,13 @@ Global Flags:
 - **Dependencies**: Minimal runtime — `chalk` (color output), `commander` (CLI framework), core I/O via Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2221 tests across 79 files, colocated with source)
+- **Testing**: `bun test` (2241 tests across 79 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2221 tests across 79 files)
+# Run tests (2241 tests across 79 files)
 bun test
 
 # Run a single test
