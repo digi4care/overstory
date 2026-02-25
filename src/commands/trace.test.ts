@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { stripAnsi } from "../logging/color.ts";
 import { createSessionStore } from "../sessions/store.ts";
 import type { InsertEvent } from "../types.ts";
 import { traceCommand } from "./trace.ts";
@@ -263,7 +264,7 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1"]);
 			const out = output();
 
-			expect(out).toContain("Timeline for builder-1");
+			expect(stripAnsi(out)).toContain("Timeline for builder-1");
 		});
 
 		test("shows event count", async () => {
@@ -745,7 +746,7 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1"]);
 			const out = output();
 
-			expect(out).toContain("Timeline for builder-1");
+			expect(stripAnsi(out)).toContain("Timeline for builder-1");
 			expect(out).toContain("1 event");
 		});
 	});

@@ -12,7 +12,7 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
-import { color } from "../logging/color.ts";
+import { accent, color } from "../logging/color.ts";
 import type { StoredEvent } from "../types.ts";
 
 /**
@@ -116,7 +116,7 @@ function printErrors(events: StoredEvent[]): void {
 		firstGroup = false;
 
 		w(
-			`${color.bold(agentName)} ${color.dim(`(${agentEvents.length} error${agentEvents.length === 1 ? "" : "s"})`)}\n`,
+			`${accent(agentName)} ${color.dim(`(${agentEvents.length} error${agentEvents.length === 1 ? "" : "s"})`)}\n`,
 		);
 
 		for (const event of agentEvents) {

@@ -12,7 +12,7 @@ import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
 import type { ColorFn } from "../logging/color.ts";
-import { color } from "../logging/color.ts";
+import { accent, color } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { EventType, StoredEvent } from "../types.ts";
 
@@ -130,7 +130,7 @@ function buildEventDetail(event: StoredEvent): string {
 function printTimeline(events: StoredEvent[], agentName: string, useAbsoluteTime: boolean): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold(`Timeline for ${agentName}`)}\n`);
+	w(`${color.bold(`Timeline for ${accent(agentName)}`)}\n`);
 	w(`${"=".repeat(70)}\n`);
 
 	if (events.length === 0) {

@@ -16,7 +16,7 @@ import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonError, jsonOutput } from "../json.ts";
-import { printError, printHint, printSuccess } from "../logging/color.ts";
+import { accent, printError, printHint, printSuccess } from "../logging/color.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import type { AgentSession, Run } from "../types.ts";
 
@@ -99,7 +99,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 			if (json) {
 				jsonOutput("run", { run: null, message: `Run ${runId} not found in store` });
 			} else {
-				process.stdout.write(`Run ${runId} not found in store\n`);
+				process.stdout.write(`Run ${accent(runId)} not found in store\n`);
 			}
 			return;
 		}
@@ -111,7 +111,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 
 		process.stdout.write("Current Run\n");
 		process.stdout.write(`${"=".repeat(50)}\n`);
-		process.stdout.write(`  ID:       ${run.id}\n`);
+		process.stdout.write(`  ID:       ${accent(run.id)}\n`);
 		process.stdout.write(`  Status:   ${run.status}\n`);
 		process.stdout.write(`  Started:  ${run.startedAt}\n`);
 		process.stdout.write(`  Agents:   ${run.agentCount}\n`);
@@ -159,7 +159,7 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 		process.stdout.write(`${"-".repeat(70)}\n`);
 
 		for (const run of runs) {
-			const id = run.id.length > 35 ? `${run.id.slice(0, 32)}...` : run.id.padEnd(36);
+			const id = accent(run.id.length > 35 ? `${run.id.slice(0, 32)}...` : run.id.padEnd(36));
 			const status = run.status.padEnd(10);
 			const agents = String(run.agentCount).padEnd(7);
 			const duration = runDuration(run);
@@ -247,7 +247,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 
 		process.stdout.write("Run Details\n");
 		process.stdout.write(`${"=".repeat(60)}\n`);
-		process.stdout.write(`  ID:       ${run.id}\n`);
+		process.stdout.write(`  ID:       ${accent(run.id)}\n`);
 		process.stdout.write(`  Status:   ${run.status}\n`);
 		process.stdout.write(`  Started:  ${run.startedAt}\n`);
 		if (run.completedAt) {
@@ -262,7 +262,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 			for (const agent of agents) {
 				const agentDuration = formatAgentDuration(agent);
 				process.stdout.write(
-					`  ${agent.agentName} [${agent.capability}] ${agent.state} | ${agentDuration}\n`,
+					`  ${accent(agent.agentName)} [${agent.capability}] ${agent.state} | ${agentDuration}\n`,
 				);
 			}
 		} else {
