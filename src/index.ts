@@ -15,6 +15,7 @@ import { createCoordinatorCommand } from "./commands/coordinator.ts";
 import { createCostsCommand } from "./commands/costs.ts";
 import { createDashboardCommand } from "./commands/dashboard.ts";
 import { createDoctorCommand } from "./commands/doctor.ts";
+import { createEcosystemCommand } from "./commands/ecosystem.ts";
 import { createErrorsCommand } from "./commands/errors.ts";
 import { createFeedCommand } from "./commands/feed.ts";
 import { createGroupCommand } from "./commands/group.ts";
@@ -87,6 +88,7 @@ const COMMANDS = [
 	"logs",
 	"watch",
 	"trace",
+	"ecosystem",
 	"feed",
 	"errors",
 	"replay",
@@ -359,6 +361,8 @@ program
 	});
 
 program.addCommand(createFeedCommand());
+
+program.addCommand(createEcosystemCommand());
 
 program.addCommand(createErrorsCommand());
 
