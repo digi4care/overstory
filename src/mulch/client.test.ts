@@ -451,6 +451,26 @@ describe("createMulchClient", () => {
 			const result = await client.search("test", { file: "src/config.ts", sortByScore: true });
 			expect(typeof result).toBe("string");
 		});
+
+		test.skipIf(!hasMulch)("roundtrip: record via API then search and find it", async () => {
+			await initMulch();
+			const addProc = Bun.spawn(["ml", "add", "roundtrip"], {
+				cwd: tempDir,
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			await addProc.exited;
+
+			const client = createMulchClient(tempDir);
+			await client.record("roundtrip", {
+				type: "convention",
+				description: "unique-roundtrip-marker-xyz",
+			});
+
+			const result = await client.search("unique-roundtrip-marker-xyz");
+			expect(typeof result).toBe("string");
+			expect(result).toContain("unique-roundtrip-marker-xyz");
+		});
 	});
 
 	describe("diff", () => {
