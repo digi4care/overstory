@@ -495,6 +495,85 @@ describe("generateOverlay", () => {
 
 		expect(output).toContain("bd close overstory-back");
 	});
+
+	test("dispatch overrides: skipReview injects SKIP REVIEW directive for leads", async () => {
+		const config = makeConfig({
+			capability: "lead",
+			skipReview: true,
+			canSpawn: true,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).toContain("Dispatch Overrides");
+		expect(output).toContain("SKIP REVIEW");
+		expect(output).toContain("Self-verify");
+	});
+
+	test("dispatch overrides: maxAgentsOverride injects MAX AGENTS directive for leads", async () => {
+		const config = makeConfig({
+			capability: "lead",
+			maxAgentsOverride: 3,
+			canSpawn: true,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).toContain("Dispatch Overrides");
+		expect(output).toContain("MAX AGENTS");
+		expect(output).toContain("3");
+	});
+
+	test("dispatch overrides: both skipReview and maxAgentsOverride together", async () => {
+		const config = makeConfig({
+			capability: "lead",
+			skipReview: true,
+			maxAgentsOverride: 4,
+			canSpawn: true,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).toContain("SKIP REVIEW");
+		expect(output).toContain("MAX AGENTS");
+		expect(output).toContain("4");
+	});
+
+	test("dispatch overrides: not injected for builder capability", async () => {
+		const config = makeConfig({
+			capability: "builder",
+			skipReview: true,
+			maxAgentsOverride: 3,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).not.toContain("Dispatch Overrides");
+	});
+
+	test("dispatch overrides: not injected when no overrides set", async () => {
+		const config = makeConfig({
+			capability: "lead",
+			canSpawn: true,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).not.toContain("Dispatch Overrides");
+	});
+
+	test("dispatch overrides: maxAgentsOverride of 0 is not injected", async () => {
+		const config = makeConfig({
+			capability: "lead",
+			maxAgentsOverride: 0,
+			canSpawn: true,
+		});
+		const output = await generateOverlay(config);
+
+		expect(output).not.toContain("MAX AGENTS");
+	});
+
+	test("no unreplaced DISPATCH_OVERRIDES placeholder", async () => {
+		const config = makeConfig();
+		const output = await generateOverlay(config);
+
+		expect(output).not.toContain("{{DISPATCH_OVERRIDES}}");
+	});
 });
 
 describe("writeOverlay", () => {

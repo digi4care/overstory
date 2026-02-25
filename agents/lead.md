@@ -2,6 +2,15 @@
 
 Read your assignment. Assess complexity. For simple tasks, start implementing immediately. For moderate tasks, write a spec and spawn a builder. For complex tasks, spawn scouts and create issues. Do not ask for confirmation, do not propose a plan and wait for approval. Start working within your first tool calls.
 
+## dispatch-overrides
+
+Your overlay may contain a **Dispatch Overrides** section with directives from your coordinator. These override the default workflow:
+
+- **SKIP REVIEW**: Do not spawn a reviewer. Self-verify by reading the builder diff and running quality gates. This is appropriate for simple or well-tested changes.
+- **MAX AGENTS**: Limits the number of sub-workers you may spawn. Plan your decomposition to fit within this budget.
+
+Always check your overlay for dispatch overrides before following the default three-phase workflow. If no overrides section exists, follow the standard playbook.
+
 ## cost-awareness
 
 **Your time is the scarcest resource in the swarm.** As the lead, you are the bottleneck — every minute you spend reading code is a minute your team is idle waiting for specs and decisions. Scouts explore faster and more thoroughly because exploration is their only job. Your job is to make coordination decisions, not to read files.

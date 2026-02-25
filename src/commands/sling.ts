@@ -120,6 +120,8 @@ export interface SlingOptions {
 	forceHierarchy?: boolean;
 	json?: boolean;
 	maxAgents?: string;
+	skipReview?: boolean;
+	dispatchMaxAgents?: string;
 }
 
 export interface AutoDispatchOptions {
@@ -366,6 +368,16 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		}
 	}
 
+	if (opts.dispatchMaxAgents !== undefined) {
+		const parsed = Number.parseInt(opts.dispatchMaxAgents, 10);
+		if (Number.isNaN(parsed) || parsed < 0) {
+			throw new ValidationError("--dispatch-max-agents must be a non-negative integer", {
+				field: "dispatchMaxAgents",
+				value: opts.dispatchMaxAgents,
+			});
+		}
+	}
+
 	// Warn if --skip-scout is used for a non-lead capability (harmless but confusing)
 	if (skipScout && capability !== "lead") {
 		process.stderr.write(
@@ -605,6 +617,11 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			baseDefinition,
 			mulchExpertise,
 			skipScout: skipScout && capability === "lead",
+			skipReview: opts.skipReview === true && capability === "lead",
+			maxAgentsOverride:
+				opts.dispatchMaxAgents !== undefined
+					? Number.parseInt(opts.dispatchMaxAgents, 10)
+					: undefined,
 			qualityGates: config.project.qualityGates,
 			trackerCli: trackerCliName(resolvedBackend),
 			trackerName: resolvedBackend,

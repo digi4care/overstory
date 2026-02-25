@@ -253,6 +253,8 @@ program
 	.option("--skip-task-check", "Skip task existence validation")
 	.option("--force-hierarchy", "Bypass hierarchy validation")
 	.option("--max-agents <n>", "Max children per lead (overrides config)")
+	.option("--skip-review", "Skip review phase for lead agents")
+	.option("--dispatch-max-agents <n>", "Per-lead max agents ceiling (injected into overlay)")
 	.option("--json", "Output result as JSON")
 	.action(async (taskId, opts) => {
 		await slingCommand(taskId, opts);

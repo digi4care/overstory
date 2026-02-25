@@ -73,6 +73,43 @@ Your parent has already gathered the context you need.
 `;
 
 /**
+ * Build the dispatch overrides section for lead overlays.
+ * Only generates content when overrides are actually set.
+ * The overlay is the source of truth -- leads read these directives, not mail.
+ */
+function formatDispatchOverrides(config: OverlayConfig): string {
+	if (config.capability !== "lead") return "";
+
+	const sections: string[] = [];
+
+	if (config.skipReview) {
+		sections.push(
+			"- **SKIP REVIEW**: You have been instructed to skip the review phase. " +
+				"Self-verify by reading the diff and running quality gates instead of spawning a reviewer.",
+		);
+	}
+
+	if (config.maxAgentsOverride !== undefined && config.maxAgentsOverride > 0) {
+		sections.push(
+			`- **MAX AGENTS**: Your per-lead agent ceiling has been set to **${config.maxAgentsOverride}**. ` +
+				"Do not spawn more than this many sub-workers.",
+		);
+	}
+
+	if (sections.length === 0) return "";
+
+	return [
+		"## Dispatch Overrides",
+		"",
+		"Your coordinator has set the following overrides for this work stream:",
+		"",
+		...sections,
+		"",
+		"Honor these directives. They override the default workflow described in your base definition.",
+	].join("\n");
+}
+
+/**
  * Format the quality gates section. Read-only agents (scout, reviewer) get
  * a lightweight section that only tells them to close the issue and report.
  * Writable agents get the full quality gates (tests, lint, build, commit).
@@ -275,6 +312,7 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 		"{{CONSTRAINTS}}": formatConstraints(config),
 		"{{SPEC_INSTRUCTION}}": specInstruction,
 		"{{SKIP_SCOUT}}": config.skipScout ? SKIP_SCOUT_SECTION : "",
+		"{{DISPATCH_OVERRIDES}}": formatDispatchOverrides(config),
 		"{{BASE_DEFINITION}}": config.baseDefinition,
 		"{{QUALITY_GATE_INLINE}}": formatQualityGatesInline(config.qualityGates),
 		"{{QUALITY_GATE_STEPS}}": formatQualityGatesSteps(config.qualityGates),

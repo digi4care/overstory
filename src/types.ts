@@ -259,6 +259,12 @@ export interface DispatchPayload {
 	specPath: string;
 	capability: Capability;
 	fileScope: string[];
+	/** Optional: skip scout phase for lead agents */
+	skipScouts?: boolean;
+	/** Optional: skip review phase for lead agents */
+	skipReview?: boolean;
+	/** Optional: per-lead max agent ceiling override */
+	maxAgents?: number;
 }
 
 /** Supervisor assigns work to a specific worker. */
@@ -301,6 +307,10 @@ export interface OverlayConfig {
 	mulchExpertise?: string;
 	/** When true, lead agents should skip Phase 1 (scout) and go straight to Phase 2 (build). */
 	skipScout?: boolean;
+	/** When true, lead agents should skip Phase 3 review and self-verify instead. */
+	skipReview?: boolean;
+	/** Per-lead max agents ceiling override from dispatch. Injected into overlay for lead visibility. */
+	maxAgentsOverride?: number;
 	trackerCli?: string; // "sd" or "bd"
 	trackerName?: string; // "seeds" or "beads"
 	/** Quality gate commands for the agent overlay. Falls back to defaults if undefined. */
