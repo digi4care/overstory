@@ -12,6 +12,7 @@ import { loadCheckpoint } from "../agents/checkpoint.ts";
 import { loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
+import { printWarning } from "../logging/color.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { createMulchClient } from "../mulch/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
@@ -211,9 +212,7 @@ async function outputAgentContext(
 
 	// Warn if agent is completely unknown (no session and no identity)
 	if (!sessionExists && identity === null) {
-		process.stderr.write(
-			`Warning: agent "${agentName}" not found in sessions or identity store.\n`,
-		);
+		printWarning(`agent "${agentName}" not found in sessions or identity store.`);
 	}
 
 	sections.push("\n## Identity");

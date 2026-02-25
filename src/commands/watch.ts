@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { OverstoryError } from "../errors.ts";
+import { printError, printHint, printSuccess } from "../logging/color.ts";
 import type { HealthCheck } from "../types.ts";
 import { startDaemon } from "../watchdog/daemon.ts";
 import { isProcessRunning } from "../watchdog/health.ts";
@@ -130,9 +131,8 @@ async function runWatch(opts: { interval?: string; background?: boolean }): Prom
 		// Check if a watchdog is already running
 		const existingPid = await readPidFile(pidFilePath);
 		if (existingPid !== null && isProcessRunning(existingPid)) {
-			process.stderr.write(
-				`Error: Watchdog already running (PID: ${existingPid}). ` +
-					`Kill it first or remove ${pidFilePath}\n`,
+			printError(
+				`Watchdog already running (PID: ${existingPid}). Kill it first or remove ${pidFilePath}`,
 			);
 			process.exitCode = 1;
 			return;
@@ -168,16 +168,14 @@ async function runWatch(opts: { interval?: string; background?: boolean }): Prom
 		// Write PID file for later cleanup
 		await writePidFile(pidFilePath, childPid);
 
-		process.stdout.write(
-			`Watchdog started in background (PID: ${childPid}, interval: ${intervalMs}ms)\n`,
-		);
-		process.stdout.write(`PID file: ${pidFilePath}\n`);
+		printSuccess("Watchdog started in background", `PID: ${childPid}, interval: ${intervalMs}ms`);
+		printHint(`PID file: ${pidFilePath}`);
 		return;
 	}
 
 	// Foreground mode: show real-time health checks
-	process.stdout.write(`Watchdog running (interval: ${intervalMs}ms)\n`);
-	process.stdout.write("Press Ctrl+C to stop.\n\n");
+	printSuccess("Watchdog running", `interval: ${intervalMs}ms`);
+	printHint("Press Ctrl+C to stop.");
 
 	// Write PID file so `--background` check and external tools can find us
 	await writePidFile(pidFilePath, process.pid);
@@ -200,7 +198,7 @@ async function runWatch(opts: { interval?: string; background?: boolean }): Prom
 		stop();
 		// Clean up PID file on graceful shutdown
 		removePidFile(pidFilePath).finally(() => {
-			process.stdout.write("\nWatchdog stopped.\n");
+			printSuccess("Watchdog stopped.");
 			process.exit(0);
 		});
 	});

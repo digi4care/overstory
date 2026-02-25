@@ -62,10 +62,6 @@ describe("primeCommand", () => {
 		return chunks.join("");
 	}
 
-	function stderr(): string {
-		return stderrChunks.join("");
-	}
-
 	describe("Orchestrator priming (no --agent flag)", () => {
 		test("default prime outputs project context", async () => {
 			await primeCommand({});
@@ -113,12 +109,11 @@ describe("primeCommand", () => {
 		test("unknown agent outputs basic context and warns", async () => {
 			await primeCommand({ agent: "unknown-agent" });
 			const out = output();
-			const err = stderr();
 
 			expect(out).toContain("# Agent Context: unknown-agent");
 			expect(out).toContain("## Identity");
 			expect(out).toContain("New agent - no prior sessions");
-			expect(err).toContain('Warning: agent "unknown-agent" not found');
+			expect(out).toContain('agent "unknown-agent" not found');
 		});
 
 		test("agent with identity.yaml shows identity details", async () => {
