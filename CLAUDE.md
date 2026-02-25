@@ -242,6 +242,8 @@ db.exec("PRAGMA busy_timeout=5000");
 
 ```
 ov init                          Initialize .overstory/ in current project
+  --yes, -y                              Skip interactive prompts
+  --name <name>                          Set project name (default: auto-detect)
 
 ov sling <task-id>              Spawn a worker agent
   --capability <type>                    builder | scout | reviewer | lead | merger

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-02-25
+
+### Added
+
+#### `ov init` Enhancements
+- **`--yes` / `-y` flag** — skip interactive confirmation prompts for scripted/automated initialization (contributed by @lucabarak via PR #37)
+- **`--name <name>` flag** — explicitly set the project name instead of auto-detecting from git remote or directory name
+
+#### Standardized JSON Output Across All Commands
+- **JSON envelope applied to all remaining commands** — four batches (A, B, C, D) migrated every `--json` code path to use the `jsonOutput()`/`jsonError()` envelope format (`{ success, command, ...data }`), completing the ecosystem-wide standardization started in 0.6.8
+
+#### Accented ID Formatting
+- **`accent()` applied to IDs in human-readable output** — agent names, mail IDs, group IDs, run IDs, and task IDs now render with accent color formatting across status, dashboard, inspect, agents, mail, merge, group, run, trace, and errors commands
+
+#### Testing
+- **`hooks-deployer.test.ts`** — new test file (180 lines) covering hooks deployment to worktrees
+- **`init.test.ts`** — new test file (104 lines) covering `--yes` and `--name` flag behavior
+
+### Changed
+
+#### Print Helper Adoption
+- **Completions, prime, and watch commands migrated to print helpers** — remaining commands that used raw `console.log`/`console.error` now use `printSuccess`/`printWarning`/`printError`/`printHint` for consistent output formatting
+
+### Fixed
+
+- **PATH prefix for hook commands** — deployed hooks now include `~/.bun/bin` in the PATH prefix, fixing resolution failures when bun-installed CLIs (like `ov` itself) weren't found by hook subprocesses
+- **Reinit messaging for `--yes` flag** — corrected output messages when re-initializing an existing `.overstory/` directory with the `--yes` flag
+
+### Testing
+- 2186 tests across 77 files (5535 `expect()` calls)
+
 ## [0.6.8] - 2026-02-25
 
 ### Added
@@ -774,7 +805,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.8...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.9...HEAD
+[0.6.9]: https://github.com/jayminwest/overstory/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/jayminwest/overstory/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/jayminwest/overstory/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/jayminwest/overstory/compare/v0.6.5...v0.6.6

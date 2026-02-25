@@ -105,6 +105,8 @@ ov agents discover               Discover agents by capability/state/parent
 
 ov init                          Initialize .overstory/ in current project
                                         (deploys agent definitions automatically)
+  --yes, -y                              Skip interactive prompts
+  --name <name>                          Set project name (default: auto-detect)
 
 ov coordinator start             Start persistent coordinator agent
   --attach / --no-attach                 TTY-aware tmux attach (default: auto)
@@ -273,13 +275,13 @@ Global Flags:
 - **Dependencies**: Minimal runtime — `chalk` (color output), `commander` (CLI framework), core I/O via Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2167 tests across 77 files, colocated with source)
+- **Testing**: `bun test` (2186 tests across 77 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2167 tests across 77 files)
+# Run tests (2186 tests across 77 files)
 bun test
 
 # Run a single test
