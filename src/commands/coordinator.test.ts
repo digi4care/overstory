@@ -592,6 +592,8 @@ describe("startCoordinator", () => {
 		}
 
 		const parsed = JSON.parse(output) as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("coordinator start");
 		expect(parsed.agentName).toBe("coordinator");
 		expect(parsed.capability).toBe("coordinator");
 		expect(parsed.tmuxSession).toBe("overstory-test-project-coordinator");
@@ -761,6 +763,8 @@ describe("stopCoordinator", () => {
 
 		const output = await captureStdout(() => coordinatorCommand(["stop", "--json"], deps));
 		const parsed = JSON.parse(output) as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("coordinator stop");
 		expect(parsed.stopped).toBe(true);
 		expect(parsed.sessionId).toBe(session.id);
 	});
@@ -930,6 +934,8 @@ describe("statusCoordinator", () => {
 		const { deps } = makeDeps();
 		const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
 		const parsed = JSON.parse(output) as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("coordinator status");
 		expect(parsed.running).toBe(false);
 	});
 
@@ -951,6 +957,8 @@ describe("statusCoordinator", () => {
 
 		const output = await captureStdout(() => coordinatorCommand(["status", "--json"], deps));
 		const parsed = JSON.parse(output) as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("coordinator status");
 		expect(parsed.running).toBe(true);
 		expect(parsed.sessionId).toBe(session.id);
 		expect(parsed.state).toBe("working");

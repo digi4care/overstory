@@ -314,6 +314,8 @@ describe("stopCommand --json output", () => {
 		const output = await captureStdout(() => stopCommand("my-builder", { json: true }, deps));
 
 		const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("stop");
 		expect(parsed.stopped).toBe(true);
 		expect(parsed.agentName).toBe("my-builder");
 		expect(parsed.sessionId).toBe(session.id);

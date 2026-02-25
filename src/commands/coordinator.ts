@@ -20,6 +20,7 @@ import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
@@ -462,7 +463,7 @@ async function startCoordinator(
 		};
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(output)}\n`);
+			jsonOutput("coordinator start", output);
 		} else {
 			printSuccess("Coordinator started");
 			process.stdout.write(`  Tmux:    ${tmuxSession}\n`);
@@ -564,9 +565,13 @@ async function stopCoordinator(opts: { json: boolean }, deps: CoordinatorDeps = 
 		}
 
 		if (json) {
-			process.stdout.write(
-				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped, monitorStopped, runCompleted })}\n`,
-			);
+			jsonOutput("coordinator stop", {
+				stopped: true,
+				sessionId: session.id,
+				watchdogStopped,
+				monitorStopped,
+				runCompleted,
+			});
 		} else {
 			printSuccess("Coordinator stopped", session.id);
 			if (watchdogStopped) {
@@ -629,9 +634,7 @@ async function statusCoordinator(
 			session.state === "zombie"
 		) {
 			if (json) {
-				process.stdout.write(
-					`${JSON.stringify({ running: false, watchdogRunning, monitorRunning })}\n`,
-				);
+				jsonOutput("coordinator status", { running: false, watchdogRunning, monitorRunning });
 			} else {
 				printHint("Coordinator is not running");
 				if (watchdogRunning) {
@@ -668,7 +671,7 @@ async function statusCoordinator(
 		};
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(status)}\n`);
+			jsonOutput("coordinator status", status);
 		} else {
 			const stateLabel = alive ? "running" : session.state;
 			process.stdout.write(`Coordinator: ${stateLabel}\n`);
