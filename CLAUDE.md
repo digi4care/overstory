@@ -55,6 +55,7 @@ overstory/                        # This repo (the overstory tool itself)
     types.ts                      # ALL shared types and interfaces
     config.ts                     # Config loader + defaults + validation
     errors.ts                     # Custom error types (extend OverstoryError)
+    json.ts                       # Standardized JSON envelope helpers (jsonOutput/jsonError)
     commands/                     # One file per CLI subcommand
       agents.ts                   # ov agents (discover)
       init.ts                     # ov init

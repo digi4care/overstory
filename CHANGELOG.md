@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-02-25
+
+### Added
+
+#### Standardized CLI Output Helpers
+- **`jsonOutput()` / `jsonError()` helpers** (`src/json.ts`) — standard JSON envelope format (`{ success, command, ...data }`) matching the ecosystem convention used by mulch, seeds, and canopy
+- **`printSuccess()` / `printWarning()` / `printError()` / `printHint()` helpers** (`src/logging/color.ts`) — branded message formatters with consistent color/icon treatment (brand checkmark, yellow `!`, red cross, dim indent)
+
+#### Enhanced CLI Help & Error Experience
+- **Custom branded help screen** — `ov --help` now shows a styled layout with colored command names, dim arguments, and version header instead of Commander.js defaults
+- **`--version --json` flag** — `ov -v --json` outputs machine-readable JSON (`{ name, version, runtime, platform }`)
+- **Unknown command fuzzy matching** — typos like `ov stauts` now suggest the closest match via Levenshtein edit distance ("Did you mean 'status'?")
+
+#### TUI Trust Dialog Handling
+- **Auto-confirm workspace trust dialog** — `waitForTuiReady` now detects "trust this folder" prompts and sends Enter automatically, preventing agents from stalling on first-time workspace access
+
+### Changed
+
+#### Consistent Message Formatting Across All Commands
+- **All 30 commands migrated to message helpers** — three batches (A, B, C) updated every command to use `printSuccess`/`printWarning`/`printError`/`printHint` instead of ad-hoc `console.log`/`console.error` calls, ensuring uniform output style
+- **Global error handler uses `jsonError()`** — top-level catch in `index.ts` now outputs structured JSON envelopes when `--json` is passed, instead of raw `console.error`
+
+#### TUI Readiness Detection
+- **Two-phase readiness check** — `waitForTuiReady` now requires both a prompt indicator (`❯` or `Try "`) AND status bar text (`bypass permissions` or `shift+tab`) before declaring the TUI ready, preventing premature beacon submission
+
+#### Agent Definition Cleanup
+- **Slash-command prompts moved to `.claude/commands/`** — `issue-reviews.md`, `pr-reviews.md`, `prioritize.md`, and `release.md` removed from `agents/` directory (they are skill definitions, not agent base definitions)
+- **Agent definition wording updates** — minor reference fixes across coordinator, lead, merger, reviewer, scout, and supervisor base definitions
+
+### Fixed
+
+- **`color.test.ts` mocking** — tests now mock `process.stdout.write`/`process.stderr.write` instead of `console.log`/`console.error` to match actual implementation
+- **`mulch client test`** updated for auto-create domain behavior
+- **`mulch` → `ml` alias in tests** — test files migrated to use the `ml` short alias consistently
+
+### Testing
+- 2167 tests across 77 files (5465 `expect()` calls)
+
 ## [0.6.7] - 2026-02-25
 
 ### Fixed
@@ -736,7 +774,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.8...HEAD
+[0.6.8]: https://github.com/jayminwest/overstory/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/jayminwest/overstory/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/jayminwest/overstory/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jayminwest/overstory/compare/v0.6.4...v0.6.5

@@ -391,5 +391,30 @@
 		"status": "completed",
 		"createdAt": "2026-02-25T14:35:52.026Z",
 		"completedAt": "2026-02-25T14:45:26.707Z"
+	},
+	{
+		"id": "group-3864e1f7",
+		"name": "tui-readiness-fixes",
+		"memberIssueIds": [
+			"overstory-88e6",
+			"overstory-5579"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-25T15:03:51.543Z",
+		"completedAt": "2026-02-25T15:10:47.219Z"
+	},
+	{
+		"id": "group-8a367b03",
+		"name": "cli-standards-batch",
+		"memberIssueIds": [
+			"overstory-4752",
+			"overstory-197c",
+			"overstory-a222",
+			"overstory-596c",
+			"overstory-eab8"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-25T16:12:18.948Z",
+		"completedAt": "2026-02-25T16:42:53.447Z"
 	}
 ]
