@@ -307,4 +307,42 @@ describe("checkDatabases", () => {
 		expect(integrityCheck?.status).toBe("fail");
 		expect(integrityCheck?.message).toContain("Failed to open or validate");
 	});
+
+	test("fix() enables WAL mode on database", () => {
+		// Create mail.db without WAL mode
+		const mailDb = new Database(join(tempDir, "mail.db"));
+		mailDb.exec(`
+			CREATE TABLE messages (
+				id TEXT PRIMARY KEY,
+				from_agent TEXT NOT NULL,
+				to_agent TEXT NOT NULL,
+				subject TEXT NOT NULL,
+				body TEXT NOT NULL,
+				type TEXT NOT NULL DEFAULT 'status',
+				priority TEXT NOT NULL DEFAULT 'normal',
+				thread_id TEXT,
+				payload TEXT,
+				read INTEGER NOT NULL DEFAULT 0,
+				created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			)
+		`);
+		mailDb.close();
+
+		const checks = checkDatabases(mockConfig, tempDir) as DoctorCheck[];
+
+		const walCheck = checks.find((c) => c?.name === "mail.db WAL mode");
+		expect(walCheck?.status).toBe("warn");
+		expect(walCheck?.fix).toBeDefined();
+
+		const actions = walCheck?.fix?.();
+		expect(Array.isArray(actions)).toBe(true);
+		expect((actions as string[]).some((a) => a.includes("WAL mode"))).toBe(true);
+		expect((actions as string[]).some((a) => a.includes("mail.db"))).toBe(true);
+
+		// Verify WAL mode is now enabled
+		const verifyDb = new Database(join(tempDir, "mail.db"));
+		const journalMode = verifyDb.prepare<{ journal_mode: string }, []>("PRAGMA journal_mode").get();
+		verifyDb.close();
+		expect(journalMode?.journal_mode?.toLowerCase()).toBe("wal");
+	});
 });
