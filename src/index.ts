@@ -40,6 +40,7 @@ import { traceCommand } from "./commands/trace.ts";
 import { createWatchCommand } from "./commands/watch.ts";
 import { createWorktreeCommand } from "./commands/worktree.ts";
 import { OverstoryError, WorktreeError } from "./errors.ts";
+import { jsonError } from "./json.ts";
 import { brand, chalk, muted, setQuiet } from "./logging/color.ts";
 
 export const VERSION = "0.6.7";
@@ -360,7 +361,7 @@ program.on("command:*", (operands) => {
 		process.stderr.write(`Did you mean '${suggestion}'?\n`);
 	}
 	process.stderr.write("Run 'ov --help' for usage.\n");
-	process.exit(1);
+	process.exitCode = 1;
 });
 
 async function main(): Promise<void> {
@@ -369,24 +370,42 @@ async function main(): Promise<void> {
 
 if (import.meta.main)
 	main().catch((err: unknown) => {
+		const useJson = process.argv.includes("--json");
 		// Friendly message when running outside a git repository
 		if (err instanceof WorktreeError && err.message.includes("not a git repository")) {
-			process.stderr.write("Not in an overstory project. Run 'ov init' first.\n");
-			process.exit(1);
-		}
-		if (err instanceof OverstoryError) {
-			process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
-			process.exitCode = 1;
-			return;
-		}
-		if (err instanceof Error) {
-			process.stderr.write(`Error: ${err.message}\n`);
-			if (process.argv.includes("--verbose")) {
-				process.stderr.write(`${err.stack}\n`);
+			if (useJson) {
+				jsonError("ov", "Not in an overstory project. Run 'ov init' first.");
+			} else {
+				process.stderr.write("Not in an overstory project. Run 'ov init' first.\n");
 			}
 			process.exitCode = 1;
 			return;
 		}
-		process.stderr.write(`Unknown error: ${String(err)}\n`);
+		if (err instanceof OverstoryError) {
+			if (useJson) {
+				jsonError("ov", err.message);
+			} else {
+				process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
+			}
+			process.exitCode = 1;
+			return;
+		}
+		if (err instanceof Error) {
+			if (useJson) {
+				jsonError("ov", err.message);
+			} else {
+				process.stderr.write(`Error: ${err.message}\n`);
+				if (process.argv.includes("--verbose")) {
+					process.stderr.write(`${err.stack}\n`);
+				}
+			}
+			process.exitCode = 1;
+			return;
+		}
+		if (useJson) {
+			jsonError("ov", String(err));
+		} else {
+			process.stderr.write(`Unknown error: ${String(err)}\n`);
+		}
 		process.exitCode = 1;
 	});
