@@ -21,8 +21,10 @@ export interface DoctorCheck {
 	status: "pass" | "warn" | "fail";
 	message: string;
 	details?: string[];
-	/** Whether this check issues can be auto-fixed (future --fix flag). */
+	/** Whether this check issues can be auto-fixed via --fix. */
 	fixable?: boolean;
+	/** Auto-fix function. Returns list of human-readable actions taken. */
+	fix?: () => Promise<string[]> | string[];
 }
 
 /**
