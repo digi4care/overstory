@@ -133,7 +133,14 @@ describe("replayCommand", () => {
 			await replayCommand(["--json"]);
 			const out = output();
 
-			expect(out).toBe("[]\n");
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				events: unknown[];
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("replay");
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -151,9 +158,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
-			expect(Array.isArray(parsed)).toBe(true);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
+			expect(Array.isArray(parsed.events)).toBe(true);
 		});
 
 		test("JSON output includes expected fields", async () => {
@@ -172,9 +179,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			const event = parsed[0];
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			const event = parsed.events[0];
 			expect(event).toBeDefined();
 			expect(event?.agentName).toBe("builder-1");
 			expect(event?.eventType).toBe("tool_start");
@@ -192,8 +199,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -332,9 +339,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.runId).toBe("run-001");
 			}
 		});
@@ -349,8 +356,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -368,9 +375,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--agent", "builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.agentName).toBe("builder-1");
 			}
 		});
@@ -387,9 +394,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--agent", "builder-1", "--agent", "scout-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(3);
-			const agents = new Set(parsed.map((e) => e.agentName));
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(3);
+			const agents = new Set(parsed.events.map((e) => e.agentName));
 			expect(agents.has("builder-1")).toBe(true);
 			expect(agents.has("scout-1")).toBe(true);
 			expect(agents.has("reviewer-1")).toBe(false);
@@ -407,12 +414,12 @@ describe("replayCommand", () => {
 			await replayCommand(["--agent", "builder-1", "--agent", "scout-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(3);
 			// They should be in chronological order
-			for (let i = 1; i < parsed.length; i++) {
-				const prev = parsed[i - 1];
-				const curr = parsed[i];
+			for (let i = 1; i < parsed.events.length; i++) {
+				const prev = parsed.events[i - 1];
+				const curr = parsed.events[i];
 				if (prev && curr) {
 					expect(
 						(prev.createdAt as string).localeCompare(curr.createdAt as string),
@@ -430,8 +437,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--agent", "nonexistent", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -451,9 +458,9 @@ describe("replayCommand", () => {
 			await replayCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.runId).toBe("run-from-file");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.runId).toBe("run-from-file");
 		});
 
 		test("falls back to 24h timeline when no current-run.txt", async () => {
@@ -467,8 +474,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
 		});
 
 		test("falls back to timeline when current-run.txt is empty", async () => {
@@ -482,8 +489,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(1);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(1);
 		});
 	});
 
@@ -501,8 +508,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json", "--limit", "3"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
 		});
 
 		test("default limit is 200", async () => {
@@ -516,8 +523,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(200);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(200);
 		});
 
 		test("--limit applies to merged --agent queries", async () => {
@@ -532,8 +539,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--agent", "builder-1", "--agent", "scout-1", "--json", "--limit", "4"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(4);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(4);
 		});
 	});
 
@@ -550,8 +557,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since with past timestamp returns all events", async () => {
@@ -564,8 +571,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json", "--since", "2020-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
 		});
 
 		test("--until with past timestamp returns no events", async () => {
@@ -577,8 +584,8 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json", "--until", "2000-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since causes absolute timestamps in text mode", async () => {
@@ -611,12 +618,12 @@ describe("replayCommand", () => {
 			await replayCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(4);
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(4);
 			// Verify chronological order
-			for (let i = 1; i < parsed.length; i++) {
-				const prev = parsed[i - 1];
-				const curr = parsed[i];
+			for (let i = 1; i < parsed.events.length; i++) {
+				const prev = parsed.events[i - 1];
+				const curr = parsed.events[i];
 				if (prev && curr) {
 					expect(
 						(prev.createdAt as string).localeCompare(curr.createdAt as string),
@@ -624,10 +631,10 @@ describe("replayCommand", () => {
 				}
 			}
 			// Verify interleaving: agents should alternate
-			expect(parsed[0]?.agentName).toBe("builder-1");
-			expect(parsed[1]?.agentName).toBe("scout-1");
-			expect(parsed[2]?.agentName).toBe("builder-1");
-			expect(parsed[3]?.agentName).toBe("scout-1");
+			expect(parsed.events[0]?.agentName).toBe("builder-1");
+			expect(parsed.events[1]?.agentName).toBe("scout-1");
+			expect(parsed.events[2]?.agentName).toBe("builder-1");
+			expect(parsed.events[3]?.agentName).toBe("scout-1");
 		});
 	});
 

@@ -133,7 +133,14 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			expect(out).toBe("[]\n");
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				events: unknown[];
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("errors");
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -157,9 +164,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
-			expect(Array.isArray(parsed)).toBe(true);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
+			expect(Array.isArray(parsed.events)).toBe(true);
 		});
 
 		test("JSON output includes expected fields", async () => {
@@ -176,9 +183,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			const event = parsed[0];
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			const event = parsed.events[0];
 			expect(event).toBeDefined();
 			expect(event?.agentName).toBe("builder-1");
 			expect(event?.eventType).toBe("error");
@@ -201,8 +208,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -388,9 +395,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--agent", "builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.agentName).toBe("builder-1");
 			}
 		});
@@ -404,8 +411,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--agent", "nonexistent", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("only returns error-level events for the agent", async () => {
@@ -431,9 +438,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--agent", "builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.level).toBe("error");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.level).toBe("error");
 		});
 	});
 
@@ -451,9 +458,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.runId).toBe("run-001");
 			}
 		});
@@ -467,8 +474,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--run", "run-999", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("only returns error-level events for the run", async () => {
@@ -487,9 +494,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.level).toBe("error");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.level).toBe("error");
 		});
 	});
 
@@ -507,8 +514,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json", "--limit", "3"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
 		});
 
 		test("default limit is 100", async () => {
@@ -522,8 +529,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(100);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(100);
 		});
 	});
 
@@ -539,8 +546,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since with past timestamp returns all errors", async () => {
@@ -553,8 +560,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json", "--since", "2020-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
 		});
 
 		test("--until with past timestamp returns no errors", async () => {
@@ -566,8 +573,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json", "--until", "2000-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -608,8 +615,8 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
 		});
 
 		test("excludes non-error events from global view", async () => {
@@ -639,9 +646,9 @@ describe("errorsCommand", () => {
 			await errorsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.level).toBe("error");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.level).toBe("error");
 		});
 	});
 });

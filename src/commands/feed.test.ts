@@ -138,7 +138,14 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			expect(out).toBe("[]\n");
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				events: unknown[];
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("feed");
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -156,9 +163,9 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
-			expect(Array.isArray(parsed)).toBe(true);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
+			expect(Array.isArray(parsed.events)).toBe(true);
 		});
 
 		test("JSON output includes expected fields", async () => {
@@ -177,9 +184,9 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			const event = parsed[0];
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			const event = parsed.events[0];
 			expect(event).toBeDefined();
 			expect(event?.agentName).toBe("builder-1");
 			expect(event?.eventType).toBe("tool_start");
@@ -198,8 +205,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -317,9 +324,9 @@ describe("feedCommand", () => {
 			await feedCommand(["--agent", "builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("builder-1");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.agentName).toBe("builder-1");
 		});
 
 		test("filters to multiple agents", async () => {
@@ -333,9 +340,9 @@ describe("feedCommand", () => {
 			await feedCommand(["--agent", "builder-1", "--agent", "scout-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			const agents = parsed.map((e) => e.agentName);
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			const agents = parsed.events.map((e) => e.agentName);
 			expect(agents).toContain("builder-1");
 			expect(agents).toContain("scout-1");
 			expect(agents).not.toContain("builder-2");
@@ -356,9 +363,9 @@ describe("feedCommand", () => {
 			await feedCommand(["--run", "run-001", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.runId).toBe("run-001");
 			}
 		});
@@ -378,8 +385,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json", "--limit", "10"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(10);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(10);
 		});
 
 		test("default limit is 50", async () => {
@@ -393,8 +400,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(50);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(50);
 		});
 	});
 
@@ -411,8 +418,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since with past timestamp returns all events", async () => {
@@ -425,8 +432,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json", "--since", "2020-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
 		});
 
 		test("default since is 5 minutes ago", async () => {
@@ -440,8 +447,8 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(1);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(1);
 		});
 	});
 
@@ -503,11 +510,11 @@ describe("feedCommand", () => {
 			await feedCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(3);
-			expect(parsed[0]?.eventType).toBe("session_start");
-			expect(parsed[1]?.eventType).toBe("tool_start");
-			expect(parsed[2]?.eventType).toBe("session_end");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(3);
+			expect(parsed.events[0]?.eventType).toBe("session_start");
+			expect(parsed.events[1]?.eventType).toBe("tool_start");
+			expect(parsed.events[2]?.eventType).toBe("session_end");
 		});
 
 		test("handles event with all null optional fields", async () => {

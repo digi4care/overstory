@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonError, jsonOutput } from "../json.ts";
 import { printError, printHint, printSuccess } from "../logging/color.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import type { AgentSession, Run } from "../types.ts";
@@ -83,7 +84,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 	const runId = await readCurrentRunId(overstoryDir);
 	if (!runId) {
 		if (json) {
-			process.stdout.write('{"run":null,"message":"No active run"}\n');
+			jsonOutput("run", { run: null, message: "No active run" });
 		} else {
 			printHint("No active run");
 		}
@@ -96,9 +97,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 		const run = runStore.getRun(runId);
 		if (!run) {
 			if (json) {
-				process.stdout.write(
-					`${JSON.stringify({ run: null, message: `Run ${runId} not found in store` })}\n`,
-				);
+				jsonOutput("run", { run: null, message: `Run ${runId} not found in store` });
 			} else {
 				process.stdout.write(`Run ${runId} not found in store\n`);
 			}
@@ -106,7 +105,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 		}
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ run, duration: runDuration(run) })}\n`);
+			jsonOutput("run", { run, duration: runDuration(run) });
 			return;
 		}
 
@@ -130,7 +129,7 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 	const dbFile = Bun.file(dbPath);
 	if (!(await dbFile.exists())) {
 		if (json) {
-			process.stdout.write('{"runs":[]}\n');
+			jsonOutput("run list", { runs: [] });
 		} else {
 			printHint("No runs recorded yet");
 		}
@@ -143,7 +142,7 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 
 		if (json) {
 			const runsWithDuration = runs.map((r) => ({ ...r, duration: runDuration(r) }));
-			process.stdout.write(`${JSON.stringify({ runs: runsWithDuration })}\n`);
+			jsonOutput("run list", { runs: runsWithDuration });
 			return;
 		}
 
@@ -178,7 +177,7 @@ async function completeCurrentRun(overstoryDir: string, json: boolean): Promise<
 	const runId = await readCurrentRunId(overstoryDir);
 	if (!runId) {
 		if (json) {
-			process.stdout.write('{"success":false,"message":"No active run to complete"}\n');
+			jsonError("run complete", "No active run to complete");
 		} else {
 			printError("No active run to complete");
 		}
@@ -203,7 +202,7 @@ async function completeCurrentRun(overstoryDir: string, json: boolean): Promise<
 	}
 
 	if (json) {
-		process.stdout.write(`${JSON.stringify({ success: true, runId, status: "completed" })}\n`);
+		jsonOutput("run complete", { runId, status: "completed" });
 	} else {
 		printSuccess("Run completed", runId);
 	}
@@ -217,7 +216,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 	const dbFile = Bun.file(dbPath);
 	if (!(await dbFile.exists())) {
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ run: null, message: `Run ${runId} not found` })}\n`);
+			jsonError("run show", `Run ${runId} not found`);
 		} else {
 			printError("Run not found", runId);
 		}
@@ -231,9 +230,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 		const run = runStore.getRun(runId);
 		if (!run) {
 			if (json) {
-				process.stdout.write(
-					`${JSON.stringify({ run: null, message: `Run ${runId} not found` })}\n`,
-				);
+				jsonError("run show", `Run ${runId} not found`);
 			} else {
 				printError("Run not found", runId);
 			}
@@ -244,7 +241,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 		const agents = sessionStore.getByRun(runId);
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ run, duration: runDuration(run), agents })}\n`);
+			jsonOutput("run show", { run, duration: runDuration(run), agents });
 			return;
 		}
 

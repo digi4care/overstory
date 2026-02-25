@@ -281,13 +281,12 @@ describe("logsCommand", () => {
 		});
 
 		// Parse JSON output
-		const parsed: unknown = JSON.parse(output.trim());
-		expect(Array.isArray(parsed)).toBe(true);
+		const parsed = JSON.parse(output.trim()) as { entries: LogEvent[] };
+		expect(Array.isArray(parsed.entries)).toBe(true);
 
-		const arr = parsed as LogEvent[];
-		expect(arr).toHaveLength(2);
-		expect(arr[0]?.event).toBe("tool.start");
-		expect(arr[1]?.event).toBe("spawn.failed");
+		expect(parsed.entries).toHaveLength(2);
+		expect(parsed.entries[0]?.event).toBe("tool.start");
+		expect(parsed.entries[1]?.event).toBe("spawn.failed");
 	});
 
 	test("filters by --since with ISO timestamp", async () => {

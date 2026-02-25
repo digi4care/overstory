@@ -11,6 +11,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { EventType, StoredEvent } from "../types.ts";
@@ -189,7 +190,7 @@ async function executeFeed(opts: FeedOpts): Promise<void> {
 	const eventsFile = Bun.file(eventsDbPath);
 	if (!(await eventsFile.exists())) {
 		if (json) {
-			process.stdout.write("[]\n");
+			jsonOutput("feed", { events: [] });
 		} else {
 			process.stdout.write("No events data yet.\n");
 		}
@@ -228,7 +229,7 @@ async function executeFeed(opts: FeedOpts): Promise<void> {
 			const events = queryEvents({ since, limit });
 
 			if (json) {
-				process.stdout.write(`${JSON.stringify(events)}\n`);
+				jsonOutput("feed", { events });
 				return;
 			}
 
