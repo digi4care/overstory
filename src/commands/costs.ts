@@ -325,7 +325,14 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 			if (json) {
 				jsonOutput("costs", {
 					agents: [],
-					totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 },
+					totals: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheTokens: 0,
+						costUsd: 0,
+						burnRatePerMin: 0,
+						tokensPerMin: 0,
+					},
 				});
 			} else {
 				process.stdout.write(
@@ -344,7 +351,14 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 				if (json) {
 					jsonOutput("costs", {
 						agents: [],
-						totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 },
+						totals: {
+							inputTokens: 0,
+							outputTokens: 0,
+							cacheTokens: 0,
+							costUsd: 0,
+							burnRatePerMin: 0,
+							tokensPerMin: 0,
+						},
 					});
 				} else {
 					process.stdout.write(
