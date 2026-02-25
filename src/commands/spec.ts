@@ -11,6 +11,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
+import { printSuccess } from "../logging/color.ts";
 
 export interface SpecWriteOptions {
 	body?: string;
@@ -93,6 +94,6 @@ export async function specWriteCommand(taskId: string, opts: SpecWriteOptions): 
 	const { resolveProjectRoot } = await import("../config.ts");
 	const projectRoot = await resolveProjectRoot(process.cwd());
 
-	const specPath = await writeSpec(projectRoot, taskId, body, opts.agent);
-	process.stdout.write(`${specPath}\n`);
+	await writeSpec(projectRoot, taskId, body, opts.agent);
+	printSuccess("Spec written", taskId);
 }

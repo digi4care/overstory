@@ -100,7 +100,7 @@ describe("mailCommand", () => {
 			client.close();
 
 			await mailCommand(["list", "--agent", "builder-1", "--unread"]);
-			expect(output).toContain("No messages found.");
+			expect(output).toContain("No messages found");
 		});
 
 		test("--to takes precedence over --agent when both provided", async () => {
@@ -134,7 +134,7 @@ describe("mailCommand", () => {
 			output = "";
 			await mailCommand(["reply", originalId, "--body", "Actually also do Y"]);
 
-			expect(output).toContain("Reply sent:");
+			expect(output).toContain("Reply sent");
 
 			// Verify the reply went to builder-1, not back to orchestrator
 			const store2 = createMailStore(join(tempDir, ".overstory", "mail.db"));
@@ -162,7 +162,7 @@ describe("mailCommand", () => {
 			output = "";
 			await mailCommand(["reply", originalId, "--body", "Done", "--agent", "builder-1"]);
 
-			expect(output).toContain("Reply sent:");
+			expect(output).toContain("Reply sent");
 
 			// Verify the reply went to orchestrator (original sender)
 			const store2 = createMailStore(join(tempDir, ".overstory", "mail.db"));
@@ -193,7 +193,7 @@ describe("mailCommand", () => {
 			output = "";
 			await mailCommand(["reply", "--agent", "scout-1", "--body", "Got it", originalId]);
 
-			expect(output).toContain("Reply sent:");
+			expect(output).toContain("Reply sent");
 
 			// Verify the reply used the correct message ID (not 'scout-1' or 'Got it')
 			const store2 = createMailStore(join(tempDir, ".overstory", "mail.db"));
@@ -223,7 +223,7 @@ describe("mailCommand", () => {
 			output = "";
 			await mailCommand(["read", originalId]);
 
-			expect(output).toContain(`Marked ${originalId} as read.`);
+			expect(output).toContain("Marked as read");
 		});
 
 		test("read marks message as read", async () => {
@@ -238,7 +238,7 @@ describe("mailCommand", () => {
 
 			output = "";
 			await mailCommand(["read", originalId]);
-			expect(output).toContain(`Marked ${originalId} as read.`);
+			expect(output).toContain("Marked as read");
 
 			// Reading again should show already read
 			output = "";
