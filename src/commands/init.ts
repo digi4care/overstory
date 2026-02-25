@@ -560,11 +560,12 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 		if (!force && !yes) {
 			process.stdout.write(
 				"Warning: .overstory/ already initialized in this project.\n" +
-					"Use --force to reinitialize.\n",
+					"Use --force or --yes to reinitialize.\n",
 			);
 			return;
 		}
-		process.stdout.write("Reinitializing .overstory/ (--force)\n\n");
+		const flag = yes ? "--yes" : "--force";
+		process.stdout.write(`Reinitializing .overstory/ (${flag})\n\n`);
 	}
 
 	// 2. Detect project info

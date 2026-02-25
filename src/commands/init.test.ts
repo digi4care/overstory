@@ -395,7 +395,7 @@ describe("initCommand: --yes flag", () => {
 		expect(content).toContain("# Overstory configuration");
 	});
 
-	test("--yes preserves existing agent-defs after reinit", async () => {
+	test("--yes overwrites agent-defs on reinit", async () => {
 		// First init
 		await initCommand({});
 
