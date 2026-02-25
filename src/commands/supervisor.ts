@@ -20,6 +20,7 @@ import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { printHint, printSuccess } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createTrackerClient, resolveBackend, trackerCliName } from "../tracker/factory.ts";
 import type { AgentSession } from "../types.ts";
@@ -231,7 +232,7 @@ async function startSupervisor(opts: {
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify(output)}\n`);
 		} else {
-			process.stdout.write(`Supervisor '${opts.name}' started\n`);
+			printSuccess("Supervisor started", opts.name);
 			process.stdout.write(`  Tmux:    ${tmuxSession}\n`);
 			process.stdout.write(`  Root:    ${projectRoot}\n`);
 			process.stdout.write(`  Task:    ${opts.task}\n`);
@@ -292,7 +293,7 @@ async function stopSupervisor(opts: { name: string; json: boolean }): Promise<vo
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify({ stopped: true, sessionId: session.id })}\n`);
 		} else {
-			process.stdout.write(`Supervisor '${opts.name}' stopped (session: ${session.id})\n`);
+			printSuccess("Supervisor stopped", opts.name);
 		}
 	} finally {
 		store.close();
@@ -326,7 +327,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 				if (opts.json) {
 					process.stdout.write(`${JSON.stringify({ running: false })}\n`);
 				} else {
-					process.stdout.write(`Supervisor '${opts.name}' is not running\n`);
+					printHint("Supervisor not running");
 				}
 				return;
 			}
@@ -378,7 +379,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
 				if (opts.json) {
 					process.stdout.write(`${JSON.stringify([])}\n`);
 				} else {
-					process.stdout.write("No supervisor sessions found\n");
+					printHint("No supervisor sessions found");
 				}
 				return;
 			}

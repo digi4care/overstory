@@ -76,30 +76,30 @@ export function isQuiet(): boolean {
 	return quietMode;
 }
 
-// --- Standardized message formatters (visual-spec.md Message Formats) ---
+// --- Standardized message formatters ---
 
 /** Success: brand checkmark + brand message. Optional accent-colored ID. */
 export function printSuccess(msg: string, id?: string): void {
 	if (isQuiet()) return;
 	const idPart = id ? ` ${accent(id)}` : "";
-	console.log(`${brand.bold("\u2713")} ${brand(msg)}${idPart}`);
+	process.stdout.write(`${brand.bold("\u2713")} ${brand(msg)}${idPart}\n`);
 }
 
 /** Warning: yellow ! + yellow message. Optional dim hint. */
 export function printWarning(msg: string, hint?: string): void {
 	if (isQuiet()) return;
 	const hintPart = hint ? ` ${chalk.dim(`\u2014 ${hint}`)}` : "";
-	console.log(`${chalk.yellow.bold("!")} ${chalk.yellow(msg)}${hintPart}`);
+	process.stdout.write(`${chalk.yellow.bold("!")} ${chalk.yellow(msg)}${hintPart}\n`);
 }
 
 /** Error: red cross + red message. Optional dim hint. Always to stderr. */
 export function printError(msg: string, hint?: string): void {
 	const hintPart = hint ? ` ${chalk.dim(`\u2014 ${hint}`)}` : "";
-	console.error(`${chalk.red.bold("\u2717")} ${chalk.red(msg)}${hintPart}`);
+	process.stderr.write(`${chalk.red.bold("\u2717")} ${chalk.red(msg)}${hintPart}\n`);
 }
 
 /** Hint/info: dim indented text. */
 export function printHint(msg: string): void {
 	if (isQuiet()) return;
-	console.log(chalk.dim(`  ${msg}`));
+	process.stdout.write(`${chalk.dim(`  ${msg}`)}\n`);
 }

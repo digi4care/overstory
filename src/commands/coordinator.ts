@@ -20,6 +20,7 @@ import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
 import { resolveBackend, trackerCliName } from "../tracker/factory.ts";
@@ -428,9 +429,9 @@ async function startCoordinator(
 			const watchdogResult = await watchdog.start();
 			if (watchdogResult) {
 				watchdogPid = watchdogResult.pid;
-				if (!json) process.stdout.write(`  Watchdog: started (PID ${watchdogResult.pid})\n`);
+				if (!json) printHint("Watchdog started");
 			} else {
-				if (!json) process.stderr.write("  Watchdog: failed to start or already running\n");
+				if (!json) printWarning("Watchdog failed to start");
 			}
 		}
 
@@ -438,15 +439,14 @@ async function startCoordinator(
 		let monitorPid: number | undefined;
 		if (monitorFlag) {
 			if (!config.watchdog.tier2Enabled) {
-				if (!json)
-					process.stderr.write("  Monitor:  skipped (watchdog.tier2Enabled is false in config)\n");
+				if (!json) printWarning("Monitor skipped", "watchdog.tier2Enabled is false");
 			} else {
 				const monitorResult = await monitor.start([]);
 				if (monitorResult) {
 					monitorPid = monitorResult.pid;
-					if (!json) process.stdout.write(`  Monitor:  started (PID ${monitorResult.pid})\n`);
+					if (!json) printHint("Monitor started");
 				} else {
-					if (!json) process.stderr.write("  Monitor:  failed to start or already running\n");
+					if (!json) printWarning("Monitor failed to start");
 				}
 			}
 		}
@@ -464,7 +464,7 @@ async function startCoordinator(
 		if (json) {
 			process.stdout.write(`${JSON.stringify(output)}\n`);
 		} else {
-			process.stdout.write("Coordinator started\n");
+			printSuccess("Coordinator started");
 			process.stdout.write(`  Tmux:    ${tmuxSession}\n`);
 			process.stdout.write(`  Root:    ${projectRoot}\n`);
 			process.stdout.write(`  PID:     ${pid}\n`);
@@ -568,21 +568,21 @@ async function stopCoordinator(opts: { json: boolean }, deps: CoordinatorDeps = 
 				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped, monitorStopped, runCompleted })}\n`,
 			);
 		} else {
-			process.stdout.write(`Coordinator stopped (session: ${session.id})\n`);
+			printSuccess("Coordinator stopped", session.id);
 			if (watchdogStopped) {
-				process.stdout.write("Watchdog stopped\n");
+				printHint("Watchdog stopped");
 			} else {
-				process.stdout.write("No watchdog running\n");
+				printHint("No watchdog running");
 			}
 			if (monitorStopped) {
-				process.stdout.write("Monitor stopped\n");
+				printHint("Monitor stopped");
 			} else {
-				process.stdout.write("No monitor running\n");
+				printHint("No monitor running");
 			}
 			if (runCompleted) {
-				process.stdout.write("Run completed\n");
+				printHint("Run completed");
 			} else {
-				process.stdout.write("No active run\n");
+				printHint("No active run");
 			}
 		}
 	} finally {
@@ -633,12 +633,12 @@ async function statusCoordinator(
 					`${JSON.stringify({ running: false, watchdogRunning, monitorRunning })}\n`,
 				);
 			} else {
-				process.stdout.write("Coordinator is not running\n");
+				printHint("Coordinator is not running");
 				if (watchdogRunning) {
-					process.stdout.write("Watchdog: running\n");
+					printHint("Watchdog: running");
 				}
 				if (monitorRunning) {
-					process.stdout.write("Monitor: running\n");
+					printHint("Monitor: running");
 				}
 			}
 			return;
