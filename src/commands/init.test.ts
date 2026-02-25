@@ -20,6 +20,10 @@ const AGENT_DEF_FILES = [
 	"supervisor.md",
 	"coordinator.md",
 	"monitor.md",
+	"issue-reviews.md",
+	"pr-reviews.md",
+	"prioritize.md",
+	"release.md",
 ];
 
 /** Resolve the source agents directory (same logic as init.ts). */

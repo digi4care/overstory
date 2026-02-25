@@ -347,9 +347,7 @@ async function executeStatus(opts: StatusOpts): Promise<void> {
 	}
 
 	if (watch) {
-		process.stderr.write(
-			"⚠️  --watch is deprecated. Use 'ov dashboard' for live monitoring.\n\n",
-		);
+		process.stderr.write("⚠️  --watch is deprecated. Use 'ov dashboard' for live monitoring.\n\n");
 		// Polling loop (kept for one release cycle)
 		while (true) {
 			// Clear screen

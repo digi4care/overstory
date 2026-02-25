@@ -22,9 +22,13 @@ import type { OverlayConfig } from "../types.ts";
 const EXPECTED_AGENT_DEFS = [
 	"builder.md",
 	"coordinator.md",
+	"issue-reviews.md",
 	"lead.md",
 	"merger.md",
 	"monitor.md",
+	"pr-reviews.md",
+	"prioritize.md",
+	"release.md",
 	"reviewer.md",
 	"scout.md",
 	"supervisor.md",
