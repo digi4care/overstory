@@ -12,7 +12,8 @@ export type DoctorCategory =
 	| "agents"
 	| "merge"
 	| "logs"
-	| "version";
+	| "version"
+	| "ecosystem";
 
 /** Result of a single doctor health check. */
 export interface DoctorCheck {
@@ -23,8 +24,8 @@ export interface DoctorCheck {
 	details?: string[];
 	/** Whether this check issues can be auto-fixed via --fix. */
 	fixable?: boolean;
-	/** Auto-fix function. Returns list of human-readable actions taken. */
-	fix?: () => Promise<string[]> | string[];
+	/** Auto-fix closure — called when --fix flag is passed. Captures context at construction time. */
+	fix?: () => Promise<void> | void;
 }
 
 /**
