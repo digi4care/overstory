@@ -223,9 +223,7 @@ describe("deployHooks", () => {
 		const content = await Bun.file(outputPath).text();
 		const parsed = JSON.parse(content);
 		const userPrompt = parsed.hooks.UserPromptSubmit[0];
-		expect(userPrompt.hooks[0].command).toContain(
-			"ov mail check --inject --agent mail-agent",
-		);
+		expect(userPrompt.hooks[0].command).toContain("ov mail check --inject --agent mail-agent");
 		expect(userPrompt.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 
@@ -239,9 +237,7 @@ describe("deployHooks", () => {
 		const parsed = JSON.parse(content);
 		const preCompact = parsed.hooks.PreCompact[0];
 		expect(preCompact.hooks[0].type).toBe("command");
-		expect(preCompact.hooks[0].command).toContain(
-			"ov prime --agent compact-agent --compact",
-		);
+		expect(preCompact.hooks[0].command).toContain("ov prime --agent compact-agent --compact");
 		expect(preCompact.hooks[0].command).toContain("OVERSTORY_AGENT_NAME");
 	});
 

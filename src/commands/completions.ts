@@ -803,9 +803,7 @@ export function generateFish(): string {
 	for (const cmd of COMMANDS) {
 		// Command name
 		lines.push(`# ${cmd.desc}`);
-		lines.push(
-			`complete -c ov -f -n '__fish_use_subcommand' -a '${cmd.name}' -d '${cmd.desc}'`,
-		);
+		lines.push(`complete -c ov -f -n '__fish_use_subcommand' -a '${cmd.name}' -d '${cmd.desc}'`);
 
 		if (cmd.subcommands && cmd.subcommands.length > 0) {
 			// Subcommand names
