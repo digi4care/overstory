@@ -261,8 +261,8 @@ const specCmd = program.command("spec").description("Manage task specifications"
 
 specCmd
 	.command("write")
-	.description("Write a spec file to .overstory/specs/<bead-id>.md")
-	.argument("<bead-id>", "Task ID for the spec file")
+	.description("Write a spec file to .overstory/specs/<task-id>.md")
+	.argument("<task-id>", "Task ID for the spec file")
 	.option("--body <content>", "Spec content (or pipe via stdin)")
 	.option("--agent <name>", "Agent writing the spec (for attribution)")
 	.action(async (taskId, opts) => {
@@ -353,7 +353,7 @@ program
 
 program
 	.command("trace")
-	.description("Chronological event timeline for agent/bead")
+	.description("Chronological event timeline for agent or task")
 	.allowUnknownOption()
 	.allowExcessArguments()
 	.action(async (_opts, cmd) => {

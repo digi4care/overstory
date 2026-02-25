@@ -7,11 +7,11 @@
  * 3. Load manifest + validate capability
  * 4. Resolve or create run_id (current-run.txt)
  * 5. Check name uniqueness + concurrency limit
- * 6. Validate bead exists
+ * 6. Validate task exists
  * 7. Create worktree
  * 8. Generate + write overlay CLAUDE.md
  * 9. Deploy hooks config
- * 10. Claim beads issue
+ * 10. Claim task issue
  * 11. Create agent identity
  * 12. Create tmux session running claude
  * 13. Record session in SessionStore + increment run agent count
@@ -179,13 +179,13 @@ export interface BeaconOptions {
  * protocol so the agent knows exactly what to do on boot.
  *
  * Format:
- *   [OVERSTORY] <agent-name> (<capability>) <ISO timestamp> task:<bead-id>
+ *   [OVERSTORY] <agent-name> (<capability>) <ISO timestamp> task:<task-id>
  *   Depth: <n> | Parent: <parent-name|none>
  *   Startup protocol:
  *   1. Read your assignment in .claude/CLAUDE.md
  *   2. Load expertise: mulch prime
  *   3. Check mail: ov mail check --agent <name>
- *   4. Begin working on task <bead-id>
+ *   4. Begin working on task <task-id>
  */
 export function buildBeacon(opts: BeaconOptions): string {
 	const timestamp = new Date().toISOString();
@@ -211,12 +211,12 @@ export function parentHasScouts(
 
 /**
  * Check if any active agent is already working on the given task ID.
- * Returns the agent name if locked, or null if the bead is free.
+ * Returns the agent name if locked, or null if the task is free.
  *
  * @param activeSessions - Currently active (non-zombie) sessions
- * @param taskId - The bead task ID to check for concurrent work
+ * @param taskId - The task ID to check for concurrent work
  */
-export function checkBeadLock(
+export function checkTaskLock(
 	activeSessions: ReadonlyArray<{ agentName: string; taskId: string }>,
 	taskId: string,
 ): string | null {
@@ -442,13 +442,13 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			});
 		}
 
-		// 5d. Bead-level locking: prevent concurrent agents on the same task ID.
+		// 5d. Task-level locking: prevent concurrent agents on the same task ID.
 		// Exception: the parent agent may delegate its own task to a child.
-		const lockHolder = checkBeadLock(activeSessions, taskId);
+		const lockHolder = checkTaskLock(activeSessions, taskId);
 		if (lockHolder !== null && lockHolder !== parentAgent) {
 			throw new AgentError(
-				`Bead "${taskId}" is already being worked by agent "${lockHolder}". ` +
-					`Concurrent work on the same bead causes duplicate issues and wasted tokens.`,
+				`Task "${taskId}" is already being worked by agent "${lockHolder}". ` +
+					`Concurrent work on the same task causes duplicate issues and wasted tokens.`,
 				{ agentName: name },
 			);
 		}

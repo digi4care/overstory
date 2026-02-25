@@ -2,13 +2,13 @@
  * CLI command: ov coordinator start|stop|status
  *
  * Manages the persistent coordinator agent lifecycle. The coordinator runs
- * at the project root (NOT in a worktree), receives work via mail and beads,
+ * at the project root (NOT in a worktree), receives work via mail and tasks,
  * and dispatches agents via ov sling.
  *
  * Unlike regular agents spawned by sling, the coordinator:
  * - Has no worktree (operates on the main working tree)
- * - Has no bead assignment (it creates beads, not works on them)
- * - Has no overlay CLAUDE.md (context comes via mail + beads + checkpoints)
+ * - Has no task assignment (it creates tasks, not works on them)
+ * - Has no overlay CLAUDE.md (context comes via mail + tasks + checkpoints)
  * - Persists across work batches
  */
 
@@ -381,7 +381,7 @@ async function startCoordinator(
 			capability: "coordinator",
 			worktreePath: projectRoot, // Coordinator uses project root, not a worktree
 			branchName: config.project.canonicalBranch, // Operates on canonical branch
-			taskId: "", // No specific bead assignment
+			taskId: "", // No specific task assignment
 			tmuxSession,
 			state: "booting",
 			pid,

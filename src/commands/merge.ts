@@ -47,7 +47,7 @@ function parseAgentName(branchName: string): string {
  * Pattern: overstory/{agentName}/{taskId}
  * Falls back to "unknown" if the pattern does not match.
  */
-function parseBeadId(branchName: string): string {
+function parseTaskId(branchName: string): string {
 	const parts = branchName.split("/");
 	if (parts[0] === "overstory" && parts[2] !== undefined) {
 		return parts[2];
@@ -213,7 +213,7 @@ async function handleBranch(
 		}
 
 		const agentName = parseAgentName(branchName);
-		const taskId = parseBeadId(branchName);
+		const taskId = parseTaskId(branchName);
 		const filesModified = await detectModifiedFiles(repoRoot, canonicalBranch, branchName);
 
 		entry = queue.enqueue({
