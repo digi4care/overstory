@@ -2,9 +2,17 @@
  * Mulch CLI client.
  *
  * Wraps the `mulch` command-line tool for structured expertise operations.
- * Uses Bun.spawn — zero runtime dependencies.
+ * record(), search(), and query() use the @os-eco/mulch-cli programmatic API.
+ * Remaining methods (prime, status, diff, learn, prune, doctor, ready, compact)
+ * remain as Bun.spawn CLI wrappers.
  */
 
+import type { ExpertiseRecord as MulchExpertiseRecord } from "@os-eco/mulch-cli";
+import {
+	queryDomain as mulchQueryDomain,
+	recordExpertise,
+	searchExpertise,
+} from "@os-eco/mulch-cli";
 import { AgentError } from "../errors.ts";
 import type {
 	MulchCompactResult,
@@ -106,6 +114,127 @@ async function runCommand(
 }
 
 /**
+ * Build an ExpertiseRecord from record() options.
+ *
+ * CRITICAL MAPPING: --description maps to record.content for convention records,
+ * but to record.description for all other types.
+ */
+function buildExpertiseRecord(options: {
+	type: string;
+	name?: string;
+	description?: string;
+	title?: string;
+	rationale?: string;
+	tags?: string[];
+	classification?: string;
+	evidenceBead?: string;
+	outcomeStatus?: "success" | "failure";
+	outcomeDuration?: number;
+	outcomeTestResults?: string;
+	outcomeAgent?: string;
+}): MulchExpertiseRecord {
+	const base = {
+		classification: (options.classification ?? "tactical") as
+			| "foundational"
+			| "tactical"
+			| "observational",
+		recorded_at: new Date().toISOString(),
+		tags: options.tags,
+		evidence: options.evidenceBead ? { bead: options.evidenceBead } : undefined,
+		outcomes: options.outcomeStatus
+			? [
+					{
+						status: options.outcomeStatus as "success" | "failure" | "partial",
+						duration: options.outcomeDuration,
+						test_results: options.outcomeTestResults,
+						agent: options.outcomeAgent,
+						recorded_at: new Date().toISOString(),
+					},
+				]
+			: undefined,
+	};
+
+	switch (options.type) {
+		case "convention":
+			return { ...base, type: "convention", content: options.description ?? "" };
+		case "pattern":
+			return {
+				...base,
+				type: "pattern",
+				name: options.name ?? "",
+				description: options.description ?? "",
+			};
+		case "failure":
+			return {
+				...base,
+				type: "failure",
+				description: options.description ?? "",
+				resolution: "",
+			};
+		case "decision":
+			return {
+				...base,
+				type: "decision",
+				title: options.title ?? "",
+				rationale: options.rationale ?? "",
+			};
+		case "reference":
+			return {
+				...base,
+				type: "reference",
+				name: options.name ?? "",
+				description: options.description ?? "",
+			};
+		case "guide":
+			return {
+				...base,
+				type: "guide",
+				name: options.name ?? "",
+				description: options.description ?? "",
+			};
+		default:
+			return {
+				...base,
+				type: "convention",
+				content: options.description ?? "",
+			} as MulchExpertiseRecord;
+	}
+}
+
+/**
+ * Format search/query results as a plain string for callers that expect string output.
+ * Preserves behavior for parseConflictPatterns regex in resolver.ts.
+ */
+function formatSearchResults(
+	results: Array<{ domain: string; records: MulchExpertiseRecord[] }>,
+): string {
+	const lines: string[] = [];
+	for (const result of results) {
+		for (const record of result.records) {
+			lines.push(formatRecordText(record));
+		}
+	}
+	return lines.join("\n");
+}
+
+function formatRecordText(record: MulchExpertiseRecord): string {
+	switch (record.type) {
+		case "convention":
+			return record.content;
+		case "pattern":
+			return record.description;
+		case "failure":
+			return record.description;
+		case "decision":
+			return `${record.title}: ${record.rationale}`;
+		case "reference":
+			return record.description;
+		case "guide":
+			return record.description;
+	}
+}
+
+/**
  * Create a MulchClient bound to the given working directory.
  *
  * @param cwd - Working directory where mulch commands should run
@@ -158,61 +287,57 @@ export function createMulchClient(cwd: string): MulchClient {
 		},
 
 		async record(domain, options) {
-			const args = ["record", domain, "--type", options.type];
-			if (options.name) {
-				args.push("--name", options.name);
-			}
-			if (options.description) {
-				args.push("--description", options.description);
-			}
-			if (options.title) {
-				args.push("--title", options.title);
-			}
-			if (options.rationale) {
-				args.push("--rationale", options.rationale);
-			}
-			if (options.tags && options.tags.length > 0) {
-				args.push("--tags", options.tags.join(","));
-			}
-			if (options.classification) {
-				args.push("--classification", options.classification);
-			}
+			// stdin mode: no programmatic API equivalent, fall back to CLI
 			if (options.stdin) {
+				const args = ["record", domain, "--type", options.type];
+				if (options.description) args.push("--description", options.description);
 				args.push("--stdin");
+				await runMulch(args, `record ${domain}`);
+				return;
 			}
-			if (options.evidenceBead) {
-				args.push("--evidence-bead", options.evidenceBead);
+
+			const expertiseRecord = buildExpertiseRecord(options);
+			try {
+				await recordExpertise(domain, expertiseRecord, { cwd });
+			} catch (error) {
+				if (error instanceof Error && error.message.includes("not found in config")) {
+					// Auto-create domain (matching mulch CLI 0.6.1+ behavior)
+					await runMulch(["add", domain], `add ${domain}`);
+					await recordExpertise(domain, expertiseRecord, { cwd });
+				} else {
+					throw new AgentError(
+						`mulch record ${domain} failed: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
 			}
-			if (options.outcomeStatus) {
-				args.push("--outcome-status", options.outcomeStatus);
-			}
-			if (options.outcomeDuration !== undefined) {
-				args.push("--outcome-duration", String(options.outcomeDuration));
-			}
-			if (options.outcomeTestResults) {
-				args.push("--outcome-test-results", options.outcomeTestResults);
-			}
-			if (options.outcomeAgent) {
-				args.push("--outcome-agent", options.outcomeAgent);
-			}
-			await runMulch(args, `record ${domain}`);
 		},
 
 		async query(domain) {
-			const args = ["query"];
-			if (domain) {
-				args.push(domain);
+			if (!domain) {
+				throw new AgentError("mulch query failed (exit 1): domain argument required");
 			}
-			const { stdout } = await runMulch(args, "query");
-			return stdout;
+			try {
+				const records = await mulchQueryDomain(domain, { cwd });
+				return formatSearchResults([{ domain, records }]);
+			} catch (error) {
+				throw new AgentError(
+					`mulch query failed: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
 		},
 
 		async search(query, options) {
-			const args = ["search", query];
-			if (options?.file) args.push("--file", options.file);
-			if (options?.sortByScore) args.push("--sort-by-score");
-			const { stdout } = await runMulch(args, "search");
-			return stdout;
+			try {
+				const results = await searchExpertise(query, {
+					file: options?.file,
+					cwd,
+				});
+				return formatSearchResults(results);
+			} catch (error) {
+				throw new AgentError(
+					`mulch search failed: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
 		},
 
 		async diff(options) {
