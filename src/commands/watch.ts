@@ -20,12 +20,12 @@ import { isProcessRunning } from "../watchdog/health.ts";
 function formatCheck(check: HealthCheck): string {
 	const actionIcon =
 		check.action === "terminate"
-			? "💀"
+			? "x"
 			: check.action === "escalate"
-				? "⚠️"
+				? "!"
 				: check.action === "investigate"
-					? "🔍"
-					: "✅";
+					? ">"
+					: "x";
 	const pidLabel = check.pidAlive === null ? "n/a" : check.pidAlive ? "up" : "down";
 	let line = `${actionIcon} ${check.agentName}: ${check.state} (tmux=${check.tmuxAlive ? "up" : "down"}, pid=${pidLabel})`;
 	if (check.reconciliationNote) {

@@ -556,7 +556,7 @@ export async function cleanCommand(opts: CleanOptions): Promise<void> {
 		const healthLines: string[] = [];
 
 		if (health.domainsNearLimit.length > 0) {
-			healthLines.push("\n⚠️  Mulch domains approaching governance limits:");
+			healthLines.push("\nWarning: Mulch domains approaching governance limits:");
 			for (const d of health.domainsNearLimit) {
 				healthLines.push(
 					`   ${d.domain}: ${d.recordCount} records (warn threshold: ${d.warnThreshold})`,
@@ -566,13 +566,13 @@ export async function cleanCommand(opts: CleanOptions): Promise<void> {
 
 		if (health.stalePruneCandidates > 0) {
 			healthLines.push(
-				`\n📦 Stale records found: ${health.stalePruneCandidates} candidate${health.stalePruneCandidates === 1 ? "" : "s"} (run 'mulch prune' to remove)`,
+				`\nStale records found: ${health.stalePruneCandidates} candidate${health.stalePruneCandidates === 1 ? "" : "s"} (run 'mulch prune' to remove)`,
 			);
 		}
 
 		if (health.doctorWarnings > 0 || health.doctorIssues > 0) {
 			healthLines.push(
-				`\n🩺 Mulch health check: ${health.doctorWarnings} warning${health.doctorWarnings === 1 ? "" : "s"}, ${health.doctorIssues} issue${health.doctorIssues === 1 ? "" : "s"} (run 'mulch doctor' for details)`,
+				`\nMulch health check: ${health.doctorWarnings} warning${health.doctorWarnings === 1 ? "" : "s"}, ${health.doctorIssues} issue${health.doctorIssues === 1 ? "" : "s"} (run 'mulch doctor' for details)`,
 			);
 		}
 

@@ -269,7 +269,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 	// Warn if --skip-scout is used for a non-lead capability (harmless but confusing)
 	if (skipScout && capability !== "lead") {
 		process.stderr.write(
-			`⚠️  Warning: --skip-scout is only meaningful for leads. Ignoring for "${capability}" agent "${name}".\n`,
+			`Warning: --skip-scout is only meaningful for leads. Ignoring for "${capability}" agent "${name}".\n`,
 		);
 	}
 
@@ -415,7 +415,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// the scout-skip pattern so agents and operators can see it happening.
 		if (capability === "builder" && parentAgent && !parentHasScouts(store.getAll(), parentAgent)) {
 			process.stderr.write(
-				`⚠️  Warning: "${parentAgent}" is spawning builder "${name}" without having spawned any scouts.\n`,
+				`Warning: "${parentAgent}" is spawning builder "${name}" without having spawned any scouts.\n`,
 			);
 			process.stderr.write(
 				"   Leads should spawn scouts in Phase 1 before building. See agents/lead.md.\n",
@@ -621,7 +621,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		if (opts.json ?? false) {
 			process.stdout.write(`${JSON.stringify(output)}\n`);
 		} else {
-			process.stdout.write(`🚀 Agent "${name}" launched!\n`);
+			process.stdout.write(`Agent "${name}" launched!\n`);
 			process.stdout.write(`   Task:     ${taskId}\n`);
 			process.stdout.write(`   Branch:   ${branchName}\n`);
 			process.stdout.write(`   Worktree: ${worktreePath}\n`);

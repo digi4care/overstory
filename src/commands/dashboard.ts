@@ -438,15 +438,15 @@ function getStateColor(state: string): ColorFn {
 function getStateIcon(state: string): string {
 	switch (state) {
 		case "working":
-			return "●";
+			return ">";
 		case "booting":
-			return "◐";
+			return "-";
 		case "stalled":
-			return "⚠";
+			return "!";
 		case "zombie":
-			return "○";
+			return "x";
 		case "completed":
-			return "✓";
+			return "x";
 		default:
 			return "?";
 	}
@@ -508,7 +508,7 @@ function renderAgentPanel(
 		const duration = formatDuration(endTime - new Date(agent.startedAt).getTime());
 		const durationPadded = pad(duration, 9);
 		const tmuxAlive = data.status.tmuxSessions.some((s) => s.name === agent.tmuxSession);
-		const tmuxDot = tmuxAlive ? color.green("●") : color.red("○");
+		const tmuxDot = tmuxAlive ? color.green(">") : color.red("x");
 
 		const line = `${BOX.vertical} ${stateColor(icon)}  ${name} ${capability} ${stateColor(state)} ${taskId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${line}\n`;

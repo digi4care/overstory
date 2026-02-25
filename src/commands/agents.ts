@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { color } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { type AgentSession, SUPPORTED_CAPABILITIES } from "../types.ts";
 
@@ -140,11 +141,11 @@ export async function discoverAgents(
 function getStateIcon(state: string): string {
 	switch (state) {
 		case "working":
-			return "●";
+			return color.cyan(">");
 		case "booting":
-			return "○";
+			return color.green("-");
 		case "stalled":
-			return "◌";
+			return color.yellow("!");
 		default:
 			return " ";
 	}

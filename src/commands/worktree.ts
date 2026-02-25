@@ -58,7 +58,7 @@ async function handleList(root: string, json: boolean): Promise<void> {
 		return;
 	}
 
-	process.stdout.write(`🌳 Agent worktrees: ${overstoryWts.length}\n\n`);
+	process.stdout.write(`Agent worktrees: ${overstoryWts.length}\n\n`);
 	for (const wt of overstoryWts) {
 		const session = sessions.find((s) => s.worktreePath === wt.path);
 		const state = session?.state ?? "unknown";
@@ -149,7 +149,7 @@ async function handleClean(
 					merged = false;
 				}
 				if (!merged && !json) {
-					process.stdout.write(`⚠️  Force-deleting unmerged branch: ${wt.branch}\n`);
+					process.stdout.write(`Warning: Force-deleting unmerged branch: ${wt.branch}\n`);
 				}
 			}
 
@@ -166,12 +166,12 @@ async function handleClean(
 					seedsPreserved.push(wt.branch);
 					if (!json) {
 						process.stdout.write(
-							`🌱 Preserved .seeds/ changes from lead ${session?.agentName ?? "unknown-lead"}\n`,
+							`Preserved .seeds/ changes from lead ${session?.agentName ?? "unknown-lead"}\n`,
 						);
 					}
 				} else if (result.error) {
 					process.stderr.write(
-						`⚠️  Failed to preserve .seeds/ from ${wt.branch}: ${result.error}\n`,
+						`Warning: Failed to preserve .seeds/ from ${wt.branch}: ${result.error}\n`,
 					);
 				}
 			}
@@ -186,13 +186,13 @@ async function handleClean(
 				cleaned.push(wt.branch);
 
 				if (!json) {
-					process.stdout.write(`🗑️  Removed: ${wt.branch}\n`);
+					process.stdout.write(`Removed: ${wt.branch}\n`);
 				}
 			} catch (err) {
 				failed.push(wt.branch);
 				if (!json) {
 					const msg = err instanceof Error ? err.message : String(err);
-					process.stderr.write(`⚠️  Failed to remove ${wt.branch}: ${msg}\n`);
+					process.stderr.write(`Warning: Failed to remove ${wt.branch}: ${msg}\n`);
 				}
 			}
 		}
@@ -280,7 +280,7 @@ async function handleClean(
 			}
 			if (skipped.length > 0) {
 				process.stdout.write(
-					`\n⚠️  Skipped ${skipped.length} worktree${skipped.length === 1 ? "" : "s"} with unmerged branches:\n`,
+					`\nWarning: Skipped ${skipped.length} worktree${skipped.length === 1 ? "" : "s"} with unmerged branches:\n`,
 				);
 				for (const branch of skipped) {
 					process.stdout.write(`  ${branch}\n`);

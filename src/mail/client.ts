@@ -96,7 +96,7 @@ function formatForInjection(messages: MailMessage[]): string {
 	}
 
 	const lines: string[] = [
-		`📬 You have ${messages.length} new message${messages.length === 1 ? "" : "s"}:`,
+		`You have ${messages.length} new message${messages.length === 1 ? "" : "s"}:`,
 		"",
 	];
 

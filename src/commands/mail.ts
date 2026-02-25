@@ -373,7 +373,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 				);
 			} else {
 				process.stdout.write(
-					`📢 Broadcast sent to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"} (${to})\n`,
+					`Broadcast sent to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"} (${to})\n`,
 				);
 				for (let i = 0; i < recipients.length; i++) {
 					const recipient = recipients[i];
@@ -429,7 +429,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify({ id })}\n`);
 		} else {
-			process.stdout.write(`✉️  Sent message ${id} to ${to}\n`);
+			process.stdout.write(`Sent message ${id} to ${to}\n`);
 		}
 
 		// Auto-nudge: write a pending nudge marker instead of sending tmux keys.
@@ -449,7 +449,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 			});
 			if (!opts.json) {
 				process.stdout.write(
-					`📢 Queued nudge for "${to}" (${nudgeReason}, delivered on next prompt)\n`,
+					`Queued nudge for "${to}" (${nudgeReason}, delivered on next prompt)\n`,
 				);
 			}
 		}
@@ -469,13 +469,13 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 					);
 					if (myBuilders.length > 0 && myReviewers.length === 0) {
 						process.stderr.write(
-							`\n⚠️  WARNING: merge_ready sent but NO reviewer sessions found for "${from}".\n` +
-								`⚠️  ${myBuilders.length} builder(s) completed without review. This violates the review-before-merge requirement.\n` +
-								`⚠️  Spawn reviewers for each builder before merge. See REVIEW_SKIP in agents/lead.md.\n\n`,
+							`\nWarning: merge_ready sent but NO reviewer sessions found for "${from}".\n` +
+								`${myBuilders.length} builder(s) completed without review. This violates the review-before-merge requirement.\n` +
+								`Spawn reviewers for each builder before merge. See REVIEW_SKIP in agents/lead.md.\n\n`,
 						);
 					} else if (myReviewers.length > 0 && myReviewers.length < myBuilders.length) {
 						process.stderr.write(
-							`\n⚠️  NOTE: Only ${myReviewers.length} reviewer(s) for ${myBuilders.length} builder(s). Ensure all builder work is review-verified.\n\n`,
+							`\nNote: Only ${myReviewers.length} reviewer(s) for ${myBuilders.length} builder(s). Ensure all builder work is review-verified.\n\n`,
 						);
 					}
 				} finally {
@@ -528,7 +528,7 @@ async function handleCheck(opts: CheckOpts, cwd: string): Promise<void> {
 
 			// Prepend a priority banner if there's a pending nudge
 			if (pendingNudge) {
-				const banner = `🚨 PRIORITY: ${pendingNudge.reason} message from ${pendingNudge.from} — "${pendingNudge.subject}"\n\n`;
+				const banner = `PRIORITY: ${pendingNudge.reason} message from ${pendingNudge.from} — "${pendingNudge.subject}"\n\n`;
 				process.stdout.write(banner);
 			}
 
@@ -544,7 +544,7 @@ async function handleCheck(opts: CheckOpts, cwd: string): Promise<void> {
 				process.stdout.write("No new messages.\n");
 			} else {
 				process.stdout.write(
-					`📬 ${messages.length} new message${messages.length === 1 ? "" : "s"}:\n\n`,
+					`${messages.length} new message${messages.length === 1 ? "" : "s"}:\n\n`,
 				);
 				for (const msg of messages) {
 					process.stdout.write(`${formatMessage(msg)}\n\n`);
@@ -617,7 +617,7 @@ function handleReply(id: string, opts: ReplyOpts, cwd: string): void {
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify({ id: replyId })}\n`);
 		} else {
-			process.stdout.write(`✉️  Reply sent: ${replyId}\n`);
+			process.stdout.write(`Reply sent: ${replyId}\n`);
 		}
 	} finally {
 		client.close();
