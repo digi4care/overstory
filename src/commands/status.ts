@@ -178,7 +178,7 @@ export async function gatherStatus(
 			const metricsFile = Bun.file(metricsDbPath);
 			if (await metricsFile.exists()) {
 				const metricsStore = createMetricsStore(metricsDbPath);
-				recentMetricsCount = metricsStore.getRecentSessions(100).length;
+				recentMetricsCount = metricsStore.countSessions();
 				metricsStore.close();
 			}
 		} catch {

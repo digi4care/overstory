@@ -271,7 +271,7 @@ async function loadDashboardData(
 	let recentMetricsCount = 0;
 	if (stores.metricsStore) {
 		try {
-			recentMetricsCount = stores.metricsStore.getRecentSessions(100).length;
+			recentMetricsCount = stores.metricsStore.countSessions();
 		} catch {
 			// best effort
 		}
@@ -331,32 +331,34 @@ async function loadDashboardData(
 	const byCapability: Record<string, number> = {};
 	if (stores.metricsStore) {
 		try {
-			const sessions = stores.metricsStore.getRecentSessions(100);
-
-			const filtered =
-				runId && filteredAgents.length > 0
-					? (() => {
-							const agentNames = new Set(filteredAgents.map((a) => a.agentName));
-							return sessions.filter((s) => agentNames.has(s.agentName));
-						})()
-					: sessions;
-
-			totalSessions = filtered.length;
-
-			// When run-scoped, compute avg duration from filtered sessions manually
 			if (runId && filteredAgents.length > 0) {
+				// Run-scoped: filter sessions by agent names, compute all values from the filtered set
+				const agentNames = new Set(filteredAgents.map((a) => a.agentName));
+				const sessions = stores.metricsStore.getRecentSessions(100);
+				const filtered = sessions.filter((s) => agentNames.has(s.agentName));
+
+				totalSessions = filtered.length;
+
 				const completedSessions = filtered.filter((s) => s.completedAt !== null);
 				if (completedSessions.length > 0) {
 					avgDuration =
 						completedSessions.reduce((sum, s) => sum + s.durationMs, 0) / completedSessions.length;
 				}
-			} else {
-				avgDuration = stores.metricsStore.getAverageDuration();
-			}
 
-			for (const session of filtered) {
-				const cap = session.capability;
-				byCapability[cap] = (byCapability[cap] ?? 0) + 1;
+				for (const session of filtered) {
+					const cap = session.capability;
+					byCapability[cap] = (byCapability[cap] ?? 0) + 1;
+				}
+			} else {
+				// All-runs view: use countSessions() to get accurate total (not capped at 100)
+				totalSessions = stores.metricsStore.countSessions();
+				avgDuration = stores.metricsStore.getAverageDuration();
+
+				const sessions = stores.metricsStore.getRecentSessions(100);
+				for (const session of sessions) {
+					const cap = session.capability;
+					byCapability[cap] = (byCapability[cap] ?? 0) + 1;
+				}
 			}
 		} catch {
 			// best effort

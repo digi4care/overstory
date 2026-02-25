@@ -399,6 +399,52 @@ describe("getSessionsByRun", () => {
 	});
 });
 
+// === countSessions ===
+
+describe("countSessions", () => {
+	test("returns 0 for empty database", () => {
+		expect(store.countSessions()).toBe(0);
+	});
+
+	test("returns total count of sessions", () => {
+		store.recordSession(makeSession({ agentName: "a1", taskId: "t1" }));
+		store.recordSession(makeSession({ agentName: "a2", taskId: "t2" }));
+		store.recordSession(makeSession({ agentName: "a3", taskId: "t3" }));
+
+		expect(store.countSessions()).toBe(3);
+	});
+
+	test("returns accurate count beyond getRecentSessions default limit", () => {
+		// Insert 25 sessions (more than the default limit of 20)
+		for (let i = 0; i < 25; i++) {
+			store.recordSession(
+				makeSession({
+					agentName: `agent-${i}`,
+					taskId: `task-${i}`,
+					startedAt: new Date(Date.now() + i * 1000).toISOString(),
+				}),
+			);
+		}
+
+		// getRecentSessions is capped at 20 by default
+		expect(store.getRecentSessions().length).toBe(20);
+		// countSessions returns the true total without a cap
+		expect(store.countSessions()).toBe(25);
+	});
+
+	test("count updates after purge", () => {
+		store.recordSession(makeSession({ agentName: "a1", taskId: "t1" }));
+		store.recordSession(makeSession({ agentName: "a2", taskId: "t2" }));
+		expect(store.countSessions()).toBe(2);
+
+		store.purge({ agent: "a1" });
+		expect(store.countSessions()).toBe(1);
+
+		store.purge({ all: true });
+		expect(store.countSessions()).toBe(0);
+	});
+});
+
 // === purge ===
 
 describe("purge", () => {

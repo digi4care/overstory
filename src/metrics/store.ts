@@ -14,6 +14,8 @@ export interface MetricsStore {
 	getSessionsByAgent(agentName: string): SessionMetrics[];
 	getSessionsByRun(runId: string): SessionMetrics[];
 	getAverageDuration(capability?: string): number;
+	/** Count the total number of sessions in the database (no limit cap). */
+	countSessions(): number;
 	/** Delete metrics matching the given criteria. Returns the number of rows deleted. */
 	purge(options: { all?: boolean; agent?: string }): number;
 	/** Record a token usage snapshot for a running agent. */
@@ -252,6 +254,10 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 		SELECT AVG(duration_ms) AS avg_duration FROM sessions WHERE completed_at IS NOT NULL
 	`);
 
+	const countSessionsStmt = db.prepare<{ cnt: number }, Record<string, never>>(`
+		SELECT COUNT(*) as cnt FROM sessions
+	`);
+
 	const avgDurationByCapStmt = db.prepare<
 		{ avg_duration: number | null },
 		{ $capability: string }
@@ -343,6 +349,11 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 			}
 			const row = avgDurationAllStmt.get({});
 			return row?.avg_duration ?? 0;
+		},
+
+		countSessions(): number {
+			const row = countSessionsStmt.get({});
+			return row?.cnt ?? 0;
 		},
 
 		purge(options: { all?: boolean; agent?: string }): number {
