@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-02-25
+
+### Fixed
+
+#### Permission Flag Migration
+- **Replace `--dangerously-skip-permissions` with `--permission-mode bypassPermissions`** across all agent spawn paths (coordinator, supervisor, sling, monitor) — adapts to updated Claude Code CLI flag naming
+
+#### Status Output
+- **Remove remaining emoji from `ov status` output** — section headers (Agents, Worktrees, Mail, Merge queue, Sessions recorded) and deprecation warning now use plain text; alive markers use colored `>`/`x` instead of `●`/`○`
+
+### Changed
+
+#### Agent Spawn Reliability
+- **Increase TUI readiness timeout from 15s to 30s** — `waitForTuiReady` now waits longer for Claude Code TUI to initialize, reducing false-negative timeouts on slower machines
+- **Smarter TUI readiness detection** — `waitForTuiReady` now checks for actual TUI markers (`❯` prompt or `Try "` text) instead of any pane content, preventing premature readiness signals
+- **Extend follow-up Enter delays** — beacon submission retries expanded from `[1s, 2s]` to `[1s, 2s, 3s, 5s]` in sling, coordinator, and supervisor, improving reliability when Claude Code TUI initializes slowly
+
+### Testing
+- 2151 tests across 76 files (5424 `expect()` calls)
+
 ## [0.6.6] - 2026-02-24
 
 ### Changed
@@ -716,7 +736,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.6...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.7...HEAD
+[0.6.7]: https://github.com/jayminwest/overstory/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/jayminwest/overstory/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jayminwest/overstory/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jayminwest/overstory/compare/v0.6.3...v0.6.4

@@ -7,7 +7,7 @@
 	"e2e-fix-builder": 1771977066514,
 	"bead-rename-builder": 1771977995891,
 	"bead-fix-builder": 1771978658064,
-	"coordinator": 1771991142867,
+	"coordinator": 1772030749835,
 	"fixup-lead-2": 1771986684994,
 	"quality-gates-lead": 1771989260445,
 	"alias-consistency-lead": 1771989157385,
@@ -20,5 +20,9 @@
 	"cli-output-lead": 1771990957660,
 	"alias-lead": 1771990417286,
 	"quality-fix-builder": 1771990100262,
-	"icon-replace-builder": 1771991009284
+	"icon-replace-builder": 1771991009284,
+	"beacon-fix-lead": 1772030719114,
+	"icon-fix-lead": 1772030457697,
+	"icon-fix-builder": 1772030404928,
+	"beacon-fix-builder": 1772030622285
 }
