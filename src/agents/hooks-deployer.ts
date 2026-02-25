@@ -1,6 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { DEFAULT_QUALITY_GATES } from "../config.ts";
 import { AgentError } from "../errors.ts";
+import type { QualityGate } from "../types.ts";
 
 /**
  * Capabilities that must never modify project files.
@@ -117,11 +119,19 @@ const SAFE_BASH_PREFIXES = [
 	"git blame",
 	"git branch",
 	"mulch ",
-	"bun test",
-	"bun run lint",
-	"bun run typecheck",
-	"bun run biome",
 ];
+
+/**
+ * Extract command prefixes from quality gate configurations.
+ *
+ * Each gate's command is used as a safe prefix so non-implementation agents
+ * can still run quality gate commands (e.g., reviewers running tests).
+ * This makes the safe prefix list configurable instead of hardcoding
+ * specific tool commands like "bun test".
+ */
+export function extractQualityGatePrefixes(gates: QualityGate[]): string[] {
+	return gates.map((g) => g.command);
+}
 
 /** Hook entry shape matching Claude Code's settings.local.json format. */
 interface HookEntry {
@@ -470,8 +480,10 @@ export function getBashPathBoundaryGuards(): HookEntry[] {
  *
  * Note: All capabilities also receive Bash danger guards via getDangerGuards().
  */
-export function getCapabilityGuards(capability: string): HookEntry[] {
+export function getCapabilityGuards(capability: string, qualityGates?: QualityGate[]): HookEntry[] {
 	const guards: HookEntry[] = [];
+	const gates = qualityGates ?? DEFAULT_QUALITY_GATES;
+	const gatePrefixes = extractQualityGatePrefixes(gates);
 
 	// Block Claude Code native team/task tools for ALL overstory agents.
 	// Agents must use `overstory sling` for delegation, not native Task/Team tools.
@@ -501,7 +513,9 @@ export function getCapabilityGuards(capability: string): HookEntry[] {
 		guards.push(...toolGuards);
 
 		// Coordination capabilities get git add/commit whitelisted for beads/mulch sync
-		const extraSafe = COORDINATION_CAPABILITIES.has(capability) ? COORDINATION_SAFE_PREFIXES : [];
+		const extraSafe = COORDINATION_CAPABILITIES.has(capability)
+			? [...COORDINATION_SAFE_PREFIXES, ...gatePrefixes]
+			: gatePrefixes;
 		const bashFileGuard: HookEntry = {
 			matcher: "Bash",
 			hooks: [
@@ -560,6 +574,7 @@ export async function deployHooks(
 	worktreePath: string,
 	agentName: string,
 	capability = "builder",
+	qualityGates?: QualityGate[],
 ): Promise<void> {
 	const templatePath = getTemplatePath();
 	const file = Bun.file(templatePath);
@@ -606,7 +621,7 @@ export async function deployHooks(
 	// and do not require PATH extension.
 	const pathGuards = getPathBoundaryGuards();
 	const dangerGuards = getDangerGuards(agentName);
-	const capabilityGuards = getCapabilityGuards(capability);
+	const capabilityGuards = getCapabilityGuards(capability, qualityGates);
 	const allGuards = [...pathGuards, ...dangerGuards, ...capabilityGuards];
 
 	if (allGuards.length > 0) {

@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { DEFAULT_QUALITY_GATES } from "../config.ts";
 import { AgentError } from "../errors.ts";
 import type { OverlayConfig, QualityGate } from "../types.ts";
 
@@ -76,12 +77,65 @@ Your parent has already gathered the context you need.
  * a lightweight section that only tells them to close the issue and report.
  * Writable agents get the full quality gates (tests, lint, build, commit).
  */
-/** Default quality gates used when none are configured. */
-const DEFAULT_GATES: QualityGate[] = [
-	{ name: "Tests", command: "bun test", description: "all tests must pass" },
-	{ name: "Lint", command: "bun run lint", description: "zero errors" },
-	{ name: "Typecheck", command: "bun run typecheck", description: "no TypeScript errors" },
-];
+/**
+ * Resolve quality gates: use provided gates if non-empty, otherwise fall back to defaults.
+ */
+function resolveGates(gates: QualityGate[] | undefined): QualityGate[] {
+	return gates && gates.length > 0 ? gates : DEFAULT_QUALITY_GATES;
+}
+
+/**
+ * Format quality gates as inline backtick-delimited commands for prose sections.
+ * Example: `bun test`, `bun run lint`, `bun run typecheck`
+ */
+export function formatQualityGatesInline(gates: QualityGate[] | undefined): string {
+	return resolveGates(gates)
+		.map((g) => `\`${g.command}\``)
+		.join(", ");
+}
+
+/**
+ * Format quality gates as a numbered step list for completion-protocol sections.
+ * Example:
+ *   1. Run `bun test` -- all tests must pass.
+ *   2. Run `bun run lint` -- lint and formatting must be clean.
+ */
+export function formatQualityGatesSteps(gates: QualityGate[] | undefined): string {
+	return resolveGates(gates)
+		.map((g, i) => `${i + 1}. Run \`${g.command}\` -- ${g.description}.`)
+		.join("\n");
+}
+
+/**
+ * Format quality gates as a bash code block for workflow sections.
+ * Example:
+ *   ```bash
+ *   bun test              # All tests must pass
+ *   bun run lint          # Lint and format must be clean
+ *   ```
+ */
+export function formatQualityGatesBash(gates: QualityGate[] | undefined): string {
+	const resolved = resolveGates(gates);
+	// Pad commands to align comments
+	const maxLen = Math.max(...resolved.map((g) => g.command.length));
+	const lines = resolved.map((g) => {
+		const padded = g.command.padEnd(maxLen + 2);
+		return `${padded}# ${g.description[0]?.toUpperCase() ?? ""}${g.description.slice(1)}`;
+	});
+	return ["```bash", ...lines, "```"].join("\n");
+}
+
+/**
+ * Format quality gates as a bullet list for capabilities sections.
+ * Example:
+ *   - `bun test` (run tests)
+ *   - `bun run lint` (lint and format check via biome)
+ */
+export function formatQualityGatesCapabilities(gates: QualityGate[] | undefined): string {
+	return resolveGates(gates)
+		.map((g) => `  - \`${g.command}\` (${g.description})`)
+		.join("\n");
+}
 
 function formatQualityGates(config: OverlayConfig): string {
 	if (READ_ONLY_CAPABILITIES.has(config.capability)) {
@@ -99,7 +153,9 @@ function formatQualityGates(config: OverlayConfig): string {
 	}
 
 	const gates =
-		config.qualityGates && config.qualityGates.length > 0 ? config.qualityGates : DEFAULT_GATES;
+		config.qualityGates && config.qualityGates.length > 0
+			? config.qualityGates
+			: DEFAULT_QUALITY_GATES;
 
 	const gateLines = gates.map(
 		(gate, i) => `${i + 1}. **${gate.name}:** \`${gate.command}\` — ${gate.description}`,
@@ -220,6 +276,10 @@ export async function generateOverlay(config: OverlayConfig): Promise<string> {
 		"{{SPEC_INSTRUCTION}}": specInstruction,
 		"{{SKIP_SCOUT}}": config.skipScout ? SKIP_SCOUT_SECTION : "",
 		"{{BASE_DEFINITION}}": config.baseDefinition,
+		"{{QUALITY_GATE_INLINE}}": formatQualityGatesInline(config.qualityGates),
+		"{{QUALITY_GATE_STEPS}}": formatQualityGatesSteps(config.qualityGates),
+		"{{QUALITY_GATE_BASH}}": formatQualityGatesBash(config.qualityGates),
+		"{{QUALITY_GATE_CAPABILITIES}}": formatQualityGatesCapabilities(config.qualityGates),
 		"{{TRACKER_CLI}}": config.trackerCli ?? "bd",
 		"{{TRACKER_NAME}}": config.trackerName ?? "beads",
 	};

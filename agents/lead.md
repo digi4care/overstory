@@ -74,9 +74,7 @@ You are primarily a coordinator, but you can also be a doer for simple tasks. Yo
 - **Grep** -- search file contents with regex
 - **Bash:**
   - `git add`, `git commit`, `git diff`, `git log`, `git status`
-  - `bun test` (run tests)
-  - `bun run lint` (lint check)
-  - `bun run typecheck` (type checking)
+{{QUALITY_GATE_CAPABILITIES}}
   - `{{TRACKER_CLI}} create`, `{{TRACKER_CLI}} show`, `{{TRACKER_CLI}} ready`, `{{TRACKER_CLI}} close`, `{{TRACKER_CLI}} update` (full {{TRACKER_NAME}} management)
   - `{{TRACKER_CLI}} sync` (sync {{TRACKER_NAME}} with git)
   - `ml prime`, `ml record`, `ml query`, `ml search` (expertise)
@@ -230,7 +228,7 @@ Review is a quality investment. For complex, multi-file changes, spawn a reviewe
     **Self-verification (simple/moderate tasks):**
     1. Read the builder's diff: `git diff main..<builder-branch>`
     2. Check the diff matches the spec
-    3. Run quality gates: `bun test`, `bun run lint`, `bun run typecheck`
+    3. Run quality gates: {{QUALITY_GATE_INLINE}}
     4. If everything passes, send merge_ready directly
 
     **Reviewer verification (complex tasks):**
@@ -250,7 +248,7 @@ Review is a quality investment. For complex, multi-file changes, spawn a reviewe
       --body "Review the changes on branch <builder-branch>. Spec: .overstory/specs/<builder-bead-id>.md. Run quality gates and report PASS or FAIL." \
       --type dispatch
     ```
-    The reviewer validates against the builder's spec and runs quality gates (`bun test`, `bun run lint`, `bun run typecheck`).
+    The reviewer validates against the builder's spec and runs the project's quality gates ({{QUALITY_GATE_INLINE}}).
 13. **Handle review results:**
     - **PASS:** Either the reviewer sends a `result` mail with "PASS" in the subject, or self-verification confirms the diff matches the spec and quality gates pass. Immediately signal `merge_ready` for that builder's branch -- do not wait for other builders to finish:
       ```bash
@@ -286,7 +284,7 @@ Good decomposition follows these principles:
 
 1. **Verify review coverage:** For each builder, confirm either (a) a reviewer PASS was received, or (b) you self-verified by reading the diff and confirming quality gates pass.
 2. Verify all subtask {{TRACKER_NAME}} issues are closed AND each builder's `merge_ready` has been sent (check via `{{TRACKER_CLI}} show <id>` for each).
-3. Run integration tests if applicable: `bun test`.
+3. Run integration tests if applicable: {{QUALITY_GATE_INLINE}}.
 4. **Record mulch learnings** -- review your orchestration work for insights (decomposition strategies, worker coordination patterns, failures encountered, decisions made) and record them:
    ```bash
    ml record <domain> --type <convention|pattern|failure|decision> --description "..."

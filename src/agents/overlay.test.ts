@@ -4,7 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AgentError } from "../errors.ts";
 import type { OverlayConfig, QualityGate } from "../types.ts";
-import { generateOverlay, isCanonicalRoot, writeOverlay } from "./overlay.ts";
+import {
+	formatQualityGatesBash,
+	formatQualityGatesCapabilities,
+	formatQualityGatesInline,
+	formatQualityGatesSteps,
+	generateOverlay,
+	isCanonicalRoot,
+	writeOverlay,
+} from "./overlay.ts";
 
 const SAMPLE_BASE_DEFINITION = `# Builder Agent
 
@@ -672,5 +680,152 @@ describe("isCanonicalRoot", () => {
 		const canonicalRoot = "/projects/overstory";
 		const worktreePath = "/projects/overstory/.overstory/worktrees/dogfood-agent";
 		expect(isCanonicalRoot(worktreePath, canonicalRoot)).toBe(false);
+	});
+});
+
+describe("formatQualityGatesInline", () => {
+	test("formats default gates as inline backtick list", () => {
+		const result = formatQualityGatesInline(undefined);
+		expect(result).toBe("`bun test`, `bun run lint`, `bun run typecheck`");
+	});
+
+	test("formats custom gates as inline backtick list", () => {
+		const gates: QualityGate[] = [
+			{ name: "Test", command: "pytest", description: "all tests pass" },
+			{ name: "Lint", command: "ruff check .", description: "no lint errors" },
+		];
+		const result = formatQualityGatesInline(gates);
+		expect(result).toBe("`pytest`, `ruff check .`");
+	});
+
+	test("falls back to defaults for empty array", () => {
+		const result = formatQualityGatesInline([]);
+		expect(result).toContain("`bun test`");
+	});
+});
+
+describe("formatQualityGatesSteps", () => {
+	test("formats default gates as numbered steps", () => {
+		const result = formatQualityGatesSteps(undefined);
+		expect(result).toContain("1. Run `bun test`");
+		expect(result).toContain("2. Run `bun run lint`");
+		expect(result).toContain("3. Run `bun run typecheck`");
+	});
+
+	test("formats custom gates as numbered steps", () => {
+		const gates: QualityGate[] = [
+			{ name: "Build", command: "cargo build", description: "compilation succeeds" },
+			{ name: "Test", command: "cargo test", description: "all tests pass" },
+		];
+		const result = formatQualityGatesSteps(gates);
+		expect(result).toBe(
+			"1. Run `cargo build` -- compilation succeeds.\n2. Run `cargo test` -- all tests pass.",
+		);
+	});
+});
+
+describe("formatQualityGatesBash", () => {
+	test("formats as fenced bash block with aligned comments", () => {
+		const result = formatQualityGatesBash(undefined);
+		expect(result).toContain("```bash");
+		expect(result).toContain("bun test");
+		expect(result).toContain("bun run lint");
+		expect(result).toContain("bun run typecheck");
+		expect(result).toContain("```");
+	});
+
+	test("capitalizes first letter of description in comments", () => {
+		const gates: QualityGate[] = [
+			{ name: "Test", command: "pytest", description: "all tests pass" },
+		];
+		const result = formatQualityGatesBash(gates);
+		expect(result).toContain("# All tests pass");
+	});
+
+	test("custom gates produce correct bash block", () => {
+		const gates: QualityGate[] = [
+			{ name: "Test", command: "npm test", description: "tests pass" },
+			{ name: "Lint", command: "npm run lint", description: "lint clean" },
+		];
+		const result = formatQualityGatesBash(gates);
+		expect(result).toContain("npm test");
+		expect(result).toContain("npm run lint");
+		expect(result).not.toContain("bun");
+	});
+});
+
+describe("formatQualityGatesCapabilities", () => {
+	test("formats as indented bullet list", () => {
+		const result = formatQualityGatesCapabilities(undefined);
+		expect(result).toContain("  - `bun test`");
+		expect(result).toContain("  - `bun run lint`");
+		expect(result).toContain("  - `bun run typecheck`");
+	});
+
+	test("custom gates produce correct capability bullets", () => {
+		const gates: QualityGate[] = [
+			{ name: "Test", command: "pytest", description: "run tests" },
+			{ name: "Type", command: "mypy .", description: "type check" },
+		];
+		const result = formatQualityGatesCapabilities(gates);
+		expect(result).toBe("  - `pytest` (run tests)\n  - `mypy .` (type check)");
+	});
+});
+
+describe("quality gate placeholders in base definitions", () => {
+	test("QUALITY_GATE_INLINE in base definition gets replaced", async () => {
+		const config = makeConfig({
+			baseDefinition: "Run {{QUALITY_GATE_INLINE}} before closing.",
+		});
+		const output = await generateOverlay(config);
+		expect(output).toContain("`bun test`, `bun run lint`, `bun run typecheck`");
+		expect(output).not.toContain("{{QUALITY_GATE_INLINE}}");
+	});
+
+	test("QUALITY_GATE_STEPS in base definition gets replaced", async () => {
+		const config = makeConfig({
+			baseDefinition: "## Steps\n{{QUALITY_GATE_STEPS}}",
+		});
+		const output = await generateOverlay(config);
+		expect(output).toContain("1. Run `bun test`");
+		expect(output).not.toContain("{{QUALITY_GATE_STEPS}}");
+	});
+
+	test("QUALITY_GATE_BASH in base definition gets replaced", async () => {
+		const config = makeConfig({
+			baseDefinition: "## Workflow\n{{QUALITY_GATE_BASH}}",
+		});
+		const output = await generateOverlay(config);
+		expect(output).toContain("```bash");
+		expect(output).toContain("bun test");
+		expect(output).not.toContain("{{QUALITY_GATE_BASH}}");
+	});
+
+	test("QUALITY_GATE_CAPABILITIES in base definition gets replaced", async () => {
+		const config = makeConfig({
+			baseDefinition: "## Caps\n{{QUALITY_GATE_CAPABILITIES}}",
+		});
+		const output = await generateOverlay(config);
+		expect(output).toContain("  - `bun test`");
+		expect(output).not.toContain("{{QUALITY_GATE_CAPABILITIES}}");
+	});
+
+	test("custom quality gates in base definition get custom commands", async () => {
+		const gates: QualityGate[] = [
+			{ name: "Test", command: "pytest", description: "all tests pass" },
+			{ name: "Lint", command: "ruff check .", description: "no lint errors" },
+		];
+		const config = makeConfig({
+			capability: "builder",
+			qualityGates: gates,
+			baseDefinition:
+				"Run {{QUALITY_GATE_INLINE}} before closing.\n{{QUALITY_GATE_BASH}}\n{{QUALITY_GATE_STEPS}}",
+		});
+		const output = await generateOverlay(config);
+		expect(output).toContain("`pytest`, `ruff check .`");
+		expect(output).toContain("pytest");
+		expect(output).toContain("ruff check .");
+		expect(output).not.toContain("bun test");
+		expect(output).not.toContain("{{QUALITY_GATE");
 	});
 });

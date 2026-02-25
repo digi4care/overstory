@@ -9,6 +9,7 @@ import {
 	buildPathBoundaryGuardScript,
 	deployHooks,
 	escapeForSingleQuotedShell,
+	extractQualityGatePrefixes,
 	getBashPathBoundaryGuards,
 	getCapabilityGuards,
 	getDangerGuards,
@@ -1234,6 +1235,49 @@ describe("getDangerGuards", () => {
 			);
 		}
 	});
+
+	test("custom quality gates appear in safe prefix list for non-implementation capabilities", () => {
+		const guards = getCapabilityGuards("scout", [
+			{ name: "Test", command: "pytest", description: "all tests pass" },
+			{ name: "Lint", command: "ruff check .", description: "no lint errors" },
+		]);
+		// Find the Bash guard for file modifications (last Bash entry for non-implementation)
+		const bashGuards = guards.filter((g) => g.matcher === "Bash");
+		const fileGuard = bashGuards.find((g) =>
+			g.hooks.some((h) => h.command.includes("cannot modify files")),
+		);
+		expect(fileGuard).toBeDefined();
+		const command = fileGuard?.hooks[0]?.command ?? "";
+		expect(command).toContain("pytest");
+		expect(command).toContain("ruff check .");
+		// Should NOT contain default bun commands
+		expect(command).not.toContain("bun test");
+	});
+});
+
+describe("extractQualityGatePrefixes", () => {
+	test("extracts command from each gate", () => {
+		const gates = [
+			{ name: "Test", command: "bun test", description: "all tests pass" },
+			{ name: "Lint", command: "bun run lint", description: "zero errors" },
+		];
+		const prefixes = extractQualityGatePrefixes(gates);
+		expect(prefixes).toEqual(["bun test", "bun run lint"]);
+	});
+
+	test("returns empty array for empty gates", () => {
+		expect(extractQualityGatePrefixes([])).toEqual([]);
+	});
+
+	test("works with non-bun quality gates", () => {
+		const gates = [
+			{ name: "Test", command: "pytest", description: "all tests pass" },
+			{ name: "Lint", command: "ruff check .", description: "no lint errors" },
+			{ name: "Type", command: "mypy src/", description: "type check" },
+		];
+		const prefixes = extractQualityGatePrefixes(gates);
+		expect(prefixes).toEqual(["pytest", "ruff check .", "mypy src/"]);
+	});
 });
 
 describe("buildBashFileGuardScript", () => {
@@ -1261,6 +1305,14 @@ describe("buildBashFileGuardScript", () => {
 		expect(script).toContain("git log");
 		expect(script).toContain("git diff");
 		expect(script).toContain("mulch ");
+		// Quality gate commands (bun test, bun run lint, etc.) are no longer
+		// hardcoded in SAFE_BASH_PREFIXES — they come from config via
+		// extractQualityGatePrefixes() and are passed as extraSafePrefixes
+		// through getCapabilityGuards().
+	});
+
+	test("includes quality gate prefixes when passed as extraSafePrefixes", () => {
+		const script = buildBashFileGuardScript("scout", ["bun test", "bun run lint"]);
 		expect(script).toContain("bun test");
 		expect(script).toContain("bun run lint");
 	});

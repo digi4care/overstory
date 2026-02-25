@@ -561,7 +561,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		}
 
 		// 9. Deploy hooks config (capability-specific guards)
-		await deployHooks(worktreePath, name, capability);
+		await deployHooks(worktreePath, name, capability, config.project.qualityGates);
 
 		// 9b. Send auto-dispatch mail so it exists when SessionStart hook fires.
 		// This eliminates the race where coordinator sends dispatch AFTER agent boots.
