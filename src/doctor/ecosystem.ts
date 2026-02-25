@@ -95,6 +95,7 @@ function buildCheck(tool: EcosystemTool, probe: VersionProbeResult): DoctorCheck
 					stderr: "inherit",
 				});
 				await proc.exited;
+				return [`Installed ${pkg}`];
 			},
 		};
 	}
@@ -117,6 +118,7 @@ function buildCheck(tool: EcosystemTool, probe: VersionProbeResult): DoctorCheck
 					stderr: "inherit",
 				});
 				await proc.exited;
+				return [`Reinstalled ${pkg}`];
 			},
 		};
 	}

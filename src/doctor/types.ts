@@ -25,7 +25,7 @@ export interface DoctorCheck {
 	/** Whether this check issues can be auto-fixed via --fix. */
 	fixable?: boolean;
 	/** Auto-fix closure — called when --fix flag is passed. Captures context at construction time. */
-	fix?: () => Promise<void> | void;
+	fix?: () => Promise<string[]> | string[];
 }
 
 /**
