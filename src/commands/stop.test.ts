@@ -245,7 +245,8 @@ describe("stopCommand stop behavior", () => {
 		const { deps, tmuxCalls } = makeDeps({ [session.tmuxSession]: true });
 		const output = await captureStdout(() => stopCommand("my-builder", {}, deps));
 
-		expect(output).toContain(`Agent "my-builder" stopped`);
+		expect(output).toContain("Agent stopped");
+		expect(output).toContain("my-builder");
 		expect(output).toContain(`Tmux session killed: ${session.tmuxSession}`);
 		expect(tmuxCalls.killSession).toHaveLength(1);
 		expect(tmuxCalls.killSession[0]?.name).toBe(session.tmuxSession);
@@ -365,19 +366,20 @@ describe("stopCommand --clean-worktree", () => {
 		expect(worktreeCalls.remove[0]?.options?.forceBranch).toBe(true);
 	});
 
-	test("--clean-worktree failure is non-fatal (agent still stopped, warning on stderr)", async () => {
+	test("--clean-worktree failure is non-fatal (agent still stopped, warning on stdout)", async () => {
 		const session = makeAgentSession({ state: "working" });
 		saveSessionsToDb([session]);
 
 		const { deps } = makeDeps({ [session.tmuxSession]: true }, { shouldFail: true });
-		const { stderr, stdout } = await captureStderr(() =>
+		const { stdout } = await captureStderr(() =>
 			stopCommand("my-builder", { cleanWorktree: true }, deps),
 		);
 
 		// Agent was still stopped
-		expect(stdout).toContain(`Agent "my-builder" stopped`);
-		// Warning written to stderr
-		expect(stderr).toContain("Warning: failed to remove worktree");
+		expect(stdout).toContain("Agent stopped");
+		expect(stdout).toContain("my-builder");
+		// Warning written to stdout (via printWarning)
+		expect(stdout).toContain("Failed to remove worktree");
 
 		// Session is marked completed despite worktree failure
 		const { store } = openSessionStore(overstoryDir);

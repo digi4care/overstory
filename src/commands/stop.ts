@@ -11,6 +11,7 @@
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
+import { printSuccess, printWarning } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { removeWorktree } from "../worktree/manager.ts";
 import { isSessionAlive, killSession } from "../worktree/tmux.ts";
@@ -103,7 +104,7 @@ export async function stopCommand(
 				worktreeRemoved = true;
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);
-				process.stderr.write(`Warning: failed to remove worktree: ${msg}\n`);
+				if (!json) printWarning("Failed to remove worktree", msg);
 			}
 		}
 
@@ -120,7 +121,7 @@ export async function stopCommand(
 				})}\n`,
 			);
 		} else {
-			process.stdout.write(`Agent "${agentName}" stopped (session: ${session.id})\n`);
+			printSuccess("Agent stopped", agentName);
 			if (alive) {
 				process.stdout.write(`  Tmux session killed: ${session.tmuxSession}\n`);
 			} else {

@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { printHint, printSuccess } from "../logging/color.ts";
 import { createMulchClient } from "../mulch/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession, MulchDoctorResult, MulchPruneResult, MulchStatus } from "../types.ts";
@@ -584,7 +585,7 @@ export async function cleanCommand(opts: CleanOptions): Promise<void> {
 	}
 
 	if (lines.length === 0) {
-		process.stdout.write("Nothing to clean.\n");
+		printHint("Nothing to clean");
 	} else {
 		if (result.mulchHealth?.checked) {
 			process.stdout.write("\n--- Cleanup Results ---\n");
@@ -592,6 +593,6 @@ export async function cleanCommand(opts: CleanOptions): Promise<void> {
 		for (const line of lines) {
 			process.stdout.write(`${line}\n`);
 		}
-		process.stdout.write("\nClean complete.\n");
+		printSuccess("Clean complete");
 	}
 }

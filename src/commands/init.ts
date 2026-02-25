@@ -14,6 +14,7 @@ import { mkdir, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { DEFAULT_CONFIG } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { printHint, printSuccess } from "../logging/color.ts";
 import type { AgentManifest, OverstoryConfig } from "../types.ts";
 
 const OVERSTORY_DIR = ".overstory";
@@ -522,7 +523,7 @@ export interface InitOptions {
  * Print a success status line.
  */
 function printCreated(relativePath: string): void {
-	process.stdout.write(`  \u2713 Created ${relativePath}\n`);
+	printSuccess("Created", relativePath);
 }
 
 /**
@@ -631,11 +632,11 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	if (force) {
 		const migrated = await migrateExistingDatabases(overstoryPath);
 		for (const dbName of migrated) {
-			process.stdout.write(`  \u2713 Migrated ${OVERSTORY_DIR}/${dbName} (schema validated)\n`);
+			printSuccess("Migrated", dbName);
 		}
 	}
 
-	process.stdout.write("\nDone.\n");
-	process.stdout.write("  Next: run `ov hooks install` to enable Claude Code hooks.\n");
-	process.stdout.write("  Then: run `ov status` to see the current state.\n");
+	printSuccess("Initialized");
+	printHint("Next: run `ov hooks install` to enable Claude Code hooks.");
+	printHint("Then: run `ov status` to see the current state.");
 }
