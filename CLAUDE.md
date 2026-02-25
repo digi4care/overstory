@@ -51,7 +51,7 @@ Purpose-built messaging via `bun:sqlite` in `.overstory/mail.db`. WAL mode for c
 ```
 overstory/                        # This repo (the overstory tool itself)
   src/
-    index.ts                      # CLI entry point (Commander.js program, 30 commands)
+    index.ts                      # CLI entry point (Commander.js program, 32 commands)
     types.ts                      # ALL shared types and interfaces
     config.ts                     # Config loader + defaults + validation
     errors.ts                     # Custom error types (extend OverstoryError)
@@ -87,6 +87,8 @@ overstory/                        # This repo (the overstory tool itself)
       stop.ts                     # ov stop (terminate agent)
       costs.ts                    # ov costs (token/cost analysis)
       metrics.ts                  # ov metrics
+      ecosystem.ts                # ov ecosystem (os-eco tool dashboard)
+      upgrade.ts                  # ov upgrade (npm version upgrades)
       completions.ts              # ov --completions (shell completions)
     agents/                       # Agent lifecycle management
       manifest.ts                 # Agent registry (load + query capabilities)
@@ -134,7 +136,7 @@ overstory/                        # This repo (the overstory tool itself)
       summary.ts                  # Metrics reporting
       transcript.ts               # Claude Code transcript JSONL parser + cost estimation
     doctor/                       # Modular health check system
-      *.ts                        # 9 check categories (see `ov doctor --help`)
+      *.ts                        # 10 check categories (see `ov doctor --help`)
   agents/                         # Base agent definitions (the HOW)
     scout.md                      # Read-only exploration (leaf, depth 2)
     builder.md                    # Implementation (leaf, depth 2)
@@ -447,10 +449,20 @@ ov monitor <sub>                Manage Tier 2 monitor agent
 
 ov doctor                        Run health checks on overstory setup
   --category <name>                      Run one category only
+  --fix                                  Auto-fix fixable issues
   --verbose                              Show passing checks too
   --json                                 JSON output
   Categories: dependencies, config, structure, databases,
-              consistency, agents, merge, logs, version
+              consistency, agents, merge, logs, version,
+              ecosystem
+
+ov ecosystem                     Show os-eco tool versions and health
+  --json                                 JSON output
+
+ov upgrade                       Upgrade overstory to latest npm version
+  --check                                Compare versions without installing
+  --all                                  Upgrade all 4 ecosystem tools
+  --json                                 JSON output
 
 ov clean                         Wipe runtime state (nuclear cleanup)
   --all                                  Wipe everything

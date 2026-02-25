@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.10] - 2026-02-25
+
+### Added
+
+#### New CLI Commands
+- **`ov ecosystem`** — dashboard showing all installed os-eco tools (overstory, mulch, seeds, canopy) with version info, update status (current vs latest from npm), and overstory doctor health summary; supports `--json` output
+- **`ov upgrade`** — upgrade overstory (or all ecosystem tools with `--all`) to their latest npm versions via `bun install -g`; `--check` flag compares versions without installing; supports `--json` output
+
+#### `ov doctor` Enhancements
+- **`--fix` flag** — auto-fix capability for doctor checks; fixable checks now include repair closures that are executed when `--fix` is passed, with human-readable action summaries
+- **Fix closures added to all check modules** — structure, databases, merge-queue, and ecosystem checks now return fix functions that can recreate missing directories, reinitialize databases, and reinstall tools
+- **`ecosystem` check category** — new 10th doctor category validating that os-eco CLI tools (ml, sd, cn) are on PATH and report valid semver versions; fix closures reinstall via `bun install -g`
+
+#### Global CLI Flag
+- **`--timing` flag** — prints command execution time to stderr after any command completes (e.g., `Done in 42ms`)
+
+#### Testing
+- **`ecosystem.test.ts`** — new test file (307 lines) covering ecosystem command output, JSON mode, and tool detection
+- **`upgrade.test.ts`** — new test file (46 lines) covering upgrade command registration and option parsing
+- **`databases.test.ts`** — new test file (38 lines) covering database health check fix closures
+- **`merge-queue.test.ts`** — new test file (98 lines) covering merge queue health check and fix closures
+- **`structure.test.ts`** — expanded (131 lines added) covering structure check fix closures for missing directories
+
+### Fixed
+
+- **`DoctorCheck.fix` return type** — changed from `void` to `string[]` so fix closures can report what actions were taken
+- **Feed follow-mode `--json` output** — now uses `jsonOutput` envelope instead of raw `JSON.stringify`
+- **`--timing` preAction** — correctly reads `opts.timing` from global options instead of hardcoded check
+- **`process.exit(1)` in completions.ts** — replaced with `process.exitCode = 1; return` to avoid abrupt process termination
+
+### Testing
+- 2221 tests across 79 files (5653 `expect()` calls)
+
 ## [0.6.9] - 2026-02-25
 
 ### Added
@@ -805,7 +838,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.9...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.10...HEAD
+[0.6.10]: https://github.com/jayminwest/overstory/compare/v0.6.9...v0.6.10
 [0.6.9]: https://github.com/jayminwest/overstory/compare/v0.6.8...v0.6.9
 [0.6.8]: https://github.com/jayminwest/overstory/compare/v0.6.7...v0.6.8
 [0.6.7]: https://github.com/jayminwest/overstory/compare/v0.6.6...v0.6.7

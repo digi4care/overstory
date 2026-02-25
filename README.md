@@ -216,6 +216,15 @@ ov clean                         Clean up worktrees, sessions, artifacts
 ov doctor                        Run health checks on overstory setup
   --json                                 JSON output
   --category <name>                      Run a specific check category only
+  --fix                                  Auto-fix fixable issues
+
+ov ecosystem                     Show os-eco tool versions and health
+  --json                                 JSON output
+
+ov upgrade                       Upgrade overstory to latest npm version
+  --check                                Compare versions without installing
+  --all                                  Upgrade all 4 ecosystem tools
+  --json                                 JSON output
 
 ov inspect <agent>               Deep per-agent inspection
   --json                                 JSON output
@@ -266,6 +275,7 @@ ov metrics                       Show session metrics
 
 Global Flags:
   --quiet, -q                            Suppress non-error output
+  --timing                               Print command execution time to stderr
   --completions <shell>                  Generate shell completions (bash, zsh, fish)
 ```
 
@@ -275,13 +285,13 @@ Global Flags:
 - **Dependencies**: Minimal runtime — `chalk` (color output), `commander` (CLI framework), core I/O via Bun built-in APIs
 - **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
 - **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2186 tests across 77 files, colocated with source)
+- **Testing**: `bun test` (2221 tests across 79 files, colocated with source)
 - **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
 
 ## Development
 
 ```bash
-# Run tests (2186 tests across 77 files)
+# Run tests (2221 tests across 79 files)
 bun test
 
 # Run a single test
@@ -322,7 +332,7 @@ overstory/
     config.ts                     Config loader + validation
     errors.ts                     Custom error types
     json.ts                       Standardized JSON envelope helpers
-    commands/                     One file per CLI subcommand (30 commands)
+    commands/                     One file per CLI subcommand (32 commands)
       agents.ts                   Agent discovery and querying
       coordinator.ts              Persistent orchestrator lifecycle
       supervisor.ts               Team lead management
@@ -345,7 +355,7 @@ overstory/
       run.ts                      Orchestration run lifecycle
       trace.ts                    Agent/bead timeline viewing
       clean.ts                    Worktree/session cleanup
-      doctor.ts                   Health check runner (9 check modules)
+      doctor.ts                   Health check runner (10 check modules)
       inspect.ts                  Deep per-agent inspection
       spec.ts                     Task spec management
       errors.ts                   Aggregated error view
@@ -353,6 +363,8 @@ overstory/
       stop.ts                     Agent termination
       costs.ts                    Token/cost analysis
       metrics.ts                  Session metrics
+      ecosystem.ts                os-eco tool dashboard
+      upgrade.ts                  npm version upgrades
       completions.ts              Shell completion generation (bash/zsh/fish)
     agents/                       Agent lifecycle management
       manifest.ts                 Agent registry (load + query)
@@ -367,7 +379,7 @@ overstory/
     watchdog/                     Tiered health monitoring (daemon, triage, health)
     logging/                      Multi-format logger + sanitizer + reporter + color control
     metrics/                      SQLite metrics + transcript parsing
-    doctor/                       Health check modules (9 checks)
+    doctor/                       Health check modules (10 checks)
     insights/                     Session insight analyzer for auto-expertise
     tracker/                      Pluggable task tracker (beads + seeds backends)
     mulch/                        mulch CLI wrapper
