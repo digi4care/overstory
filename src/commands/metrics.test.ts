@@ -102,7 +102,14 @@ describe("metricsCommand", () => {
 		await metricsCommand(["--json"]);
 		const out = output();
 
-		expect(out).toBe('{"sessions":[]}\n');
+		const parsed = JSON.parse(out.trim()) as {
+			success: boolean;
+			command: string;
+			sessions: unknown[];
+		};
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("metrics");
+		expect(parsed.sessions).toEqual([]);
 	});
 
 	test("empty DB with no sessions", async () => {
@@ -187,7 +194,13 @@ describe("metricsCommand", () => {
 		await metricsCommand(["--json"]);
 		const out = output();
 
-		const parsed = JSON.parse(out.trim()) as { sessions: SessionMetrics[] };
+		const parsed = JSON.parse(out.trim()) as {
+			success: boolean;
+			command: string;
+			sessions: SessionMetrics[];
+		};
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("metrics");
 		expect(parsed.sessions).toHaveLength(1);
 		expect(parsed.sessions[0]?.agentName).toBe("test-builder");
 		expect(parsed.sessions[0]?.taskId).toBe("bead-123");

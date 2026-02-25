@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { type AgentSession, SUPPORTED_CAPABILITIES } from "../types.ts";
@@ -220,7 +221,7 @@ export function createAgentsCommand(): Command {
 			});
 
 			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(agents, null, "\t")}\n`);
+				jsonOutput("agents discover", { agents });
 			} else {
 				printAgents(agents);
 			}

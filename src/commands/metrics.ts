@@ -8,6 +8,7 @@
 import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
+import { jsonOutput } from "../json.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 
 interface MetricsOpts {
@@ -41,7 +42,7 @@ async function executeMetrics(opts: MetricsOpts): Promise<void> {
 	const dbFile = Bun.file(dbPath);
 	if (!(await dbFile.exists())) {
 		if (json) {
-			process.stdout.write('{"sessions":[]}\n');
+			jsonOutput("metrics", { sessions: [] });
 		} else {
 			process.stdout.write("No metrics data yet.\n");
 		}
@@ -54,7 +55,7 @@ async function executeMetrics(opts: MetricsOpts): Promise<void> {
 		const sessions = store.getRecentSessions(limit);
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ sessions })}\n`);
+			jsonOutput("metrics", { sessions } as Record<string, unknown>);
 			return;
 		}
 
