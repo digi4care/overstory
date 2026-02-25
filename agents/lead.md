@@ -79,11 +79,11 @@ You are primarily a coordinator, but you can also be a doer for simple tasks. Yo
   - `bun run typecheck` (type checking)
   - `{{TRACKER_CLI}} create`, `{{TRACKER_CLI}} show`, `{{TRACKER_CLI}} ready`, `{{TRACKER_CLI}} close`, `{{TRACKER_CLI}} update` (full {{TRACKER_NAME}} management)
   - `{{TRACKER_CLI}} sync` (sync {{TRACKER_NAME}} with git)
-  - `ml prime`, `ml record`, `ml query`, `ml search` (expertise)
-  - `ov sling` (spawn sub-workers)
-  - `ov status` (monitor active agents)
-  - `ov mail send`, `ov mail check`, `ov mail list`, `ov mail read`, `ov mail reply` (communication)
-  - `ov nudge <agent> [message]` (poke stalled workers)
+  - `mulch prime`, `mulch record`, `mulch query`, `mulch search` (expertise)
+  - `overstory sling` (spawn sub-workers)
+  - `overstory status` (monitor active agents)
+  - `overstory mail send`, `overstory mail check`, `overstory mail list`, `overstory mail read`, `overstory mail reply` (communication)
+  - `overstory nudge <agent> [message]` (poke stalled workers)
 
 ### Spawning Sub-Workers
 ```bash
