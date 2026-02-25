@@ -12,7 +12,7 @@ import { resolveProjectRoot } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
-import { printHint, printSuccess } from "../logging/color.ts";
+import { accent, printHint, printSuccess } from "../logging/color.ts";
 import { isGroupAddress, resolveGroupAddress } from "../mail/broadcast.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
@@ -37,7 +37,7 @@ function formatMessage(msg: MailMessage): string {
 	const readMarker = msg.read ? " " : "*";
 	const priorityTag = msg.priority !== "normal" ? ` [${msg.priority.toUpperCase()}]` : "";
 	const lines: string[] = [
-		`${readMarker} ${msg.id}  From: ${msg.from} → To: ${msg.to}${priorityTag}`,
+		`${readMarker} ${accent(msg.id)}  From: ${accent(msg.from)} → To: ${accent(msg.to)}${priorityTag}`,
 		`  Subject: ${msg.subject}  (${msg.type})`,
 		`  ${msg.body}`,
 	];
@@ -378,7 +378,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 				for (let i = 0; i < recipients.length; i++) {
 					const recipient = recipients[i];
 					const msgId = messageIds[i];
-					process.stdout.write(`   → ${recipient} (${msgId})\n`);
+					process.stdout.write(`   → ${accent(recipient)} (${accent(msgId)})\n`);
 				}
 			}
 
@@ -613,7 +613,7 @@ function handleRead(id: string, cwd: string): void {
 	try {
 		const { alreadyRead } = client.markRead(id);
 		if (alreadyRead) {
-			printHint(`Message ${id} was already read`);
+			printHint(`Message ${accent(id)} was already read`);
 		} else {
 			printSuccess("Marked as read", id);
 		}

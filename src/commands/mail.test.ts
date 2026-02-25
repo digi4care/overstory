@@ -10,6 +10,7 @@ import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createEventStore } from "../events/store.ts";
+import { stripAnsi } from "../logging/color.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
 import type { StoredEvent } from "../types.ts";
@@ -851,9 +852,9 @@ describe("mailCommand", () => {
 			]);
 
 			expect(output).toContain("Broadcast sent to 3 recipients (@all)");
-			expect(output).toContain("→ builder-1");
-			expect(output).toContain("→ builder-2");
-			expect(output).toContain("→ scout-1");
+			expect(stripAnsi(output)).toContain("→ builder-1");
+			expect(stripAnsi(output)).toContain("→ builder-2");
+			expect(stripAnsi(output)).toContain("→ scout-1");
 			expect(output).not.toContain("orchestrator"); // sender excluded
 
 			// Verify messages were actually stored
@@ -881,8 +882,8 @@ describe("mailCommand", () => {
 			]);
 
 			expect(output).toContain("Broadcast sent to 2 recipients (@builders)");
-			expect(output).toContain("→ builder-1");
-			expect(output).toContain("→ builder-2");
+			expect(stripAnsi(output)).toContain("→ builder-1");
+			expect(stripAnsi(output)).toContain("→ builder-2");
 			expect(output).not.toContain("scout-1");
 
 			// Verify messages
@@ -909,7 +910,7 @@ describe("mailCommand", () => {
 			]);
 
 			expect(output).toContain("Broadcast sent to 1 recipient (@scouts)");
-			expect(output).toContain("→ scout-1");
+			expect(stripAnsi(output)).toContain("→ scout-1");
 
 			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
 			const client = createMailClient(store);
@@ -935,8 +936,8 @@ describe("mailCommand", () => {
 			]);
 
 			expect(output).toContain("Broadcast sent to 2 recipients (@builder)");
-			expect(output).toContain("→ builder-1");
-			expect(output).toContain("→ builder-2");
+			expect(stripAnsi(output)).toContain("→ builder-1");
+			expect(stripAnsi(output)).toContain("→ builder-2");
 		});
 
 		test("sender is excluded from broadcast recipients", async () => {
@@ -956,8 +957,8 @@ describe("mailCommand", () => {
 			]);
 
 			expect(output).toContain("Broadcast sent to 1 recipient (@builders)");
-			expect(output).toContain("→ builder-2");
-			expect(output).not.toContain("builder-1");
+			expect(stripAnsi(output)).toContain("→ builder-2");
+			expect(stripAnsi(output)).not.toContain("→ builder-1");
 
 			const store = createMailStore(join(tempDir, ".overstory", "mail.db"));
 			const client = createMailClient(store);

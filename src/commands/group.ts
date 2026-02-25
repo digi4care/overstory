@@ -12,7 +12,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { GroupError, ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
-import { printHint, printSuccess } from "../logging/color.ts";
+import { accent, printHint, printSuccess } from "../logging/color.ts";
 import { createTrackerClient, resolveBackend, type TrackerClient } from "../tracker/factory.ts";
 import type { TaskGroup, TaskGroupProgress } from "../types.ts";
 
@@ -248,7 +248,9 @@ async function getGroupProgress(
 		group.status = "completed";
 		group.completedAt = new Date().toISOString();
 		await saveGroups(projectRoot, groups);
-		process.stdout.write(`Group "${group.name}" (${group.id}) auto-closed: all issues done\n`);
+		process.stdout.write(
+			`Group "${group.name}" (${accent(group.id)}) auto-closed: all issues done\n`,
+		);
 
 		// Notify coordinator via mail (best-effort)
 		try {
@@ -287,7 +289,7 @@ function printGroupProgress(progress: TaskGroupProgress): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const { group, total, completed, inProgress, blocked, open } = progress;
 	const status = group.status === "completed" ? "[completed]" : "[active]";
-	w(`${group.name} (${group.id}) ${status}\n`);
+	w(`${group.name} (${accent(group.id)}) ${status}\n`);
 	w(`  Issues: ${total} total`);
 	w(` | ${completed} completed`);
 	w(` | ${inProgress} in_progress`);
@@ -329,7 +331,9 @@ export function createGroupCommand(): Command {
 					jsonOutput("group create", { ...group });
 				} else {
 					printSuccess("Created group", group.name);
-					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
+					process.stdout.write(
+						`  Members: ${group.memberIssueIds.map((id) => accent(id)).join(", ")}\n`,
+					);
 				}
 			},
 		);
@@ -417,7 +421,9 @@ export function createGroupCommand(): Command {
 					jsonOutput("group add", { ...group });
 				} else {
 					printSuccess("Added to group", group.name);
-					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
+					process.stdout.write(
+						`  Members: ${group.memberIssueIds.map((id) => accent(id)).join(", ")}\n`,
+					);
 				}
 			},
 		);
@@ -437,7 +443,9 @@ export function createGroupCommand(): Command {
 				jsonOutput("group remove", { ...group });
 			} else {
 				printSuccess("Removed from group", group.name);
-				process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
+				process.stdout.write(
+					`  Members: ${group.memberIssueIds.map((id) => accent(id)).join(", ")}\n`,
+				);
 			}
 		});
 
@@ -464,7 +472,7 @@ export function createGroupCommand(): Command {
 				for (const group of groups) {
 					const status = group.status === "completed" ? "[completed]" : "[active]";
 					process.stdout.write(
-						`${group.id} ${status} "${group.name}" (${group.memberIssueIds.length} issues)\n`,
+						`${accent(group.id)} ${status} "${group.name}" (${group.memberIssueIds.length} issues)\n`,
 					);
 				}
 			}

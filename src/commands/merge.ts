@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { MergeError, ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
-import { printHint } from "../logging/color.ts";
+import { accent, printHint } from "../logging/color.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMergeResolver } from "../merge/resolver.ts";
 import { createMulchClient } from "../mulch/client.ts";
@@ -90,8 +90,8 @@ async function detectModifiedFiles(
 function formatResult(result: MergeResult): string {
 	const statusIcon = result.success ? "Merged" : "Failed";
 	const lines: string[] = [
-		`Merging branch: ${result.entry.branchName}`,
-		`   Agent: ${result.entry.agentName} | Task: ${result.entry.taskId}`,
+		`Merging branch: ${accent(result.entry.branchName)}`,
+		`   Agent: ${accent(result.entry.agentName)} | Task: ${accent(result.entry.taskId)}`,
 		`   Files: ${result.entry.filesModified.length} modified`,
 		`   Result: ${statusIcon} (tier: ${result.tier})`,
 	];
@@ -110,8 +110,8 @@ function formatResult(result: MergeResult): string {
 /** Format a dry-run report for a merge entry. */
 function formatDryRun(entry: MergeEntry): string {
 	const lines: string[] = [
-		`[dry-run] Branch: ${entry.branchName}`,
-		`   Agent: ${entry.agentName} | Task: ${entry.taskId}`,
+		`[dry-run] Branch: ${accent(entry.branchName)}`,
+		`   Agent: ${accent(entry.agentName)} | Task: ${accent(entry.taskId)}`,
 		`   Status: ${entry.status}`,
 		`   Files: ${entry.filesModified.length} modified`,
 	];
