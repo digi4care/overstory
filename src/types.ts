@@ -53,6 +53,7 @@ export interface OverstoryConfig {
 		staggerDelayMs: number; // Delay between spawns
 		maxDepth: number; // Hierarchy depth limit (default 2)
 		maxSessionsPerRun: number; // Max total sessions per run (0 = unlimited)
+		maxAgentsPerLead: number; // Max children a single lead can spawn (0 = unlimited)
 	};
 	worktrees: {
 		baseDir: string; // Where worktrees live

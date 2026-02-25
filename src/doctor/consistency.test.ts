@@ -76,6 +76,7 @@ describe("checkConsistency", () => {
 				staggerDelayMs: 100,
 				maxDepth: 2,
 				maxSessionsPerRun: 0,
+				maxAgentsPerLead: 5,
 			},
 			worktrees: {
 				baseDir: join(overstoryDir, "worktrees"),

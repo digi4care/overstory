@@ -8,8 +8,10 @@ import {
 	buildAutoDispatch,
 	buildBeacon,
 	calculateStaggerDelay,
-	checkTaskLock,
+	checkDuplicateLead,
+	checkParentAgentLimit,
 	checkRunSessionLimit,
+	checkTaskLock,
 	inferDomainsFromFiles,
 	isRunningAsRoot,
 	parentHasScouts,
@@ -690,9 +692,7 @@ describe("checkDuplicateLead", () => {
 	});
 
 	test("differentiates between task IDs", () => {
-		const sessions = [
-			makeLeadSession("lead-alpha", "overstory-abc", "lead"),
-		];
+		const sessions = [makeLeadSession("lead-alpha", "overstory-abc", "lead")];
 		expect(checkDuplicateLead(sessions, "overstory-xyz")).toBeNull();
 	});
 });
@@ -727,6 +727,67 @@ describe("checkRunSessionLimit", () => {
 	});
 });
 
+describe("checkParentAgentLimit", () => {
+	test("returns false when limit is 0 (unlimited)", () => {
+		const sessions = [{ parentAgent: "lead-alpha" }, { parentAgent: "lead-alpha" }];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 0)).toBe(false);
+	});
+
+	test("returns false when count is below limit", () => {
+		const sessions = [{ parentAgent: "lead-alpha" }];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 5)).toBe(false);
+	});
+
+	test("returns true when count equals limit", () => {
+		const sessions = [
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-alpha" },
+		];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 3)).toBe(true);
+	});
+
+	test("returns true when count exceeds limit", () => {
+		const sessions = [
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-alpha" },
+		];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 3)).toBe(true);
+	});
+
+	test("returns false when limit is negative (treated as unlimited)", () => {
+		const sessions = [{ parentAgent: "lead-alpha" }];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", -1)).toBe(false);
+	});
+
+	test("only counts children of the specified parent", () => {
+		const sessions = [
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-beta" },
+			{ parentAgent: "lead-alpha" },
+			{ parentAgent: "lead-gamma" },
+		];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 3)).toBe(false);
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 2)).toBe(true);
+	});
+
+	test("returns false when no sessions match the parent", () => {
+		const sessions = [{ parentAgent: "lead-beta" }, { parentAgent: "lead-gamma" }];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 1)).toBe(false);
+	});
+
+	test("ignores sessions with null parent", () => {
+		const sessions = [{ parentAgent: null }, { parentAgent: "lead-alpha" }, { parentAgent: null }];
+		expect(checkParentAgentLimit(sessions, "lead-alpha", 2)).toBe(false);
+	});
+
+	test("returns false when sessions array is empty", () => {
+		expect(checkParentAgentLimit([], "lead-alpha", 5)).toBe(false);
+	});
+});
+
 /**
  * Tests for sling provider env injection building blocks.
  *
@@ -758,6 +819,7 @@ function makeConfig(
 			staggerDelayMs: 0,
 			maxDepth: 2,
 			maxSessionsPerRun: 0,
+			maxAgentsPerLead: 5,
 		},
 		worktrees: { baseDir: ".overstory/worktrees" },
 		taskTracker: { backend: "auto", enabled: false },

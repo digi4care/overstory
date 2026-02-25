@@ -22,6 +22,7 @@ describe("checkDatabases", () => {
 				staggerDelayMs: 100,
 				maxDepth: 2,
 				maxSessionsPerRun: 0,
+				maxAgentsPerLead: 5,
 			},
 			worktrees: { baseDir: "" },
 			taskTracker: { backend: "auto", enabled: true },

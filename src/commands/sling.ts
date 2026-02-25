@@ -119,6 +119,7 @@ export interface SlingOptions {
 	skipTaskCheck?: boolean;
 	forceHierarchy?: boolean;
 	json?: boolean;
+	maxAgents?: string;
 }
 
 export interface AutoDispatchOptions {
@@ -242,9 +243,7 @@ export function checkDuplicateLead(
 	activeSessions: ReadonlyArray<{ agentName: string; taskId: string; capability: string }>,
 	taskId: string,
 ): string | null {
-	const existing = activeSessions.find(
-		(s) => s.taskId === taskId && s.capability === "lead",
-	);
+	const existing = activeSessions.find((s) => s.taskId === taskId && s.capability === "lead");
 	return existing?.agentName ?? null;
 }
 
@@ -261,6 +260,24 @@ export function checkRunSessionLimit(
 ): boolean {
 	if (maxSessionsPerRun <= 0) return false;
 	return currentRunAgentCount >= maxSessionsPerRun;
+}
+
+/**
+ * Check if a parent agent has reached its per-lead child ceiling.
+ * Returns true if the limit is reached. A limit of 0 means unlimited.
+ *
+ * @param activeSessions - Currently active (non-zombie) sessions
+ * @param parentAgent - The parent agent name to count children for
+ * @param maxAgentsPerLead - Config or CLI limit (0 = unlimited)
+ */
+export function checkParentAgentLimit(
+	activeSessions: ReadonlyArray<{ parentAgent: string | null }>,
+	parentAgent: string,
+	maxAgentsPerLead: number,
+): boolean {
+	if (maxAgentsPerLead <= 0) return false;
+	const count = activeSessions.filter((s) => s.parentAgent === parentAgent).length;
+	return count >= maxAgentsPerLead;
 }
 
 /**
@@ -337,6 +354,16 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			"Cannot spawn agents as root (UID 0). The claude CLI rejects --permission-mode bypassPermissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
 			{ agentName: name },
 		);
+	}
+
+	if (opts.maxAgents !== undefined) {
+		const parsed = Number.parseInt(opts.maxAgents, 10);
+		if (Number.isNaN(parsed) || parsed < 0) {
+			throw new ValidationError("--max-agents must be a non-negative integer", {
+				field: "maxAgents",
+				value: opts.maxAgents,
+			});
+		}
 	}
 
 	// Warn if --skip-scout is used for a non-lead capability (harmless but confusing)
@@ -481,6 +508,22 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		const staggerMs = calculateStaggerDelay(config.agents.staggerDelayMs, activeSessions);
 		if (staggerMs > 0) {
 			await Bun.sleep(staggerMs);
+		}
+
+		// 5e. Enforce per-lead agent ceiling when spawning under a parent
+		if (parentAgent !== null) {
+			const maxPerLead =
+				opts.maxAgents !== undefined
+					? Number.parseInt(opts.maxAgents, 10)
+					: config.agents.maxAgentsPerLead;
+			if (checkParentAgentLimit(activeSessions, parentAgent, maxPerLead)) {
+				const currentCount = activeSessions.filter((s) => s.parentAgent === parentAgent).length;
+				throw new AgentError(
+					`Per-lead agent limit reached: "${parentAgent}" has ${currentCount}/${maxPerLead} active children. ` +
+						`Increase agents.maxAgentsPerLead in config.yaml or pass --max-agents <n>.`,
+					{ agentName: name },
+				);
+			}
 		}
 
 		// 5c. Structural enforcement: warn when a lead spawns a builder without prior scouts.

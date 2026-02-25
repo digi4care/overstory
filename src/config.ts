@@ -27,6 +27,7 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 		staggerDelayMs: 2_000,
 		maxDepth: 2,
 		maxSessionsPerRun: 0,
+		maxAgentsPerLead: 5,
 	},
 	worktrees: {
 		baseDir: ".overstory/worktrees",
@@ -495,6 +496,17 @@ function validateConfig(config: OverstoryConfig): void {
 			{
 				field: "agents.maxSessionsPerRun",
 				value: config.agents.maxSessionsPerRun,
+			},
+		);
+	}
+
+	// agents.maxAgentsPerLead must be a non-negative integer (0 = unlimited)
+	if (!Number.isInteger(config.agents.maxAgentsPerLead) || config.agents.maxAgentsPerLead < 0) {
+		throw new ValidationError(
+			"agents.maxAgentsPerLead must be a non-negative integer (0 = unlimited)",
+			{
+				field: "agents.maxAgentsPerLead",
+				value: config.agents.maxAgentsPerLead,
 			},
 		);
 	}

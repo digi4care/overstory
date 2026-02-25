@@ -501,6 +501,28 @@ agents:
 		await expect(loadConfig(tempDir)).rejects.toThrow(ValidationError);
 	});
 
+	test("validates maxAgentsPerLead must be non-negative", async () => {
+		await writeConfig("agents:\n  maxAgentsPerLead: -1\n");
+		await expect(loadConfig(tempDir)).rejects.toThrow(ValidationError);
+	});
+
+	test("accepts maxAgentsPerLead of 0 (unlimited)", async () => {
+		await writeConfig("agents:\n  maxAgentsPerLead: 0\n");
+		const config = await loadConfig(tempDir);
+		expect(config.agents.maxAgentsPerLead).toBe(0);
+	});
+
+	test("reads maxAgentsPerLead from config", async () => {
+		await writeConfig("agents:\n  maxAgentsPerLead: 8\n");
+		const config = await loadConfig(tempDir);
+		expect(config.agents.maxAgentsPerLead).toBe(8);
+	});
+
+	test("defaults maxAgentsPerLead to 5", async () => {
+		const config = await loadConfig(tempDir);
+		expect(config.agents.maxAgentsPerLead).toBe(5);
+	});
+
 	test("rejects invalid mulch.primeFormat", async () => {
 		await writeConfig(`
 mulch:

@@ -522,6 +522,7 @@ describe("resolveModel", () => {
 				staggerDelayMs: 1000,
 				maxDepth: 2,
 				maxSessionsPerRun: 0,
+				maxAgentsPerLead: 5,
 			},
 			worktrees: { baseDir: ".overstory/worktrees" },
 			taskTracker: { backend: "auto", enabled: false },
