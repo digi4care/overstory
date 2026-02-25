@@ -447,13 +447,13 @@ export async function capturePaneContent(name: string, lines = 50): Promise<stri
  */
 export async function waitForTuiReady(
 	name: string,
-	timeoutMs = 15_000,
+	timeoutMs = 30_000,
 	pollIntervalMs = 500,
 ): Promise<boolean> {
 	const maxAttempts = Math.ceil(timeoutMs / pollIntervalMs);
 	for (let i = 0; i < maxAttempts; i++) {
 		const content = await capturePaneContent(name);
-		if (content !== null) {
+		if (content !== null && (content.includes("\u276f") || content.includes('Try "'))) {
 			return true;
 		}
 		// Check if session died — no point waiting if it's gone

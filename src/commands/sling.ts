@@ -308,7 +308,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 
 	if (isRunningAsRoot()) {
 		throw new AgentError(
-			"Cannot spawn agents as root (UID 0). The claude CLI rejects --dangerously-skip-permissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
+			"Cannot spawn agents as root (UID 0). The claude CLI rejects --permission-mode bypassPermissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
 			{ agentName: name },
 		);
 	}
@@ -614,7 +614,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// 12. Create tmux session running claude in interactive mode
 		const tmuxSessionName = `overstory-${config.project.name}-${name}`;
 		const { model, env } = resolveModel(config, manifest, capability, agentDef.model);
-		const claudeCmd = `claude --model ${model} --dangerously-skip-permissions`;
+		const claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
 		const pid = await createSession(tmuxSessionName, worktreePath, claudeCmd, {
 			...env,
 			OVERSTORY_AGENT_NAME: name,
@@ -673,7 +673,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// 13c. Follow-up Enters with increasing delays to ensure submission.
 		// Claude Code's TUI may consume early Enters during late initialization
 		// (overstory-yhv6). An Enter on an empty input line is harmless.
-		for (const delay of [1_000, 2_000]) {
+		for (const delay of [1_000, 2_000, 3_000, 5_000]) {
 			await Bun.sleep(delay);
 			await sendKeys(tmuxSessionName, "");
 		}

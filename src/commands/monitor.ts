@@ -67,7 +67,7 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 
 	if (isRunningAsRoot()) {
 		throw new AgentError(
-			"Cannot spawn agents as root (UID 0). The claude CLI rejects --dangerously-skip-permissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
+			"Cannot spawn agents as root (UID 0). The claude CLI rejects --permission-mode bypassPermissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
 		);
 	}
 
@@ -137,7 +137,7 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 		// Spawn tmux session at project root with Claude Code (interactive mode).
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "monitor.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let claudeCmd = `claude --model ${model} --dangerously-skip-permissions`;
+		let claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
 		if (await agentDefFile.exists()) {
 			const agentDef = await agentDefFile.text();
 			const escaped = agentDef.replace(/'/g, "'\\''");

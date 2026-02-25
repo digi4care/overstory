@@ -92,7 +92,7 @@ async function startSupervisor(opts: {
 
 	if (isRunningAsRoot()) {
 		throw new AgentError(
-			"Cannot spawn agents as root (UID 0). The claude CLI rejects --dangerously-skip-permissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
+			"Cannot spawn agents as root (UID 0). The claude CLI rejects --permission-mode bypassPermissions when run as root, causing the tmux session to die immediately. Run overstory as a non-root user.",
 		);
 	}
 
@@ -165,7 +165,7 @@ async function startSupervisor(opts: {
 		const tmuxSession = `overstory-${config.project.name}-supervisor-${opts.name}`;
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "supervisor.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let claudeCmd = `claude --model ${model} --dangerously-skip-permissions`;
+		let claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
 		if (await agentDefFile.exists()) {
 			const agentDef = await agentDefFile.text();
 			const escaped = agentDef.replace(/'/g, "'\\''");
@@ -190,7 +190,7 @@ async function startSupervisor(opts: {
 		await sendKeys(tmuxSession, beacon);
 
 		// Follow-up Enters with increasing delays to ensure submission
-		for (const delay of [1_000, 2_000]) {
+		for (const delay of [1_000, 2_000, 3_000, 5_000]) {
 			await Bun.sleep(delay);
 			await sendKeys(tmuxSession, "");
 		}
