@@ -14,6 +14,7 @@ import {
 	getDangerGuards,
 	getPathBoundaryGuards,
 	isOverstoryHookEntry,
+	PATH_PREFIX,
 } from "./hooks-deployer.ts";
 
 describe("deployHooks", () => {
@@ -2112,6 +2113,185 @@ describe("bash path boundary integration", () => {
 		);
 		expect(universalGuard).toBeDefined();
 		expect(universalGuard.hooks[0].command).toContain('"decision":"block"');
+	});
+});
+
+describe("PATH_PREFIX", () => {
+	test("PATH_PREFIX is exported and is a non-empty string", () => {
+		expect(typeof PATH_PREFIX).toBe("string");
+		expect(PATH_PREFIX.length).toBeGreaterThan(0);
+	});
+
+	test("PATH_PREFIX contains ~/.bun/bin for bun-installed CLIs", () => {
+		expect(PATH_PREFIX).toContain(".bun/bin");
+	});
+
+	test("PATH_PREFIX extends PATH (not replaces it)", () => {
+		// Must preserve original PATH via :$PATH
+		expect(PATH_PREFIX).toContain(":$PATH");
+	});
+
+	test("PATH_PREFIX sets PATH via export", () => {
+		expect(PATH_PREFIX).toMatch(/^export PATH=/);
+	});
+});
+
+describe("PATH prefix in deployed hooks", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "overstory-path-prefix-test-"));
+	});
+
+	afterEach(async () => {
+		await rm(tempDir, { recursive: true, force: true });
+	});
+
+	test("SessionStart hook commands include PATH prefix", async () => {
+		const worktreePath = join(tempDir, "path-ss-wt");
+		await deployHooks(worktreePath, "path-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		for (const entry of parsed.hooks.SessionStart) {
+			for (const hook of entry.hooks) {
+				expect(hook.command).toContain("export PATH=");
+				expect(hook.command).toContain(".bun/bin");
+			}
+		}
+	});
+
+	test("UserPromptSubmit hook commands include PATH prefix", async () => {
+		const worktreePath = join(tempDir, "path-ups-wt");
+		await deployHooks(worktreePath, "path-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		for (const entry of parsed.hooks.UserPromptSubmit) {
+			for (const hook of entry.hooks) {
+				expect(hook.command).toContain("export PATH=");
+			}
+		}
+	});
+
+	test("PostToolUse hook commands include PATH prefix", async () => {
+		const worktreePath = join(tempDir, "path-ptu-wt");
+		await deployHooks(worktreePath, "path-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		for (const entry of parsed.hooks.PostToolUse) {
+			for (const hook of entry.hooks) {
+				expect(hook.command).toContain("export PATH=");
+			}
+		}
+	});
+
+	test("Stop hook commands include PATH prefix", async () => {
+		const worktreePath = join(tempDir, "path-stop-wt");
+		await deployHooks(worktreePath, "path-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		for (const entry of parsed.hooks.Stop) {
+			for (const hook of entry.hooks) {
+				expect(hook.command).toContain("export PATH=");
+				expect(hook.command).toContain(".bun/bin");
+			}
+		}
+	});
+
+	test("PreCompact hook commands include PATH prefix", async () => {
+		const worktreePath = join(tempDir, "path-pc-wt");
+		await deployHooks(worktreePath, "path-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		for (const entry of parsed.hooks.PreCompact) {
+			for (const hook of entry.hooks) {
+				expect(hook.command).toContain("export PATH=");
+			}
+		}
+	});
+
+	test("PATH prefix appears before CLI command in SessionStart", async () => {
+		const worktreePath = join(tempDir, "path-order-wt");
+		await deployHooks(worktreePath, "path-order-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		const cmd = parsed.hooks.SessionStart[0].hooks[0].command as string;
+		// PATH export must come before the CLI invocation
+		const pathIdx = cmd.indexOf("export PATH=");
+		const ovIdx = cmd.indexOf("ov prime");
+		expect(pathIdx).toBeGreaterThanOrEqual(0);
+		expect(ovIdx).toBeGreaterThan(pathIdx);
+	});
+
+	test("PATH prefix appears before ml learn in Stop hook", async () => {
+		const worktreePath = join(tempDir, "path-ml-wt");
+		await deployHooks(worktreePath, "path-ml-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		const stopHooks = parsed.hooks.Stop[0].hooks;
+		// Second Stop hook is "ml learn"
+		const mlCmd = stopHooks[1].command as string;
+		const pathIdx = mlCmd.indexOf("export PATH=");
+		const mlIdx = mlCmd.indexOf("ml learn");
+		expect(pathIdx).toBeGreaterThanOrEqual(0);
+		expect(mlIdx).toBeGreaterThan(pathIdx);
+	});
+
+	test("generated guard commands do NOT have PATH prefix (they use only built-ins)", async () => {
+		const worktreePath = join(tempDir, "path-guards-wt");
+		await deployHooks(worktreePath, "path-guards-agent", "builder");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		const preToolUse = parsed.hooks.PreToolUse;
+
+		// Path boundary guards (Write/Edit/NotebookEdit) are generated — no PATH prefix
+		const writeGuard = preToolUse.find(
+			(h: { matcher: string; hooks: Array<{ command: string }> }) =>
+				h.matcher === "Write" && h.hooks[0]?.command?.includes("OVERSTORY_WORKTREE_PATH"),
+		);
+		expect(writeGuard).toBeDefined();
+		expect(writeGuard.hooks[0].command).not.toContain("export PATH=");
+
+		// Danger guard (generated) — no PATH prefix
+		const dangerGuard = preToolUse.find(
+			(h: { matcher: string; hooks: Array<{ command: string }> }) =>
+				h.matcher === "Bash" && h.hooks[0]?.command?.includes("git reset --hard"),
+		);
+		expect(dangerGuard).toBeDefined();
+		expect(dangerGuard.hooks[0].command).not.toContain("export PATH=");
+	});
+
+	test("re-deployment is idempotent: PATH prefix not duplicated", async () => {
+		const worktreePath = join(tempDir, "path-idem-wt");
+
+		await deployHooks(worktreePath, "path-idem-agent");
+		await deployHooks(worktreePath, "path-idem-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		const cmd = parsed.hooks.SessionStart[0].hooks[0].command as string;
+
+		// PATH prefix should appear exactly once, not doubled
+		const occurrences = cmd.split("export PATH=").length - 1;
+		expect(occurrences).toBe(1);
+	});
+
+	test("PATH prefix uses $HOME expansion (not hardcoded path)", async () => {
+		const worktreePath = join(tempDir, "path-home-wt");
+		await deployHooks(worktreePath, "home-agent");
+
+		const content = await Bun.file(join(worktreePath, ".claude", "settings.local.json")).text();
+		const parsed = JSON.parse(content);
+		const cmd = parsed.hooks.SessionStart[0].hooks[0].command as string;
+		// Should use $HOME not a hardcoded path like /Users/...
+		expect(cmd).toContain("$HOME");
 	});
 });
 
