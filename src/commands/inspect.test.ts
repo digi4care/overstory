@@ -546,6 +546,8 @@ describe("inspectCommand", () => {
 			const out = output();
 
 			const parsed = JSON.parse(out);
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("inspect");
 			expect(parsed.session.agentName).toBe("builder-1");
 			expect(parsed.timeSinceLastActivity).toBeGreaterThan(0);
 		});

@@ -10,6 +10,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
@@ -376,7 +377,7 @@ async function executeInspect(agentName: string, opts: InspectOpts): Promise<voi
 				tmuxLines: 30,
 			});
 			if (json) {
-				process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
+				jsonOutput("inspect", data as unknown as Record<string, unknown>);
 			} else {
 				printInspectData(data);
 			}
@@ -386,7 +387,7 @@ async function executeInspect(agentName: string, opts: InspectOpts): Promise<voi
 		// Single snapshot
 		const data = await gatherInspectData(root, agentName, { limit, noTmux, tmuxLines: 30 });
 		if (json) {
-			process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
+			jsonOutput("inspect", data as unknown as Record<string, unknown>);
 		} else {
 			printInspectData(data);
 		}

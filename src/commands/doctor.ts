@@ -18,6 +18,7 @@ import { checkStructure } from "../doctor/structure.ts";
 import type { DoctorCategory, DoctorCheck, DoctorCheckFn } from "../doctor/types.ts";
 import { checkVersion } from "../doctor/version.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 
 /** Registry of all check modules in execution order. */
@@ -114,12 +115,7 @@ function printJSON(checks: DoctorCheck[]): void {
 	const warn = checks.filter((c) => c.status === "warn").length;
 	const fail = checks.filter((c) => c.status === "fail").length;
 
-	const output = {
-		checks,
-		summary: { pass, warn, fail },
-	};
-
-	process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+	jsonOutput("doctor", { checks, summary: { pass, warn, fail } });
 }
 
 /** Options for dependency injection in doctorCommand. */

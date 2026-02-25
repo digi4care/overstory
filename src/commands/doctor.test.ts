@@ -85,10 +85,14 @@ describe("doctorCommand", () => {
 			const out = output();
 
 			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
 				checks: unknown[];
 				summary: { pass: number; warn: number; fail: number };
 			};
 			expect(parsed).toBeDefined();
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("doctor");
 			expect(Array.isArray(parsed.checks)).toBe(true);
 			expect(parsed.summary).toBeDefined();
 			expect(typeof parsed.summary.pass).toBe("number");
@@ -101,9 +105,13 @@ describe("doctorCommand", () => {
 			const out = output();
 
 			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
 				checks: unknown[];
 				summary: { pass: number; warn: number; fail: number };
 			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("doctor");
 			expect(parsed.checks).toEqual([]);
 			expect(parsed.summary.pass).toBe(0);
 			expect(parsed.summary.warn).toBe(0);

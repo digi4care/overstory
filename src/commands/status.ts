@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 import { createMailStore } from "../mail/store.ts";
 import { createMergeQueue } from "../merge/queue.ts";
@@ -357,7 +358,7 @@ async function executeStatus(opts: StatusOpts): Promise<void> {
 			process.stdout.write("\x1b[2J\x1b[H");
 			const data = await gatherStatus(root, agentName, verbose, runId);
 			if (json) {
-				process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
+				jsonOutput("status", data as unknown as Record<string, unknown>);
 			} else {
 				printStatus(data);
 			}
@@ -366,7 +367,7 @@ async function executeStatus(opts: StatusOpts): Promise<void> {
 	} else {
 		const data = await gatherStatus(root, agentName, verbose, runId);
 		if (json) {
-			process.stdout.write(`${JSON.stringify(data, null, "\t")}\n`);
+			jsonOutput("status", data as unknown as Record<string, unknown>);
 		} else {
 			printStatus(data);
 		}
