@@ -1,5 +1,5 @@
 /**
- * CLI command: ov init [--force]
+ * CLI command: ov init [--force] [--yes|-y] [--name <name>]
  *
  * Scaffolds the `.overstory/` directory in the current project with:
  * - config.yaml (serialized from DEFAULT_CONFIG)
@@ -516,6 +516,8 @@ export async function writeOverstoryReadme(overstoryPath: string): Promise<void>
 }
 
 export interface InitOptions {
+	yes?: boolean;
+	name?: string;
 	force?: boolean;
 }
 
@@ -527,7 +529,7 @@ function printCreated(relativePath: string): void {
 }
 
 /**
- * Entry point for `ov init [--force]`.
+ * Entry point for `ov init [--force] [--yes|-y] [--name <name>]`.
  *
  * Scaffolds the .overstory/ directory structure in the current working directory.
  *
@@ -535,6 +537,7 @@ function printCreated(relativePath: string): void {
  */
 export async function initCommand(opts: InitOptions): Promise<void> {
 	const force = opts.force ?? false;
+	const yes = opts.yes ?? false;
 	const projectRoot = process.cwd();
 	const overstoryPath = join(projectRoot, OVERSTORY_DIR);
 
@@ -554,7 +557,7 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	// 1. Check if .overstory/ already exists
 	const existingDir = Bun.file(join(overstoryPath, "config.yaml"));
 	if (await existingDir.exists()) {
-		if (!force) {
+		if (!force && !yes) {
 			process.stdout.write(
 				"Warning: .overstory/ already initialized in this project.\n" +
 					"Use --force to reinitialize.\n",
@@ -565,7 +568,7 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	}
 
 	// 2. Detect project info
-	const projectName = await detectProjectName(projectRoot);
+	const projectName = opts.name ?? (await detectProjectName(projectRoot));
 	const canonicalBranch = await detectCanonicalBranch(projectRoot);
 
 	process.stdout.write(`Initializing overstory for "${projectName}"...\n\n`);
@@ -629,7 +632,7 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	printCreated(`${OVERSTORY_DIR}/README.md`);
 
 	// 8. Migrate existing SQLite databases on --force reinit
-	if (force) {
+	if (force || yes) {
 		const migrated = await migrateExistingDatabases(overstoryPath);
 		for (const dbName of migrated) {
 			printSuccess("Migrated", dbName);

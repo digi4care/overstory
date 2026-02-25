@@ -211,6 +211,8 @@ program
 	.command("init")
 	.description("Initialize .overstory/ in current project")
 	.option("--force", "Reinitialize even if .overstory/ already exists")
+	.option("-y, --yes", "Accept all defaults without prompting (non-interactive mode)")
+	.option("--name <name>", "Project name (skips auto-detection)")
 	.action(async (opts) => {
 		await initCommand(opts);
 	});
