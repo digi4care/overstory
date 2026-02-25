@@ -10,7 +10,7 @@
 					},
 					{
 						"type": "command",
-						"command": "[ -z \"$OVERSTORY_AGENT_NAME\" ] && exit 0; sleep 5; ov mail check --inject --agent {{AGENT_NAME}}"
+						"command": "[ -z \"$OVERSTORY_AGENT_NAME\" ] && exit 0; ov mail check --inject --agent {{AGENT_NAME}}"
 					}
 				]
 			}

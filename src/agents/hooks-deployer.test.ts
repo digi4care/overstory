@@ -58,7 +58,7 @@ describe("deployHooks", () => {
 
 		// The template has {{AGENT_NAME}} in multiple hook commands
 		const occurrences = content.split("scout-alpha").length - 1;
-		expect(occurrences).toBeGreaterThanOrEqual(6);
+		expect(occurrences).toBeGreaterThanOrEqual(7);
 		expect(content).not.toContain("{{AGENT_NAME}}");
 	});
 
