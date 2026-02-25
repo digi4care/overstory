@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { color } from "../logging/color.ts";
 import { createMailStore } from "../mail/store.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMetricsStore } from "../metrics/store.ts";
@@ -254,15 +255,15 @@ export function printStatus(data: StatusData): void {
 	const now = Date.now();
 	const w = process.stdout.write.bind(process.stdout);
 
-	w("📊 Overstory Status\n");
+	w("Overstory Status\n");
 	w(`${"═".repeat(60)}\n\n`);
 	if (data.currentRunId) {
-		w(`🏃 Run: ${data.currentRunId}\n`);
+		w(`Run: ${data.currentRunId}\n`);
 	}
 
 	// Active agents
 	const active = data.agents.filter((a) => a.state !== "zombie" && a.state !== "completed");
-	w(`🤖 Agents: ${active.length} active\n`);
+	w(`Agents: ${active.length} active\n`);
 	if (active.length > 0) {
 		const tmuxSessionNames = new Set(data.tmuxSessions.map((s) => s.name));
 		for (const agent of active) {
@@ -272,7 +273,7 @@ export function printStatus(data: StatusData): void {
 					: now;
 			const duration = formatDuration(endTime - new Date(agent.startedAt).getTime());
 			const tmuxAlive = tmuxSessionNames.has(agent.tmuxSession);
-			const aliveMarker = tmuxAlive ? "●" : "○";
+			const aliveMarker = tmuxAlive ? color.green(">") : color.red("x");
 			w(`   ${aliveMarker} ${agent.agentName} [${agent.capability}] `);
 			w(`${agent.state} | ${agent.taskId} | ${duration}\n`);
 
@@ -291,7 +292,7 @@ export function printStatus(data: StatusData): void {
 
 	// Worktrees
 	const overstoryWts = data.worktrees.filter((wt) => wt.branch.startsWith("overstory/"));
-	w(`🌳 Worktrees: ${overstoryWts.length}\n`);
+	w(`Worktrees: ${overstoryWts.length}\n`);
 	for (const wt of overstoryWts) {
 		w(`   ${wt.branch}\n`);
 	}
@@ -301,13 +302,13 @@ export function printStatus(data: StatusData): void {
 	w("\n");
 
 	// Mail
-	w(`📬 Mail: ${data.unreadMailCount} unread\n`);
+	w(`Mail: ${data.unreadMailCount} unread\n`);
 
 	// Merge queue
-	w(`🔀 Merge queue: ${data.mergeQueueCount} pending\n`);
+	w(`Merge queue: ${data.mergeQueueCount} pending\n`);
 
 	// Metrics
-	w(`📈 Sessions recorded: ${data.recentMetricsCount}\n`);
+	w(`Sessions recorded: ${data.recentMetricsCount}\n`);
 }
 
 interface StatusOpts {
@@ -347,7 +348,9 @@ async function executeStatus(opts: StatusOpts): Promise<void> {
 	}
 
 	if (watch) {
-		process.stderr.write("⚠️  --watch is deprecated. Use 'ov dashboard' for live monitoring.\n\n");
+		process.stderr.write(
+			"Warning: --watch is deprecated. Use 'ov dashboard' for live monitoring.\n\n",
+		);
 		// Polling loop (kept for one release cycle)
 		while (true) {
 			// Clear screen
