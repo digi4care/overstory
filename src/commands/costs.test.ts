@@ -116,7 +116,14 @@ describe("costsCommand", () => {
 			await costsCommand(["--json"]);
 			const out = output();
 
-			expect(out).toBe("[]\n");
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				sessions: unknown[];
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("costs");
+			expect(parsed.sessions).toEqual([]);
 		});
 	});
 
@@ -149,9 +156,10 @@ describe("costsCommand", () => {
 			await costsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(Array.isArray(parsed)).toBe(true);
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { success: boolean; sessions: unknown[] };
+			expect(parsed.success).toBe(true);
+			expect(Array.isArray(parsed.sessions)).toBe(true);
+			expect(parsed.sessions).toHaveLength(2);
 		});
 
 		test("JSON output includes expected token fields", async () => {
@@ -173,9 +181,12 @@ describe("costsCommand", () => {
 			await costsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			const session = parsed[0];
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				sessions: Record<string, unknown>[];
+			};
+			expect(parsed.sessions).toHaveLength(1);
+			const session = parsed.sessions[0];
 			expect(session).toBeDefined();
 			expect(session?.inputTokens).toBe(100);
 			expect(session?.outputTokens).toBe(50);
@@ -193,8 +204,8 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--agent", "nonexistent"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { success: boolean; sessions: unknown[] };
+			expect(parsed.sessions).toEqual([]);
 		});
 
 		test("JSON --by-capability outputs grouped object", async () => {
@@ -221,12 +232,12 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--by-capability"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>;
-			expect(parsed).toBeDefined();
-			expect(parsed.builder).toBeDefined();
-			expect(parsed.scout).toBeDefined();
+			const parsed = JSON.parse(out.trim()) as { grouped: Record<string, unknown> };
+			expect(parsed.grouped).toBeDefined();
+			expect(parsed.grouped.builder).toBeDefined();
+			expect(parsed.grouped.scout).toBeDefined();
 
-			const builderGroup = parsed.builder as Record<string, unknown>;
+			const builderGroup = parsed.grouped.builder as Record<string, unknown>;
 			expect(builderGroup.sessions).toBeDefined();
 			expect(builderGroup.totals).toBeDefined();
 		});
@@ -415,9 +426,9 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--agent", "builder-1"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("builder-1");
+			const parsed = JSON.parse(out.trim()) as { sessions: Record<string, unknown>[] };
+			expect(parsed.sessions).toHaveLength(1);
+			expect(parsed.sessions[0]?.agentName).toBe("builder-1");
 		});
 
 		test("returns empty for non-existent agent", async () => {
@@ -429,8 +440,8 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--agent", "nonexistent"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { sessions: unknown[] };
+			expect(parsed.sessions).toEqual([]);
 		});
 	});
 
@@ -456,9 +467,9 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--run", "run-2026-01-01"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("builder-1");
+			const parsed = JSON.parse(out.trim()) as { sessions: Record<string, unknown>[] };
+			expect(parsed.sessions).toHaveLength(1);
+			expect(parsed.sessions[0]?.agentName).toBe("builder-1");
 		});
 
 		test("returns empty when no sessions match run ID", async () => {
@@ -472,8 +483,8 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--run", "run-nonexistent"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { sessions: unknown[] };
+			expect(parsed.sessions).toEqual([]);
 		});
 	});
 
@@ -557,12 +568,11 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--by-capability"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<
-				string,
-				{ sessions: unknown[]; totals: Record<string, unknown> }
-			>;
-			expect(parsed.builder?.sessions).toHaveLength(3);
-			expect(parsed.scout?.sessions).toHaveLength(1);
+			const parsed = JSON.parse(out.trim()) as {
+				grouped: Record<string, { sessions: unknown[]; totals: Record<string, unknown> }>;
+			};
+			expect(parsed.grouped.builder?.sessions).toHaveLength(3);
+			expect(parsed.grouped.scout?.sessions).toHaveLength(1);
 		});
 
 		test("empty data shows no session data message", async () => {
@@ -591,8 +601,8 @@ describe("costsCommand", () => {
 			await costsCommand(["--json", "--last", "3"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { sessions: unknown[] };
+			expect(parsed.sessions).toHaveLength(3);
 		});
 
 		test("default limit is 20", async () => {
@@ -606,8 +616,8 @@ describe("costsCommand", () => {
 			await costsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(20);
+			const parsed = JSON.parse(out.trim()) as { sessions: unknown[] };
+			expect(parsed.sessions).toHaveLength(20);
 		});
 	});
 
@@ -705,9 +715,9 @@ describe("costsCommand", () => {
 			await costsCommand(["--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as SessionMetrics[];
-			const totalInput = parsed.reduce((sum, s) => sum + s.inputTokens, 0);
-			const totalOutput = parsed.reduce((sum, s) => sum + s.outputTokens, 0);
+			const parsed = JSON.parse(out.trim()) as { sessions: SessionMetrics[] };
+			const totalInput = parsed.sessions.reduce((sum, s) => sum + s.inputTokens, 0);
+			const totalOutput = parsed.sessions.reduce((sum, s) => sum + s.outputTokens, 0);
 			expect(totalInput).toBe(300);
 			expect(totalOutput).toBe(150);
 		});
@@ -1106,7 +1116,7 @@ describe("costsCommand", () => {
 			const out = output();
 
 			const parsed = JSON.parse(out.trim()) as Record<string, unknown>;
-			expect(parsed.error).toBe("no_transcript");
+			expect(parsed.error).toBe("No orchestrator transcript found");
 		});
 
 		test("--self in help text", async () => {

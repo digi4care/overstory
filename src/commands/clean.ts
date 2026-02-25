@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
 import { createMulchClient } from "../mulch/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
@@ -518,7 +519,7 @@ export async function cleanCommand(opts: CleanOptions): Promise<void> {
 
 	// Output
 	if (json) {
-		process.stdout.write(`${JSON.stringify(result, null, "\t")}\n`);
+		jsonOutput("clean", { ...result });
 		return;
 	}
 

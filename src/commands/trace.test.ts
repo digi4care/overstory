@@ -149,8 +149,8 @@ describe("traceCommand", () => {
 
 			await traceCommand(["--json", "--limit", "50", "my-agent"]);
 			const out = output();
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(1);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(1);
 		});
 
 		test("target is extracted correctly when flags come after", async () => {
@@ -161,8 +161,8 @@ describe("traceCommand", () => {
 
 			await traceCommand(["my-agent", "--json", "--limit", "50"]);
 			const out = output();
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(1);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(1);
 		});
 	});
 
@@ -180,7 +180,14 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			expect(out).toBe("[]\n");
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				events: unknown[];
+			};
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("trace");
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -198,9 +205,9 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
-			expect(Array.isArray(parsed)).toBe(true);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
+			expect(Array.isArray(parsed.events)).toBe(true);
 		});
 
 		test("JSON output includes expected fields", async () => {
@@ -219,9 +226,9 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			const event = parsed[0];
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			const event = parsed.events[0];
 			expect(event).toBeDefined();
 			expect(event?.agentName).toBe("builder-1");
 			expect(event?.eventType).toBe("tool_start");
@@ -239,8 +246,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 	});
 
@@ -413,8 +420,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json", "--limit", "3"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(3);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(3);
 		});
 
 		test("default limit is 100", async () => {
@@ -428,8 +435,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(100);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(100);
 		});
 	});
 
@@ -448,8 +455,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json", "--since", "2099-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since with past timestamp returns all events", async () => {
@@ -462,8 +469,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json", "--since", "2020-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toHaveLength(2);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toHaveLength(2);
 		});
 
 		test("--until with past timestamp returns no events", async () => {
@@ -475,8 +482,8 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json", "--until", "2000-01-01T00:00:00Z"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("--since causes absolute timestamps in text mode", async () => {
@@ -518,9 +525,9 @@ describe("traceCommand", () => {
 			await traceCommand(["my-custom-agent", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("my-custom-agent");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.agentName).toBe("my-custom-agent");
 		});
 
 		test("task ID pattern is detected and resolved to agent name via SessionStore", async () => {
@@ -556,9 +563,9 @@ describe("traceCommand", () => {
 			await traceCommand(["overstory-rj1k", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("builder-for-task");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.agentName).toBe("builder-for-task");
 		});
 
 		test("unresolved task ID falls back to using task ID as agent name", async () => {
@@ -575,8 +582,8 @@ describe("traceCommand", () => {
 			await traceCommand(["myproj-abc1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as unknown[];
-			expect(parsed).toEqual([]);
+			const parsed = JSON.parse(out.trim()) as { events: unknown[] };
+			expect(parsed.events).toEqual([]);
 		});
 
 		test("short agent names without task pattern are not resolved as task IDs", async () => {
@@ -589,9 +596,9 @@ describe("traceCommand", () => {
 			await traceCommand(["scout", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.agentName).toBe("scout");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(1);
+			expect(parsed.events[0]?.agentName).toBe("scout");
 		});
 	});
 
@@ -610,9 +617,9 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(2);
-			for (const event of parsed) {
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(2);
+			for (const event of parsed.events) {
 				expect(event.agentName).toBe("builder-1");
 			}
 		});
@@ -710,11 +717,11 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Record<string, unknown>[];
-			expect(parsed).toHaveLength(3);
-			expect(parsed[0]?.eventType).toBe("session_start");
-			expect(parsed[1]?.eventType).toBe("tool_start");
-			expect(parsed[2]?.eventType).toBe("session_end");
+			const parsed = JSON.parse(out.trim()) as { events: Record<string, unknown>[] };
+			expect(parsed.events).toHaveLength(3);
+			expect(parsed.events[0]?.eventType).toBe("session_start");
+			expect(parsed.events[1]?.eventType).toBe("tool_start");
+			expect(parsed.events[2]?.eventType).toBe("session_end");
 		});
 
 		test("handles event with all null optional fields", async () => {

@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 
 interface HookEntry {
@@ -189,7 +190,7 @@ async function statusHooks(json: boolean): Promise<void> {
 	}
 
 	if (json) {
-		process.stdout.write(`${JSON.stringify({ sourceExists, installed })}\n`);
+		jsonOutput("hooks status", { sourceExists, installed });
 	} else {
 		process.stdout.write(
 			`Hooks source (.overstory/hooks.json): ${sourceExists ? "present" : "missing"}\n`,

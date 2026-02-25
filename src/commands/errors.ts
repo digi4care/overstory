@@ -11,6 +11,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 import type { StoredEvent } from "../types.ts";
 
@@ -179,7 +180,7 @@ async function executeErrors(opts: ErrorsOpts): Promise<void> {
 	const eventsFile = Bun.file(eventsDbPath);
 	if (!(await eventsFile.exists())) {
 		if (json) {
-			process.stdout.write("[]\n");
+			jsonOutput("errors", { events: [] });
 		} else {
 			process.stdout.write("No events data yet.\n");
 		}
@@ -209,7 +210,7 @@ async function executeErrors(opts: ErrorsOpts): Promise<void> {
 		}
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(events)}\n`);
+			jsonOutput("errors", { events });
 			return;
 		}
 

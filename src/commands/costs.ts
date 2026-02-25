@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonError, jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { estimateCost, parseTranscriptUsage } from "../metrics/transcript.ts";
@@ -272,10 +273,7 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 		const transcriptPath = await discoverOrchestratorTranscript(config.project.root);
 		if (!transcriptPath) {
 			if (json) {
-				process.stdout.write(
-					JSON.stringify({ error: "no_transcript", message: "No orchestrator transcript found" }) +
-						"\n",
-				);
+				jsonError("costs", "No orchestrator transcript found");
 			} else {
 				process.stdout.write(
 					"No orchestrator transcript found.\nExpected at: ~/.claude/projects/{project-key}/*.jsonl\n",
@@ -289,18 +287,16 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 		const cacheTotal = usage.cacheReadTokens + usage.cacheCreationTokens;
 
 		if (json) {
-			process.stdout.write(
-				`${JSON.stringify({
-					source: "self",
-					transcriptPath,
-					model: usage.modelUsed,
-					inputTokens: usage.inputTokens,
-					outputTokens: usage.outputTokens,
-					cacheReadTokens: usage.cacheReadTokens,
-					cacheCreationTokens: usage.cacheCreationTokens,
-					estimatedCostUsd: cost,
-				})}\n`,
-			);
+			jsonOutput("costs", {
+				source: "self",
+				transcriptPath,
+				model: usage.modelUsed,
+				inputTokens: usage.inputTokens,
+				outputTokens: usage.outputTokens,
+				cacheReadTokens: usage.cacheReadTokens,
+				cacheCreationTokens: usage.cacheCreationTokens,
+				estimatedCostUsd: cost,
+			});
 		} else {
 			const w = process.stdout.write.bind(process.stdout);
 			const separator = "\u2500".repeat(70);
@@ -327,9 +323,10 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 		const metricsFile = Bun.file(metricsDbPath);
 		if (!(await metricsFile.exists())) {
 			if (json) {
-				process.stdout.write(
-					`${JSON.stringify({ agents: [], totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 } })}\n`,
-				);
+				jsonOutput("costs", {
+					agents: [],
+					totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 },
+				});
 			} else {
 				process.stdout.write(
 					"No live data available. Token snapshots begin after first tool call.\n",
@@ -345,9 +342,10 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 			const snapshots = metricsStore.getLatestSnapshots();
 			if (snapshots.length === 0) {
 				if (json) {
-					process.stdout.write(
-						`${JSON.stringify({ agents: [], totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 } })}\n`,
-					);
+					jsonOutput("costs", {
+						agents: [],
+						totals: { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, burnRatePerMin: 0, tokensPerMin: 0 },
+					});
 				} else {
 					process.stdout.write(
 						"No live data available. Token snapshots begin after first tool call.\n",
@@ -428,19 +426,17 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 			const tokensPerMin = avgElapsedMs > 0 ? totalTokens / (avgElapsedMs / 60_000) : 0;
 
 			if (json) {
-				process.stdout.write(
-					`${JSON.stringify({
-						agents: agentData,
-						totals: {
-							inputTokens: totalInput,
-							outputTokens: totalOutput,
-							cacheTokens: totalCacheTokens,
-							costUsd: totalCost,
-							burnRatePerMin,
-							tokensPerMin,
-						},
-					})}\n`,
-				);
+				jsonOutput("costs", {
+					agents: agentData,
+					totals: {
+						inputTokens: totalInput,
+						outputTokens: totalOutput,
+						cacheTokens: totalCacheTokens,
+						costUsd: totalCost,
+						burnRatePerMin,
+						tokensPerMin,
+					},
+				});
 			} else {
 				const w = process.stdout.write.bind(process.stdout);
 				const separator = "\u2500".repeat(70);
@@ -502,7 +498,7 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 	const metricsFile = Bun.file(metricsDbPath);
 	if (!(await metricsFile.exists())) {
 		if (json) {
-			process.stdout.write("[]\n");
+			jsonOutput("costs", { sessions: [] });
 		} else {
 			process.stdout.write("No metrics data yet.\n");
 		}
@@ -532,9 +528,9 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 						totals: group.totals,
 					};
 				}
-				process.stdout.write(`${JSON.stringify(grouped)}\n`);
+				jsonOutput("costs", { grouped });
 			} else {
-				process.stdout.write(`${JSON.stringify(sessions)}\n`);
+				jsonOutput("costs", { sessions });
 			}
 			return;
 		}

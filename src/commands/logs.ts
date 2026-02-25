@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
 import type { LogEvent } from "../types.ts";
@@ -500,7 +501,7 @@ async function executeLogs(opts: LogsOpts): Promise<void> {
 	const limited = filtered.slice(-limit);
 
 	if (json) {
-		process.stdout.write(`${JSON.stringify(limited)}\n`);
+		jsonOutput("logs", { entries: limited });
 		return;
 	}
 
