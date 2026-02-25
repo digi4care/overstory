@@ -35,12 +35,29 @@ const ALL_CHECKS: Array<{ category: DoctorCategory; fn: DoctorCheckFn }> = [
 ];
 
 /**
+ * Execute all fix functions on non-passing fixable checks.
+ * Returns a list of human-readable actions taken.
+ */
+async function applyFixes(checks: DoctorCheck[]): Promise<string[]> {
+	const fixable = checks.filter((c) => c.fixable && c.status !== "pass" && c.fix);
+	const fixed: string[] = [];
+	for (const check of fixable) {
+		if (check.fix) {
+			const actions = await check.fix();
+			fixed.push(...actions);
+		}
+	}
+	return fixed;
+}
+
+/**
  * Format human-readable output for doctor checks.
  */
 function printHumanReadable(
 	checks: DoctorCheck[],
 	verbose: boolean,
 	checkRegistry: Array<{ category: DoctorCategory; fn: DoctorCheckFn }>,
+	fixedItems?: string[],
 ): void {
 	const w = process.stdout.write.bind(process.stdout);
 
@@ -105,17 +122,28 @@ function printHumanReadable(
 	w(
 		`${color.bold("Summary:")} ${color.green(`${pass} passed`)}, ${color.yellow(`${warn} warning${warn === 1 ? "" : "s"}`)}, ${color.red(`${fail} failure${fail === 1 ? "" : "s"}`)}\n`,
 	);
+
+	if (fixedItems && fixedItems.length > 0) {
+		w(`\n${color.bold("Fixed:")}\n`);
+		for (const item of fixedItems) {
+			w(`  ${color.green("-")} ${item}\n`);
+		}
+	}
 }
 
 /**
  * Format JSON output for doctor checks.
  */
-function printJSON(checks: DoctorCheck[]): void {
+function printJSON(checks: DoctorCheck[], fixed?: string[]): void {
 	const pass = checks.filter((c) => c.status === "pass").length;
 	const warn = checks.filter((c) => c.status === "warn").length;
 	const fail = checks.filter((c) => c.status === "fail").length;
 
-	jsonOutput("doctor", { checks, summary: { pass, warn, fail } });
+	jsonOutput("doctor", {
+		checks,
+		summary: { pass, warn, fail },
+		...(fixed && fixed.length > 0 ? { fixed } : {}),
+	});
 }
 
 /** Options for dependency injection in doctorCommand. */
@@ -133,59 +161,78 @@ export function createDoctorCommand(options?: DoctorCommandOptions): Command {
 		.option("--json", "Output as JSON")
 		.option("--verbose", "Show passing checks (default: only problems)")
 		.option("--category <name>", "Run only one category")
+		.option("--fix", "Attempt to auto-fix issues")
 		.addHelpText(
 			"after",
 			"\nCategories: dependencies, structure, config, databases, consistency, agents, merge, logs, version",
 		)
-		.action(async (opts: { json?: boolean; verbose?: boolean; category?: string }) => {
-			const json = opts.json ?? false;
-			const verbose = opts.verbose ?? false;
-			const categoryFilter = opts.category;
+		.action(
+			async (opts: { json?: boolean; verbose?: boolean; category?: string; fix?: boolean }) => {
+				const json = opts.json ?? false;
+				const verbose = opts.verbose ?? false;
+				const categoryFilter = opts.category;
+				const fix = opts.fix ?? false;
 
-			// Validate category filter if provided
-			if (categoryFilter !== undefined) {
-				const validCategories = ALL_CHECKS.map((c) => c.category);
-				if (!validCategories.includes(categoryFilter as DoctorCategory)) {
-					throw new ValidationError(
-						`Invalid category: ${categoryFilter}. Valid categories: ${validCategories.join(", ")}`,
-						{
-							field: "category",
-							value: categoryFilter,
-						},
-					);
+				// Validate category filter if provided
+				if (categoryFilter !== undefined) {
+					const validCategories = ALL_CHECKS.map((c) => c.category);
+					if (!validCategories.includes(categoryFilter as DoctorCategory)) {
+						throw new ValidationError(
+							`Invalid category: ${categoryFilter}. Valid categories: ${validCategories.join(", ")}`,
+							{
+								field: "category",
+								value: categoryFilter,
+							},
+						);
+					}
 				}
-			}
 
-			const cwd = process.cwd();
-			const config = await loadConfig(cwd);
-			const overstoryDir = join(config.project.root, ".overstory");
+				const cwd = process.cwd();
+				const config = await loadConfig(cwd);
+				const overstoryDir = join(config.project.root, ".overstory");
 
-			// Filter checks by category if specified
-			const allChecks = options?.checkRunners ?? ALL_CHECKS;
-			const checksToRun = categoryFilter
-				? allChecks.filter((c) => c.category === categoryFilter)
-				: allChecks;
+				// Filter checks by category if specified
+				const allChecks = options?.checkRunners ?? ALL_CHECKS;
+				const checksToRun = categoryFilter
+					? allChecks.filter((c) => c.category === categoryFilter)
+					: allChecks;
 
-			// Run all checks sequentially
-			const results: DoctorCheck[] = [];
-			for (const { fn } of checksToRun) {
-				const checkResults = await fn(config, overstoryDir);
-				results.push(...checkResults);
-			}
+				// Run all checks sequentially
+				let results: DoctorCheck[] = [];
+				for (const { fn } of checksToRun) {
+					const checkResults = await fn(config, overstoryDir);
+					results.push(...checkResults);
+				}
 
-			// Output results
-			if (json) {
-				printJSON(results);
-			} else {
-				printHumanReadable(results, verbose, allChecks);
-			}
+				// Apply fixes if requested
+				let fixedItems: string[] | undefined;
+				if (fix) {
+					const applied = await applyFixes(results);
+					if (applied.length > 0) {
+						fixedItems = applied;
+						// Re-run all checks to get fresh results after fixes
+						results = [];
+						for (const { fn } of checksToRun) {
+							const checkResults = await fn(config, overstoryDir);
+							results.push(...checkResults);
+						}
+					}
+				}
 
-			// Set exit code if any check failed
-			const hasFailures = results.some((c) => c.status === "fail");
-			if (hasFailures) {
-				process.exitCode = 1;
-			}
-		});
+				// Output results
+				if (json) {
+					printJSON(results, fixedItems);
+				} else {
+					printHumanReadable(results, verbose, allChecks, fixedItems);
+				}
+
+				// Set exit code if any check failed
+				const hasFailures = results.some((c) => c.status === "fail");
+				if (hasFailures) {
+					process.exitCode = 1;
+				}
+			},
+		);
 }
 
 /**
