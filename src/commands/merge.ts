@@ -14,6 +14,7 @@
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { MergeError, ValidationError } from "../errors.ts";
+import { printHint } from "../logging/color.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMergeResolver } from "../merge/resolver.ts";
 import { createMulchClient } from "../mulch/client.ts";
@@ -272,7 +273,7 @@ async function handleAll(
 		if (json) {
 			process.stdout.write(`${JSON.stringify({ results: [], count: 0 })}\n`);
 		} else {
-			process.stdout.write("No pending branches to merge.\n");
+			printHint("No pending branches to merge");
 		}
 		return;
 	}

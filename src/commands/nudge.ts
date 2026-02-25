@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { AgentError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { printSuccess } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { EventStore } from "../types.ts";
 import { isSessionAlive, sendKeys } from "../worktree/tmux.ts";
@@ -313,7 +314,7 @@ export async function nudgeCommand(args: string[]): Promise<void> {
 						`${JSON.stringify({ agentName, delivered: result.delivered, reason: result.reason })}\n`,
 					);
 				} else if (result.delivered) {
-					process.stdout.write(`📢 Nudged "${agentName}"\n`);
+					printSuccess("Nudge delivered", agentName);
 				} else {
 					throw new AgentError(`Nudge failed: ${result.reason}`, { agentName });
 				}

@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 import { createMailStore } from "../mail/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession } from "../types.ts";
@@ -54,7 +55,7 @@ async function handleList(root: string, json: boolean): Promise<void> {
 	}
 
 	if (overstoryWts.length === 0) {
-		process.stdout.write("No agent worktrees found.\n");
+		printHint("No agent worktrees found");
 		return;
 	}
 
@@ -149,7 +150,7 @@ async function handleClean(
 					merged = false;
 				}
 				if (!merged && !json) {
-					process.stdout.write(`Warning: Force-deleting unmerged branch: ${wt.branch}\n`);
+					printWarning("Force-deleting unmerged branch", wt.branch);
 				}
 			}
 
@@ -165,14 +166,10 @@ async function handleClean(
 				if (result.preserved) {
 					seedsPreserved.push(wt.branch);
 					if (!json) {
-						process.stdout.write(
-							`Preserved .seeds/ changes from lead ${session?.agentName ?? "unknown-lead"}\n`,
-						);
+						printSuccess("Preserved .seeds/ changes", session?.agentName ?? "unknown-lead");
 					}
 				} else if (result.error) {
-					process.stderr.write(
-						`Warning: Failed to preserve .seeds/ from ${wt.branch}: ${result.error}\n`,
-					);
+					printWarning(`Failed to preserve .seeds/ from ${wt.branch}`, result.error);
 				}
 			}
 
@@ -186,13 +183,13 @@ async function handleClean(
 				cleaned.push(wt.branch);
 
 				if (!json) {
-					process.stdout.write(`Removed: ${wt.branch}\n`);
+					printSuccess("Removed", wt.branch);
 				}
 			} catch (err) {
 				failed.push(wt.branch);
 				if (!json) {
 					const msg = err instanceof Error ? err.message : String(err);
-					process.stderr.write(`Warning: Failed to remove ${wt.branch}: ${msg}\n`);
+					printWarning(`Failed to remove ${wt.branch}`, msg);
 				}
 			}
 		}
@@ -251,41 +248,37 @@ async function handleClean(
 			skipped.length === 0 &&
 			seedsPreserved.length === 0
 		) {
-			process.stdout.write("No worktrees to clean.\n");
+			printHint("No worktrees to clean");
 		} else {
 			if (cleaned.length > 0) {
-				process.stdout.write(
-					`\nCleaned ${cleaned.length} worktree${cleaned.length === 1 ? "" : "s"}.\n`,
-				);
+				printSuccess(`Cleaned ${cleaned.length} worktree${cleaned.length === 1 ? "" : "s"}`);
 			}
 			if (failed.length > 0) {
-				process.stdout.write(
-					`Failed to clean ${failed.length} worktree${failed.length === 1 ? "" : "s"}.\n`,
-				);
+				printWarning(`Failed to clean ${failed.length} worktree${failed.length === 1 ? "" : "s"}`);
 			}
 			if (mailPurged > 0) {
-				process.stdout.write(
-					`Purged ${mailPurged} mail message${mailPurged === 1 ? "" : "s"} from cleaned agents.\n`,
+				printSuccess(
+					`Purged ${mailPurged} mail message${mailPurged === 1 ? "" : "s"} from cleaned agents`,
 				);
 			}
 			if (pruneCount > 0) {
-				process.stdout.write(
-					`Pruned ${pruneCount} zombie session${pruneCount === 1 ? "" : "s"} from store.\n`,
+				printSuccess(
+					`Pruned ${pruneCount} zombie session${pruneCount === 1 ? "" : "s"} from store`,
 				);
 			}
 			if (seedsPreserved.length > 0) {
-				process.stdout.write(
-					`Preserved .seeds/ changes from ${seedsPreserved.length} lead${seedsPreserved.length === 1 ? "" : "s"}.\n`,
+				printSuccess(
+					`Preserved .seeds/ from ${seedsPreserved.length} lead${seedsPreserved.length === 1 ? "" : "s"}`,
 				);
 			}
 			if (skipped.length > 0) {
-				process.stdout.write(
-					`\nWarning: Skipped ${skipped.length} worktree${skipped.length === 1 ? "" : "s"} with unmerged branches:\n`,
+				printWarning(
+					`Skipped ${skipped.length} worktree${skipped.length === 1 ? "" : "s"} with unmerged branches`,
 				);
 				for (const branch of skipped) {
 					process.stdout.write(`  ${branch}\n`);
 				}
-				process.stdout.write("Use --force to delete unmerged branches.\n");
+				printHint("Use --force to delete unmerged branches");
 			}
 		}
 	} finally {

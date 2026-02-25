@@ -11,6 +11,7 @@ import { Command } from "commander";
 import { resolveProjectRoot } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { printHint, printSuccess } from "../logging/color.ts";
 import { isGroupAddress, resolveGroupAddress } from "../mail/broadcast.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
@@ -429,7 +430,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify({ id })}\n`);
 		} else {
-			process.stdout.write(`Sent message ${id} to ${to}\n`);
+			printSuccess("Sent message", id);
 		}
 
 		// Auto-nudge: write a pending nudge marker instead of sending tmux keys.
@@ -558,7 +559,7 @@ async function handleCheck(opts: CheckOpts, cwd: string): Promise<void> {
 			if (json) {
 				process.stdout.write(`${JSON.stringify(messages)}\n`);
 			} else if (messages.length === 0) {
-				process.stdout.write("No new messages.\n");
+				printHint("No new messages");
 			} else {
 				process.stdout.write(
 					`${messages.length} new message${messages.length === 1 ? "" : "s"}:\n\n`,
@@ -593,7 +594,7 @@ function handleList(opts: ListOpts, cwd: string): void {
 		if (json) {
 			process.stdout.write(`${JSON.stringify(messages)}\n`);
 		} else if (messages.length === 0) {
-			process.stdout.write("No messages found.\n");
+			printHint("No messages found");
 		} else {
 			for (const msg of messages) {
 				process.stdout.write(`${formatMessage(msg)}\n\n`);
@@ -613,9 +614,9 @@ function handleRead(id: string, cwd: string): void {
 	try {
 		const { alreadyRead } = client.markRead(id);
 		if (alreadyRead) {
-			process.stdout.write(`Message ${id} was already read.\n`);
+			printHint(`Message ${id} was already read`);
 		} else {
-			process.stdout.write(`Marked ${id} as read.\n`);
+			printSuccess("Marked as read", id);
 		}
 	} finally {
 		client.close();
@@ -634,7 +635,7 @@ function handleReply(id: string, opts: ReplyOpts, cwd: string): void {
 		if (opts.json) {
 			process.stdout.write(`${JSON.stringify({ id: replyId })}\n`);
 		} else {
-			process.stdout.write(`Reply sent: ${replyId}\n`);
+			printSuccess("Reply sent", replyId);
 		}
 	} finally {
 		client.close();
@@ -674,7 +675,7 @@ function handlePurge(opts: PurgeOpts, cwd: string): void {
 		if (json) {
 			process.stdout.write(`${JSON.stringify({ purged })}\n`);
 		} else {
-			process.stdout.write(`Purged ${purged} message${purged === 1 ? "" : "s"}.\n`);
+			printSuccess(`Purged ${purged} message(s)`);
 		}
 	} finally {
 		store.close();

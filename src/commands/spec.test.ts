@@ -142,13 +142,13 @@ describe("writeSpec", () => {
 // === specWriteCommand (CLI integration) ===
 
 describe("specWriteCommand (integration)", () => {
-	test("writes spec and prints path", async () => {
+	test("writes spec and prints success", async () => {
 		await specWriteCommand("task-cmd", { body: "# CLI Spec" });
 
-		// Path may differ due to macOS /var -> /private/var symlink resolution
-		expect(stdoutOutput.trim()).toContain(".overstory/specs/task-cmd.md");
+		expect(stdoutOutput).toContain("Spec written");
+		expect(stdoutOutput).toContain("task-cmd");
 
-		const specPath = stdoutOutput.trim();
+		const specPath = join(tempDir, ".overstory", "specs", "task-cmd.md");
 		const content = await Bun.file(specPath).text();
 		expect(content).toBe("# CLI Spec\n");
 	});
@@ -156,9 +156,10 @@ describe("specWriteCommand (integration)", () => {
 	test("writes spec with agent attribution", async () => {
 		await specWriteCommand("task-attr", { body: "# Attributed", agent: "scout-2" });
 
-		expect(stdoutOutput.trim()).toContain(".overstory/specs/task-attr.md");
+		expect(stdoutOutput).toContain("Spec written");
+		expect(stdoutOutput).toContain("task-attr");
 
-		const specPath = stdoutOutput.trim();
+		const specPath = join(tempDir, ".overstory", "specs", "task-attr.md");
 		const content = await Bun.file(specPath).text();
 		expect(content).toContain("<!-- written-by: scout-2 -->");
 		expect(content).toContain("# Attributed");
@@ -167,9 +168,10 @@ describe("specWriteCommand (integration)", () => {
 	test("writes spec without agent when agent is omitted", async () => {
 		await specWriteCommand("task-noagent", { body: "# No Agent" });
 
-		expect(stdoutOutput.trim()).toContain(".overstory/specs/task-noagent.md");
+		expect(stdoutOutput).toContain("Spec written");
+		expect(stdoutOutput).toContain("task-noagent");
 
-		const specPath = stdoutOutput.trim();
+		const specPath = join(tempDir, ".overstory", "specs", "task-noagent.md");
 		const content = await Bun.file(specPath).text();
 		expect(content).not.toContain("written-by");
 		expect(content).toBe("# No Agent\n");
