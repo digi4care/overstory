@@ -957,7 +957,7 @@ describe("waitForTuiReady", () => {
 	});
 
 	test("returns true immediately when pane has content on first poll", async () => {
-		spawnSpy.mockImplementation(() => mockSpawnResult("Claude Code ready", "", 0));
+		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help" to get started', "", 0));
 
 		const ready = await waitForTuiReady("overstory-agent", 5_000, 500);
 
@@ -977,7 +977,7 @@ describe("waitForTuiReady", () => {
 					return mockSpawnResult("", "", 0);
 				}
 				// 4th poll: content appears
-				return mockSpawnResult("Welcome to Claude Code!", "", 0);
+				return mockSpawnResult("Welcome to Claude Code!\n\n\u276f", "", 0);
 			}
 			// has-session: session is alive throughout
 			return mockSpawnResult("", "", 0);
@@ -1011,7 +1011,7 @@ describe("waitForTuiReady", () => {
 
 	test("uses default timeout and poll interval", async () => {
 		// Return content immediately
-		spawnSpy.mockImplementation(() => mockSpawnResult("ready", "", 0));
+		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help"', "", 0));
 
 		const ready = await waitForTuiReady("overstory-agent");
 
