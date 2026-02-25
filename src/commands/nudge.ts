@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { AgentError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import { printSuccess } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { EventStore } from "../types.ts";
@@ -310,9 +311,7 @@ export async function nudgeCommand(args: string[]): Promise<void> {
 				const result = await nudgeAgent(projectRoot, agentName, message, opts.force ?? false);
 
 				if (opts.json) {
-					process.stdout.write(
-						`${JSON.stringify({ agentName, delivered: result.delivered, reason: result.reason })}\n`,
-					);
+					jsonOutput("nudge", { agentName, delivered: result.delivered, reason: result.reason });
 				} else if (result.delivered) {
 					printSuccess("Nudge delivered", agentName);
 				} else {
