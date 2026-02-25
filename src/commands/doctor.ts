@@ -77,10 +77,10 @@ function printHumanReadable(
 
 				const icon =
 					check.status === "pass"
-						? color.green("✔")
+						? color.green("-")
 						: check.status === "warn"
-							? color.yellow("⚠")
-							: color.red("✘");
+							? color.yellow("!")
+							: color.red("x");
 
 				w(`  ${icon} ${check.message}\n`);
 

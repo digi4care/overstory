@@ -63,7 +63,7 @@ async function executeMetrics(opts: MetricsOpts): Promise<void> {
 			return;
 		}
 
-		process.stdout.write("📈 Session Metrics\n");
+		process.stdout.write("Session Metrics\n");
 		process.stdout.write(`${"═".repeat(60)}\n\n`);
 
 		// Summary stats

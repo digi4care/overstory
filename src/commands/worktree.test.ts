@@ -173,7 +173,7 @@ describe("worktreeCommand", () => {
 			await worktreeCommand(["list"]);
 			const out = output();
 
-			expect(out).toContain("🌳 Agent worktrees: 1");
+			expect(out).toContain("Agent worktrees: 1");
 			expect(out).toContain("overstory/test-agent/task-1");
 			expect(out).toContain("Agent: test-agent");
 			expect(out).toContain("State: working");
@@ -308,7 +308,7 @@ describe("worktreeCommand", () => {
 			await worktreeCommand(["clean"]);
 			const out = output();
 
-			expect(out).toContain("🗑️  Removed: overstory/completed-agent/task-done");
+			expect(out).toContain("Removed: overstory/completed-agent/task-done");
 			expect(out).toContain("Cleaned 1 worktree");
 
 			// Verify the worktree directory is gone
@@ -704,7 +704,7 @@ describe("worktreeCommand", () => {
 
 			// Worktree should be removed
 			expect(existsSync(wtPath)).toBe(false);
-			expect(out).toContain("🗑️  Removed: overstory/unmerged-agent/task-force");
+			expect(out).toContain("Removed: overstory/unmerged-agent/task-force");
 		});
 
 		test("without --force, removes worktrees whose branches ARE merged", async () => {

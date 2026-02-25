@@ -151,7 +151,7 @@ describe("metricsCommand", () => {
 		const out = output();
 
 		// Check summary stats
-		expect(out).toContain("📈 Session Metrics");
+		expect(out).toContain("Session Metrics");
 		expect(out).toContain("Total sessions: 3");
 		expect(out).toContain("Completed: 2");
 		expect(out).toContain("Avg duration:");

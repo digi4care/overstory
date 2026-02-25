@@ -35,15 +35,15 @@ function formatDuration(ms: number): string {
 function getStateIcon(state: AgentSession["state"]): string {
 	switch (state) {
 		case "booting":
-			return `${color.yellow("⏳")}`; // Yellow hourglass
+			return color.green("-");
 		case "working":
-			return `${color.green("●")}`; // Green circle
+			return color.cyan(">");
 		case "stalled":
-			return `${color.yellow("⚠")}`; // Yellow warning
+			return color.yellow("!");
 		case "completed":
-			return `${color.blue("✓")}`; // Blue checkmark
+			return color.dim("x");
 		case "zombie":
-			return `${color.red("☠")}`; // Red skull
+			return color.dim("x");
 		default:
 			return "?";
 	}
@@ -252,31 +252,31 @@ export function printInspectData(data: InspectData): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const { session } = data;
 
-	w(`\n🔍 Agent Inspection: ${session.agentName}\n`);
+	w(`\nAgent Inspection: ${session.agentName}\n`);
 	w(`${"═".repeat(80)}\n\n`);
 
 	// Agent state and metadata
 	const stateIcon = getStateIcon(session.state);
 	w(`${stateIcon} State: ${session.state}\n`);
-	w(`⏱  Last activity: ${formatDuration(data.timeSinceLastActivity)} ago\n`);
-	w(`🎯 Task: ${session.taskId}\n`);
-	w(`🔧 Capability: ${session.capability}\n`);
-	w(`🌿 Branch: ${session.branchName}\n`);
+	w(`Last activity: ${formatDuration(data.timeSinceLastActivity)} ago\n`);
+	w(`Task: ${session.taskId}\n`);
+	w(`Capability: ${session.capability}\n`);
+	w(`Branch: ${session.branchName}\n`);
 	if (session.parentAgent) {
-		w(`👤 Parent: ${session.parentAgent} (depth: ${session.depth})\n`);
+		w(`Parent: ${session.parentAgent} (depth: ${session.depth})\n`);
 	}
-	w(`📅 Started: ${session.startedAt}\n`);
-	w(`💻 Tmux: ${session.tmuxSession}\n`);
+	w(`Started: ${session.startedAt}\n`);
+	w(`Tmux: ${session.tmuxSession}\n`);
 	w("\n");
 
 	// Current file
 	if (data.currentFile) {
-		w(`📝 Current file: ${data.currentFile}\n\n`);
+		w(`Current file: ${data.currentFile}\n\n`);
 	}
 
 	// Token usage
 	if (data.tokenUsage) {
-		w("💰 Token Usage\n");
+		w("Token Usage\n");
 		w(`${"─".repeat(80)}\n`);
 		w(`  Input:         ${data.tokenUsage.inputTokens.toLocaleString()}\n`);
 		w(`  Output:        ${data.tokenUsage.outputTokens.toLocaleString()}\n`);
@@ -293,7 +293,7 @@ export function printInspectData(data: InspectData): void {
 
 	// Tool usage statistics (top 10)
 	if (data.toolStats.length > 0) {
-		w("🛠  Tool Usage (Top 10)\n");
+		w("Tool Usage (Top 10)\n");
 		w(`${"─".repeat(80)}\n`);
 		const top10 = data.toolStats.slice(0, 10);
 		for (const stat of top10) {
@@ -306,7 +306,7 @@ export function printInspectData(data: InspectData): void {
 
 	// Recent tool calls
 	if (data.recentToolCalls.length > 0) {
-		w(`📊 Recent Tool Calls (last ${data.recentToolCalls.length})\n`);
+		w(`Recent Tool Calls (last ${data.recentToolCalls.length})\n`);
 		w(`${"─".repeat(80)}\n`);
 		for (const call of data.recentToolCalls) {
 			const time = new Date(call.timestamp).toLocaleTimeString();
@@ -322,7 +322,7 @@ export function printInspectData(data: InspectData): void {
 
 	// tmux output
 	if (data.tmuxOutput) {
-		w("📺 Live Tmux Output\n");
+		w("Live Tmux Output\n");
 		w(`${"─".repeat(80)}\n`);
 		w(`${data.tmuxOutput}\n`);
 		w(`${"─".repeat(80)}\n`);
