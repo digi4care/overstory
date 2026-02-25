@@ -1,13 +1,164 @@
 # Overstory
 
-[![CI](https://img.shields.io/github/actions/workflow/status/jayminwest/overstory/ci.yml?branch=main)](https://github.com/jayminwest/overstory/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Bun](https://img.shields.io/badge/Bun-%E2%89%A51.0-orange)](https://bun.sh)
-[![GitHub release](https://img.shields.io/github/v/release/jayminwest/overstory)](https://github.com/jayminwest/overstory/releases)
+Multi-agent orchestration for Claude Code.
 
-Project-agnostic swarm system for Claude Code agent orchestration. Overstory turns a single Claude Code session into a multi-agent team by spawning worker agents in git worktrees via tmux, coordinating them through a custom SQLite mail system, and merging their work back with tiered conflict resolution.
+[![npm](https://img.shields.io/npm/v/@os-eco/overstory-cli)](https://www.npmjs.com/package/@os-eco/overstory-cli)
+[![CI](https://github.com/jayminwest/overstory/actions/workflows/ci.yml/badge.svg)](https://github.com/jayminwest/overstory/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **⚠️ Warning: Agent swarms are not a universal solution.** Do not deploy Overstory without understanding the risks of multi-agent orchestration — compounding error rates, cost amplification, debugging complexity, and merge conflicts are the normal case, not edge cases. Read [STEELMAN.md](STEELMAN.md) for a full risk analysis and the [Agentic Engineering Book](https://github.com/jayminwest/agentic-engineering-book) ([web version](https://jayminwest.com/agentic-engineering-book)) before using this tool in production.
+Overstory turns a single Claude Code session into a multi-agent team by spawning worker agents in git worktrees via tmux, coordinating them through a custom SQLite mail system, and merging their work back with tiered conflict resolution.
+
+> **Warning: Agent swarms are not a universal solution.** Do not deploy Overstory without understanding the risks of multi-agent orchestration — compounding error rates, cost amplification, debugging complexity, and merge conflicts are the normal case, not edge cases. Read [STEELMAN.md](STEELMAN.md) for a full risk analysis and the [Agentic Engineering Book](https://github.com/jayminwest/agentic-engineering-book) ([web version](https://jayminwest.com/agentic-engineering-book)) before using this tool in production.
+
+## Install
+
+Requires [Bun](https://bun.sh) v1.0+, [Claude Code](https://docs.anthropic.com/en/docs/claude-code), git, and tmux.
+
+```bash
+bun install -g @os-eco/overstory-cli
+```
+
+Or try without installing:
+
+```bash
+npx @os-eco/overstory-cli --help
+```
+
+### Development
+
+```bash
+git clone https://github.com/jayminwest/overstory.git
+cd overstory
+bun install
+bun link              # Makes 'ov' available globally
+
+bun test              # Run all tests
+bun run lint          # Biome check
+bun run typecheck     # tsc --noEmit
+```
+
+## Quick Start
+
+```bash
+# Initialize overstory in your project
+cd your-project
+ov init
+
+# Install hooks into .claude/settings.local.json
+ov hooks install
+
+# Start a coordinator (persistent orchestrator)
+ov coordinator start
+
+# Or spawn individual worker agents
+ov sling <task-id> --capability builder --name my-builder
+
+# Check agent status
+ov status
+
+# Live dashboard for monitoring the fleet
+ov dashboard
+
+# Nudge a stalled agent
+ov nudge <agent-name>
+
+# Check mail from agents
+ov mail check --inject
+```
+
+## Commands
+
+Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--timing`. ANSI colors respect `NO_COLOR`.
+
+### Core Workflow
+
+| Command | Description |
+|---------|-------------|
+| `ov init` | Initialize `.overstory/` in current project (`--yes`, `--name`) |
+| `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-task-check`, `--json`) |
+| `ov stop <agent-name>` | Terminate a running agent (`--clean-worktree`, `--json`) |
+| `ov prime` | Load context for orchestrator/agent (`--agent`, `--compact`) |
+| `ov spec write <task-id>` | Write a task specification (`--body`) |
+
+### Coordination
+
+| Command | Description |
+|---------|-------------|
+| `ov coordinator start` | Start persistent coordinator agent (`--attach`/`--no-attach`, `--watchdog`, `--monitor`) |
+| `ov coordinator stop` | Stop coordinator |
+| `ov coordinator status` | Show coordinator state |
+| `ov supervisor start` | Start per-project supervisor agent (`--attach`/`--no-attach`) |
+| `ov supervisor stop` | Stop supervisor |
+| `ov supervisor status` | Show supervisor state |
+
+### Messaging
+
+| Command | Description |
+|---------|-------------|
+| `ov mail send` | Send a message (`--to`, `--subject`, `--body`, `--type`, `--priority`) |
+| `ov mail check` | Check inbox — unread messages (`--agent`, `--inject`, `--debounce`, `--json`) |
+| `ov mail list` | List messages with filters (`--from`, `--to`, `--unread`) |
+| `ov mail read <id>` | Mark message as read |
+| `ov mail reply <id>` | Reply in same thread (`--body`) |
+| `ov nudge <agent> [message]` | Send a text nudge to an agent (`--from`, `--force`, `--json`) |
+
+### Task Groups
+
+| Command | Description |
+|---------|-------------|
+| `ov group create <name>` | Create a task group for batch tracking |
+| `ov group status <name>` | Show group progress |
+| `ov group add <name> <issue-id>` | Add issue to group |
+| `ov group list` | List all groups |
+
+### Merge
+
+| Command | Description |
+|---------|-------------|
+| `ov merge` | Merge agent branches into canonical (`--branch`, `--all`, `--into`, `--dry-run`, `--json`) |
+
+### Observability
+
+| Command | Description |
+|---------|-------------|
+| `ov status` | Show all active agents, worktrees, tracker state (`--json`, `--verbose`, `--all`) |
+| `ov dashboard` | Live TUI dashboard for agent monitoring (`--interval`, `--all`) |
+| `ov inspect <agent>` | Deep per-agent inspection (`--follow`, `--interval`, `--no-tmux`, `--limit`, `--json`) |
+| `ov trace` | View agent/bead timeline (`--agent`, `--run`, `--since`, `--until`, `--limit`, `--json`) |
+| `ov errors` | Aggregated error view across agents (`--agent`, `--run`, `--since`, `--until`, `--limit`, `--json`) |
+| `ov replay` | Interleaved chronological replay (`--run`, `--agent`, `--since`, `--until`, `--limit`, `--json`) |
+| `ov feed` | Unified real-time event stream (`--follow`, `--interval`, `--agent`, `--run`, `--json`) |
+| `ov logs` | Query NDJSON logs across agents (`--agent`, `--level`, `--since`, `--until`, `--follow`, `--json`) |
+| `ov costs` | Token/cost analysis and breakdown (`--live`, `--self`, `--agent`, `--run`, `--by-capability`, `--last`, `--json`) |
+| `ov metrics` | Show session metrics (`--last`, `--json`) |
+| `ov run list` | List orchestration runs (`--last`, `--json`) |
+| `ov run show <id>` | Show run details |
+| `ov run complete` | Mark current run as completed |
+
+### Infrastructure
+
+| Command | Description |
+|---------|-------------|
+| `ov hooks install` | Install orchestrator hooks to `.claude/settings.local.json` (`--force`) |
+| `ov hooks uninstall` | Remove orchestrator hooks |
+| `ov hooks status` | Check if hooks are installed |
+| `ov worktree list` | List worktrees with status |
+| `ov worktree clean` | Remove completed worktrees (`--completed`, `--all`, `--force`) |
+| `ov watch` | Start watchdog daemon — Tier 0 (`--interval`, `--background`) |
+| `ov monitor start` | Start Tier 2 monitor agent |
+| `ov monitor stop` | Stop monitor agent |
+| `ov monitor status` | Show monitor state |
+| `ov log <event>` | Log a hook event (`--agent`) |
+| `ov clean` | Clean up worktrees, sessions, artifacts (`--completed`, `--all`, `--run`) |
+| `ov doctor` | Run health checks on overstory setup (`--category`, `--fix`, `--json`) |
+| `ov ecosystem` | Show os-eco tool versions and health (`--json`) |
+| `ov upgrade` | Upgrade overstory to latest npm version (`--check`, `--all`, `--json`) |
+| `ov agents discover` | Discover agents by capability/state/parent (`--capability`, `--state`, `--parent`, `--json`) |
+| `ov completions <shell>` | Generate shell completions (bash, zsh, fish) |
+
+## Architecture
+
+Overstory uses CLAUDE.md overlays and PreToolUse hooks to turn Claude Code sessions into orchestrated agents. Each agent runs in an isolated git worktree via tmux. Inter-agent messaging is handled by a custom SQLite mail system (WAL mode, ~1-5ms per query) with typed protocol messages and broadcast support. A FIFO merge queue with 4-tier conflict resolution merges agent branches back to canonical. A tiered watchdog system (Tier 0 mechanical daemon, Tier 1 AI-assisted triage, Tier 2 monitor agent) ensures fleet health. See [CLAUDE.md](CLAUDE.md) for full technical details.
 
 ## How It Works
 
@@ -43,284 +194,6 @@ Coordinator (persistent orchestrator at project root)
 - **Task Groups**: Batch coordination with auto-close when all member issues complete
 - **Session Lifecycle**: Checkpoint save/restore for compaction survivability, handoff orchestration for crash recovery
 - **Token Instrumentation**: Session metrics extracted from Claude Code transcript JSONL files
-
-## Requirements
-
-- [Bun](https://bun.sh) (v1.0+)
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- git
-- tmux
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/jayminwest/overstory.git
-cd overstory
-
-# Install dev dependencies
-bun install
-
-# Link the CLI globally
-bun link
-```
-
-## Quick Start
-
-```bash
-# Initialize overstory in your project
-cd your-project
-ov init
-
-# Install hooks into .claude/settings.local.json
-ov hooks install
-
-# Start a coordinator (persistent orchestrator)
-ov coordinator start
-
-# Or spawn individual worker agents
-ov sling <task-id> --capability builder --name my-builder
-
-# Check agent status
-ov status
-
-# Live dashboard for monitoring the fleet
-ov dashboard
-
-# Nudge a stalled agent
-ov nudge <agent-name>
-
-# Check mail from agents
-ov mail check --inject
-```
-
-## CLI Reference
-
-```
-ov agents discover               Discover agents by capability/state/parent
-  --capability <type>                    Filter by capability type
-  --state <state>                        Filter by agent state
-  --parent <name>                        Filter by parent agent
-  --json                                 JSON output
-
-ov init                          Initialize .overstory/ in current project
-                                        (deploys agent definitions automatically)
-  --yes, -y                              Skip interactive prompts
-  --name <name>                          Set project name (default: auto-detect)
-
-ov coordinator start             Start persistent coordinator agent
-  --attach / --no-attach                 TTY-aware tmux attach (default: auto)
-  --watchdog                             Auto-start watchdog daemon with coordinator
-  --monitor                              Auto-start Tier 2 monitor agent
-ov coordinator stop              Stop coordinator
-ov coordinator status            Show coordinator state
-
-ov supervisor start              Start per-project supervisor agent
-  --attach / --no-attach                 TTY-aware tmux attach (default: auto)
-ov supervisor stop               Stop supervisor
-ov supervisor status             Show supervisor state
-
-ov sling <task-id>              Spawn a worker agent
-  --capability <type>                    builder | scout | reviewer | lead | merger
-                                         | coordinator | supervisor | monitor
-  --name <name>                          Unique agent name
-  --spec <path>                          Path to task spec file
-  --files <f1,f2,...>                    Exclusive file scope
-  --parent <agent-name>                  Parent (for hierarchy tracking)
-  --depth <n>                            Current hierarchy depth
-  --skip-scout                           Skip scout phase (passed to lead overlay)
-  --skip-task-check                      Skip task existence validation
-  --json                                 JSON output
-
-ov stop <agent-name>            Terminate a running agent
-  --clean-worktree                       Remove the agent's worktree (best-effort)
-  --json                                 JSON output
-
-ov prime                         Load context for orchestrator/agent
-  --agent <name>                         Per-agent priming
-  --compact                              Restore from checkpoint (compaction)
-
-ov status                        Show all active agents, worktrees, tracker state
-  --json                                 JSON output
-  --verbose                              Show detailed agent info
-  --all                                  Show all runs (default: current run only)
-
-ov dashboard                     Live TUI dashboard for agent monitoring
-  --interval <ms>                        Refresh interval (default: 2000)
-  --all                                  Show all runs (default: current run only)
-
-ov hooks install                 Install orchestrator hooks to .claude/settings.local.json
-  --force                                Overwrite existing hooks
-ov hooks uninstall               Remove orchestrator hooks
-ov hooks status                  Check if hooks are installed
-
-ov mail send                     Send a message
-  --to <agent>  --subject <text>  --body <text>
-  --to @all | @builders | @scouts ...    Broadcast to group addresses
-  --type <status|question|result|error>
-  --priority <low|normal|high|urgent>    (urgent/high auto-nudges recipient)
-
-ov mail check                    Check inbox (unread messages)
-  --agent <name>  --inject  --json
-  --debounce <ms>                        Skip if checked within window
-
-ov mail list                     List messages with filters
-  --from <name>  --to <name>  --unread
-
-ov mail read <id>                Mark message as read
-ov mail reply <id> --body <text> Reply in same thread
-
-ov nudge <agent> [message]       Send a text nudge to an agent
-  --from <name>                          Sender name (default: orchestrator)
-  --force                                Skip debounce check
-  --json                                 JSON output
-
-ov group create <name>           Create a task group for batch tracking
-ov group status <name>           Show group progress
-ov group add <name> <issue-id>   Add issue to group
-ov group list                    List all groups
-
-ov merge                         Merge agent branches into canonical
-  --branch <name>                        Specific branch
-  --all                                  All completed branches
-  --into <branch>                        Target branch (default: session-branch.txt > canonicalBranch)
-  --dry-run                              Check for conflicts only
-
-ov worktree list                 List worktrees with status
-ov worktree clean                Remove completed worktrees
-  --completed                            Only finished agents
-  --all                                  Force remove all
-  --force                                Delete even if branches are unmerged
-
-ov monitor start                 Start Tier 2 monitor agent
-ov monitor stop                  Stop monitor agent
-ov monitor status                Show monitor state
-
-ov log <event>                   Log a hook event
-ov watch                         Start watchdog daemon (Tier 0)
-  --interval <ms>                        Health check interval
-  --background                           Run as background process
-ov run list                      List orchestration runs
-ov run show <id>                 Show run details
-ov run complete <id>             Mark a run complete
-
-ov trace                         View agent/bead timeline
-  --agent <name>                         Filter by agent
-  --run <id>                             Filter by run
-
-ov clean                         Clean up worktrees, sessions, artifacts
-  --completed                            Only finished agents
-  --all                                  Force remove all
-  --run <id>                             Clean a specific run
-
-ov doctor                        Run health checks on overstory setup
-  --json                                 JSON output
-  --category <name>                      Run a specific check category only
-  --fix                                  Auto-fix fixable issues
-
-ov ecosystem                     Show os-eco tool versions and health
-  --json                                 JSON output
-
-ov upgrade                       Upgrade overstory to latest npm version
-  --check                                Compare versions without installing
-  --all                                  Upgrade all 4 ecosystem tools
-  --json                                 JSON output
-
-ov inspect <agent>               Deep per-agent inspection
-  --json                                 JSON output
-  --follow                               Polling mode (refreshes periodically)
-  --interval <ms>                        Refresh interval for --follow
-  --no-tmux                              Skip tmux capture
-  --limit <n>                            Limit events shown
-
-ov spec write <task-id>          Write a task specification
-  --body <content>                       Spec content (or pipe via stdin)
-
-ov errors                        Aggregated error view across agents
-  --agent <name>                         Filter by agent
-  --run <id>                             Filter by run
-  --since <ts>  --until <ts>             Time range filter
-  --limit <n>  --json
-
-ov replay                        Interleaved chronological replay
-  --run <id>                             Filter by run
-  --agent <name>                         Filter by agent(s)
-  --since <ts>  --until <ts>             Time range filter
-  --limit <n>  --json
-
-ov feed [options]                Unified real-time event stream across agents
-  --follow, -f                           Continuously poll for new events
-  --interval <ms>                        Polling interval (default: 2000)
-  --agent <name>  --run <id>             Filter by agent or run
-  --json                                 JSON output
-
-ov logs [options]                Query NDJSON logs across agents
-  --agent <name>                         Filter by agent
-  --level <level>                        Filter by log level (debug|info|warn|error)
-  --since <ts>  --until <ts>             Time range filter
-  --follow                               Tail logs in real time
-  --json                                 JSON output
-
-ov costs                         Token/cost analysis and breakdown
-  --live                                 Show real-time token usage for active agents
-  --self                                 Show cost for current orchestrator session
-  --agent <name>                         Filter by agent
-  --run <id>                             Filter by run
-  --by-capability                        Group by capability type
-  --last <n>  --json
-
-ov metrics                       Show session metrics
-  --last <n>                             Last N sessions
-  --json                                 JSON output
-
-Global Flags:
-  --quiet, -q                            Suppress non-error output
-  --timing                               Print command execution time to stderr
-  --completions <shell>                  Generate shell completions (bash, zsh, fish)
-```
-
-## Tech Stack
-
-- **Runtime**: Bun (TypeScript directly, no build step)
-- **Dependencies**: Minimal runtime — `chalk` (color output), `commander` (CLI framework), core I/O via Bun built-in APIs
-- **Database**: SQLite via `bun:sqlite` (WAL mode for concurrent access)
-- **Linting**: Biome (formatter + linter)
-- **Testing**: `bun test` (2241 tests across 79 files, colocated with source)
-- **External CLIs**: `bd` (beads) or `sd` (seeds), `mulch`, `git`, `tmux` — invoked as subprocesses
-
-## Development
-
-```bash
-# Run tests (2241 tests across 79 files)
-bun test
-
-# Run a single test
-bun test src/config.test.ts
-
-# Lint + format check
-biome check .
-
-# Type check
-tsc --noEmit
-
-# All quality gates
-bun test && biome check . && tsc --noEmit
-```
-
-### Versioning
-
-Version is maintained in two places that must stay in sync:
-
-1. `package.json` — `"version"` field
-2. `src/index.ts` — `VERSION` constant
-
-Use the bump script to update both:
-
-```bash
-bun run version:bump <major|minor|patch>
-```
-
-Git tags, npm publishing, and GitHub releases are handled automatically by the `publish.yml` workflow when a version bump is pushed to `main`.
 
 ## Project Structure
 
@@ -388,10 +261,21 @@ overstory/
   templates/                      Templates for overlays and hooks
 ```
 
+## Part of os-eco
+
+Overstory is part of the [os-eco](https://github.com/jayminwest/os-eco) AI agent tooling ecosystem.
+
+```
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  overstory   orchestration
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  canopy      prompts
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  seeds       issues
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  mulch       expertise
+```
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
 MIT
-
----
-
-Inspired by: https://github.com/steveyegge/gastown/
