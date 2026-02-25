@@ -37,6 +37,7 @@ import { createStatusCommand } from "./commands/status.ts";
 import { stopCommand } from "./commands/stop.ts";
 import { createSupervisorCommand } from "./commands/supervisor.ts";
 import { traceCommand } from "./commands/trace.ts";
+import { createUpgradeCommand } from "./commands/upgrade.ts";
 import { createWatchCommand } from "./commands/watch.ts";
 import { createWorktreeCommand } from "./commands/worktree.ts";
 import { OverstoryError, WorktreeError } from "./errors.ts";
@@ -92,6 +93,7 @@ const COMMANDS = [
 	"run",
 	"costs",
 	"metrics",
+	"upgrade",
 ];
 
 function editDistance(a: string, b: string): number {
@@ -353,6 +355,8 @@ program.addCommand(createRunCommand());
 program.addCommand(createCostsCommand());
 
 program.addCommand(createMetricsCommand());
+
+program.addCommand(createUpgradeCommand());
 
 // Handle unknown commands with Levenshtein fuzzy-match suggestions
 program.on("command:*", (operands) => {
