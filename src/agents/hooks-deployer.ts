@@ -150,6 +150,22 @@ function getTemplatePath(): string {
 const ENV_GUARD = '[ -z "$OVERSTORY_AGENT_NAME" ] && exit 0;';
 
 /**
+ * PATH setup prefix for hook commands.
+ *
+ * Claude Code executes hook commands via /bin/sh with a minimal PATH
+ * (/usr/bin:/bin:/usr/sbin:/sbin). Bun-installed CLIs — ov, ml, sd, cn, bd —
+ * live in ~/.bun/bin which is absent from that PATH, causing hooks like
+ * `ov prime` (SessionStart) and `ml learn` (Stop) to fail with
+ * "command not found".
+ *
+ * Prepend this to any hook command that invokes one of those CLIs so they
+ * resolve correctly regardless of how Claude Code was launched.
+ *
+ * Exported so tests can verify the exact prefix value.
+ */
+export const PATH_PREFIX = 'export PATH="$HOME/.bun/bin:/usr/local/bin:/opt/homebrew/bin:$PATH";';
+
+/**
  * Build a PreToolUse guard script that validates file paths are within
  * the agent's worktree boundary.
  *
@@ -571,8 +587,23 @@ export async function deployHooks(
 		content = content.replace("{{AGENT_NAME}}", agentName);
 	}
 
-	// Parse the base config and merge guards into PreToolUse
+	// Parse the base config from the template
 	const config = JSON.parse(content) as { hooks: Record<string, HookEntry[]> };
+
+	// Extend PATH in all template hook commands.
+	// Claude Code invokes hooks with PATH=/usr/bin:/bin:/usr/sbin:/sbin — ~/.bun/bin
+	// (where ov, ml, sd, etc. live) is not included. Prepend PATH_PREFIX so CLIs resolve.
+	for (const entries of Object.values(config.hooks)) {
+		for (const entry of entries) {
+			for (const hook of entry.hooks) {
+				hook.command = `${PATH_PREFIX} ${hook.command}`;
+			}
+		}
+	}
+
+	// Merge capability-specific PreToolUse guards into the config.
+	// Guards are generated scripts using only shell built-ins (grep, sed, echo, exit)
+	// and do not require PATH extension.
 	const pathGuards = getPathBoundaryGuards();
 	const dangerGuards = getDangerGuards(agentName);
 	const capabilityGuards = getCapabilityGuards(capability);
