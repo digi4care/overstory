@@ -14,7 +14,7 @@ import { stripAnsi } from "../logging/color.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
 import type { StoredEvent } from "../types.ts";
-import { mailCommand } from "./mail.ts";
+import { AUTO_NUDGE_TYPES, isDispatchNudge, mailCommand, shouldAutoNudge } from "./mail.ts";
 
 describe("mailCommand", () => {
 	let tempDir: string;
@@ -1267,5 +1267,67 @@ describe("mailCommand", () => {
 			// No warning should be emitted for non-merge_ready types
 			expect(stderrOutput).toBe("");
 		});
+	});
+});
+
+describe("shouldAutoNudge", () => {
+	test("returns true for urgent priority regardless of type", () => {
+		expect(shouldAutoNudge("status", "urgent")).toBe(true);
+	});
+
+	test("returns true for high priority regardless of type", () => {
+		expect(shouldAutoNudge("status", "high")).toBe(true);
+	});
+
+	test("returns true for worker_done type at normal priority", () => {
+		expect(shouldAutoNudge("worker_done", "normal")).toBe(true);
+	});
+
+	test("returns true for merge_ready type at normal priority", () => {
+		expect(shouldAutoNudge("merge_ready", "normal")).toBe(true);
+	});
+
+	test("returns true for error type at normal priority", () => {
+		expect(shouldAutoNudge("error", "normal")).toBe(true);
+	});
+
+	test("returns false for status type at normal priority", () => {
+		expect(shouldAutoNudge("status", "normal")).toBe(false);
+	});
+
+	test("returns false for question type at low priority", () => {
+		expect(shouldAutoNudge("question", "low")).toBe(false);
+	});
+});
+
+describe("isDispatchNudge", () => {
+	test("returns true for dispatch type", () => {
+		expect(isDispatchNudge("dispatch")).toBe(true);
+	});
+
+	test("returns false for worker_done type", () => {
+		expect(isDispatchNudge("worker_done")).toBe(false);
+	});
+
+	test("returns false for status type", () => {
+		expect(isDispatchNudge("status")).toBe(false);
+	});
+
+	test("returns false for error type", () => {
+		expect(isDispatchNudge("error")).toBe(false);
+	});
+});
+
+describe("AUTO_NUDGE_TYPES", () => {
+	test("contains worker_done, merge_ready, and error", () => {
+		expect(AUTO_NUDGE_TYPES.has("worker_done")).toBe(true);
+		expect(AUTO_NUDGE_TYPES.has("merge_ready")).toBe(true);
+		expect(AUTO_NUDGE_TYPES.has("error")).toBe(true);
+	});
+
+	test("does not contain regular semantic types", () => {
+		expect(AUTO_NUDGE_TYPES.has("status")).toBe(false);
+		expect(AUTO_NUDGE_TYPES.has("question")).toBe(false);
+		expect(AUTO_NUDGE_TYPES.has("result")).toBe(false);
 	});
 });

@@ -24,13 +24,30 @@ import { MAIL_MESSAGE_TYPES } from "../types.ts";
  * Protocol message types that require immediate recipient attention.
  * These trigger auto-nudge regardless of priority level.
  */
-const AUTO_NUDGE_TYPES: ReadonlySet<MailMessageType> = new Set([
+export const AUTO_NUDGE_TYPES: ReadonlySet<MailMessageType> = new Set([
 	"worker_done",
 	"merge_ready",
 	"error",
 	"escalation",
 	"merge_failed",
 ]);
+
+/**
+ * Check if a message type/priority combination should trigger a pending nudge.
+ * Exported for testability.
+ */
+export function shouldAutoNudge(type: MailMessageType, priority: MailMessage["priority"]): boolean {
+	return priority === "urgent" || priority === "high" || AUTO_NUDGE_TYPES.has(type);
+}
+
+/**
+ * Check if a message type should trigger an immediate tmux dispatch nudge.
+ * Dispatch nudges target newly spawned agents at the welcome screen.
+ * Exported for testability.
+ */
+export function isDispatchNudge(type: MailMessageType): boolean {
+	return type === "dispatch";
+}
 
 /** Format a single message for human-readable output. */
 function formatMessage(msg: MailMessage): string {
