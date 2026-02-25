@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { GroupError, ValidationError } from "../errors.ts";
+import { printHint, printSuccess } from "../logging/color.ts";
 import { createTrackerClient, resolveBackend, type TrackerClient } from "../tracker/factory.ts";
 import type { TaskGroup, TaskGroupProgress } from "../types.ts";
 
@@ -326,7 +327,7 @@ export function createGroupCommand(): Command {
 				if (opts.json) {
 					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
 				} else {
-					process.stdout.write(`Created group "${group.name}" (${group.id})\n`);
+					printSuccess("Created group", group.name);
 					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
 				}
 			},
@@ -365,7 +366,7 @@ export function createGroupCommand(): Command {
 						if (json) {
 							process.stdout.write("[]\n");
 						} else {
-							process.stdout.write("No active groups\n");
+							printHint("No active groups");
 						}
 						return;
 					}
@@ -414,7 +415,7 @@ export function createGroupCommand(): Command {
 				if (opts.json) {
 					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
 				} else {
-					process.stdout.write(`Added ${ids.length} issue(s) to "${group.name}"\n`);
+					printSuccess("Added to group", group.name);
 					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
 				}
 			},
@@ -434,7 +435,7 @@ export function createGroupCommand(): Command {
 			if (opts.json) {
 				process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
 			} else {
-				process.stdout.write(`Removed ${ids.length} issue(s) from "${group.name}"\n`);
+				printSuccess("Removed from group", group.name);
 				process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
 			}
 		});
@@ -452,7 +453,7 @@ export function createGroupCommand(): Command {
 				if (opts.json) {
 					process.stdout.write("[]\n");
 				} else {
-					process.stdout.write("No groups\n");
+					printHint("No groups");
 				}
 				return;
 			}

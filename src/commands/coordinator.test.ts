@@ -1185,7 +1185,7 @@ describe("watchdog integration", () => {
 				Bun.sleep = originalSleep;
 			}
 
-			expect(output).toContain("Watchdog: started (PID 88888)");
+			expect(output).toContain("Watchdog started");
 		});
 	});
 
@@ -1414,7 +1414,7 @@ describe("monitor integration", () => {
 				Bun.sleep = originalSleep;
 			}
 
-			expect(output).toContain("Monitor:  started (PID 77777)");
+			expect(output).toContain("Monitor started");
 		});
 
 		test("does NOT call monitor.start() when tier2Enabled is false", async () => {
@@ -1460,21 +1460,16 @@ describe("monitor integration", () => {
 			const originalSleep = Bun.sleep;
 			Bun.sleep = (() => Promise.resolve()) as typeof Bun.sleep;
 
-			let stderrOutput = "";
-			const origStderrWrite = process.stderr.write.bind(process.stderr);
-			process.stderr.write = (chunk: string | Uint8Array) => {
-				stderrOutput += typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-				return true;
-			};
-
+			let output: string;
 			try {
-				await captureStdout(() => coordinatorCommand(["start", "--monitor", "--no-attach"], deps));
+				output = await captureStdout(() =>
+					coordinatorCommand(["start", "--monitor", "--no-attach"], deps),
+				);
 			} finally {
 				Bun.sleep = originalSleep;
-				process.stderr.write = origStderrWrite;
 			}
 
-			expect(stderrOutput).toContain("skipped");
+			expect(output).toContain("skipped");
 		});
 	});
 

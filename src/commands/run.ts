@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { Command, CommanderError } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { printError, printHint, printSuccess } from "../logging/color.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import type { AgentSession, Run } from "../types.ts";
 
@@ -84,7 +85,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 		if (json) {
 			process.stdout.write('{"run":null,"message":"No active run"}\n');
 		} else {
-			process.stdout.write("No active run\n");
+			printHint("No active run");
 		}
 		return;
 	}
@@ -131,7 +132,7 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 		if (json) {
 			process.stdout.write('{"runs":[]}\n');
 		} else {
-			process.stdout.write("No runs recorded yet.\n");
+			printHint("No runs recorded yet");
 		}
 		return;
 	}
@@ -147,7 +148,7 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 		}
 
 		if (runs.length === 0) {
-			process.stdout.write("No runs recorded yet.\n");
+			printHint("No runs recorded yet");
 			return;
 		}
 
@@ -179,7 +180,7 @@ async function completeCurrentRun(overstoryDir: string, json: boolean): Promise<
 		if (json) {
 			process.stdout.write('{"success":false,"message":"No active run to complete"}\n');
 		} else {
-			process.stderr.write("No active run to complete\n");
+			printError("No active run to complete");
 		}
 		process.exitCode = 1;
 		return;
@@ -204,7 +205,7 @@ async function completeCurrentRun(overstoryDir: string, json: boolean): Promise<
 	if (json) {
 		process.stdout.write(`${JSON.stringify({ success: true, runId, status: "completed" })}\n`);
 	} else {
-		process.stdout.write(`Run ${runId} marked as completed\n`);
+		printSuccess("Run completed", runId);
 	}
 }
 
@@ -218,7 +219,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 		if (json) {
 			process.stdout.write(`${JSON.stringify({ run: null, message: `Run ${runId} not found` })}\n`);
 		} else {
-			process.stderr.write(`Run ${runId} not found\n`);
+			printError("Run not found", runId);
 		}
 		process.exitCode = 1;
 		return;
@@ -234,7 +235,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 					`${JSON.stringify({ run: null, message: `Run ${runId} not found` })}\n`,
 				);
 			} else {
-				process.stderr.write(`Run ${runId} not found\n`);
+				printError("Run not found", runId);
 			}
 			process.exitCode = 1;
 			return;
