@@ -1,4 +1,4 @@
-import { access, constants } from "node:fs/promises";
+import { access, constants, mkdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentManifest } from "../types.ts";
 import type { DoctorCheck, DoctorCheckFn } from "./types.ts";
@@ -87,6 +87,18 @@ export const checkStructure: DoctorCheckFn = async (
 				: `Missing ${missingDirs.length} subdirectory(ies)`,
 		details: missingDirs.length > 0 ? missingDirs : undefined,
 		fixable: missingDirs.length > 0,
+		fix:
+			missingDirs.length > 0
+				? async () => {
+						const actions: string[] = [];
+						for (const dir of missingDirs) {
+							const dirPath = join(overstoryDir, dir.replace(/\/$/, ""));
+							await mkdir(dirPath, { recursive: true });
+							actions.push(`Created missing directory: ${dir}`);
+						}
+						return actions;
+					}
+				: undefined,
 	});
 
 	// Check 4: .gitignore contents — validate wildcard+whitelist model
@@ -115,6 +127,19 @@ export const checkStructure: DoctorCheckFn = async (
 					: `Missing ${missingEntries.length} entry(ies)`,
 			details: missingEntries.length > 0 ? missingEntries : undefined,
 			fixable: missingEntries.length > 0,
+			fix:
+				missingEntries.length > 0
+					? async () => {
+							const actions: string[] = [];
+							const content = await Bun.file(gitignorePath).text();
+							const suffix = content.endsWith("\n") ? "" : "\n";
+							await Bun.write(gitignorePath, `${content + suffix + missingEntries.join("\n")}\n`);
+							for (const entry of missingEntries) {
+								actions.push(`Added .gitignore entry: ${entry}`);
+							}
+							return actions;
+						}
+					: undefined,
 		});
 	} catch {
 		// .gitignore doesn't exist, already reported in required files check
@@ -189,9 +214,70 @@ export const checkStructure: DoctorCheckFn = async (
 				tempFiles.length === 0 ? "No temp files found" : `Found ${tempFiles.length} temp file(s)`,
 			details: tempFiles.length > 0 ? tempFiles : undefined,
 			fixable: tempFiles.length > 0,
+			fix:
+				tempFiles.length > 0
+					? async () => {
+							const actions: string[] = [];
+							for (const file of tempFiles) {
+								await rm(join(overstoryDir, file), { force: true });
+								actions.push(`Removed temp file: ${file}`);
+							}
+							return actions;
+						}
+					: undefined,
 		});
 	} catch {
 		// Ignore errors scanning for temp files
+	}
+
+	// Check 7: Stale lock files (older than 5 minutes)
+	try {
+		const lockEntries = await Array.fromAsync(new Bun.Glob("*.lock").scan({ cwd: overstoryDir }));
+		const now = Date.now();
+		const staleLockThresholdMs = 5 * 60 * 1000;
+		const staleLockFiles: string[] = [];
+
+		for (const lockFile of lockEntries) {
+			try {
+				const lockPath = join(overstoryDir, lockFile);
+				const stats = await stat(lockPath);
+				const ageMs = now - stats.mtimeMs;
+				if (ageMs > staleLockThresholdMs) {
+					staleLockFiles.push(lockFile);
+				}
+			} catch {
+				// ignore stat errors
+			}
+		}
+
+		checks.push({
+			name: "Stale lock files",
+			category: "structure",
+			status: staleLockFiles.length === 0 ? "pass" : "warn",
+			message:
+				staleLockFiles.length === 0
+					? "No stale lock files found"
+					: `Found ${staleLockFiles.length} stale lock file(s)`,
+			details: staleLockFiles.length > 0 ? staleLockFiles : undefined,
+			fixable: staleLockFiles.length > 0,
+			fix:
+				staleLockFiles.length > 0
+					? async () => {
+							const actions: string[] = [];
+							for (const file of staleLockFiles) {
+								try {
+									await rm(join(overstoryDir, file), { force: true });
+									actions.push(`Removed stale lock file: ${file}`);
+								} catch {
+									// ignore removal errors
+								}
+							}
+							return actions;
+						}
+					: undefined,
+		});
+	} catch {
+		// ignore errors scanning for lock files
 	}
 
 	return checks;

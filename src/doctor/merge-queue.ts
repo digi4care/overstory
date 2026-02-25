@@ -114,6 +114,18 @@ export const checkMergeQueue: DoctorCheckFn = (_config, overstoryDir): DoctorChe
 				message: `Found ${staleEntries.length} potentially stale queue entries`,
 				details: staleEntries,
 				fixable: true,
+				fix: () => {
+					const fixDb = new Database(dbPath);
+					fixDb.exec("PRAGMA busy_timeout=5000");
+					const staleThreshold = new Date(now.getTime() - staleThresholdMs).toISOString();
+					const result = fixDb
+						.prepare(
+							"DELETE FROM merge_queue WHERE status IN ('pending', 'merging') AND enqueued_at < ?",
+						)
+						.run(staleThreshold);
+					fixDb.close();
+					return [`Deleted ${result.changes} stale merge queue entries`];
+				},
 			});
 		}
 
@@ -134,6 +146,17 @@ export const checkMergeQueue: DoctorCheckFn = (_config, overstoryDir): DoctorChe
 				message: "Found duplicate branch entries in queue",
 				details: duplicates,
 				fixable: true,
+				fix: () => {
+					const fixDb = new Database(dbPath);
+					fixDb.exec("PRAGMA busy_timeout=5000");
+					const result = fixDb
+						.prepare(
+							"DELETE FROM merge_queue WHERE id NOT IN (SELECT MAX(id) FROM merge_queue GROUP BY branch_name)",
+						)
+						.run();
+					fixDb.close();
+					return [`Removed ${result.changes} duplicate merge queue entries`];
+				},
 			});
 		}
 	} finally {

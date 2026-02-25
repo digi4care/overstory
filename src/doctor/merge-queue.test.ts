@@ -213,4 +213,102 @@ describe("checkMergeQueue", () => {
 		expect(duplicateCheck?.message).toContain("duplicate branch entries");
 		expect(duplicateCheck?.details?.[0]).toContain("feature/duplicate");
 	});
+
+	test("fix() deletes stale pending entries", () => {
+		const dbPath = join(tempDir, "merge-queue.db");
+		const queue = createMergeQueue(dbPath);
+		queue.close();
+
+		const staleDate = new Date();
+		staleDate.setDate(staleDate.getDate() - 2); // 2 days ago
+
+		const db = new Database(dbPath);
+		db.prepare(
+			"INSERT INTO merge_queue (branch_name, task_id, agent_name, files_modified, status, enqueued_at) VALUES (?, ?, ?, ?, ?, ?)",
+		).run(
+			"feature/stale-1",
+			"beads-abc",
+			"test-agent",
+			JSON.stringify(["src/test.ts"]),
+			"pending",
+			staleDate.toISOString(),
+		);
+		db.prepare(
+			"INSERT INTO merge_queue (branch_name, task_id, agent_name, files_modified, status, enqueued_at) VALUES (?, ?, ?, ?, ?, ?)",
+		).run(
+			"feature/stale-2",
+			"beads-def",
+			"test-agent",
+			JSON.stringify(["src/other.ts"]),
+			"merging",
+			staleDate.toISOString(),
+		);
+		db.close();
+
+		const checks = checkMergeQueue(mockConfig, tempDir) as DoctorCheck[];
+
+		const staleCheck = checks.find((c) => c?.name === "merge-queue.db staleness");
+		expect(staleCheck?.fix).toBeDefined();
+
+		const actions = staleCheck?.fix?.();
+		expect(Array.isArray(actions)).toBe(true);
+		const actionsArr = actions as string[];
+		expect(actionsArr.some((a) => a.includes("Deleted") && a.includes("stale"))).toBe(true);
+
+		// Verify entries were deleted
+		const verifyDb = new Database(dbPath);
+		const remaining = verifyDb
+			.prepare("SELECT COUNT(*) as count FROM merge_queue WHERE status IN ('pending', 'merging')")
+			.get() as { count: number };
+		verifyDb.close();
+		expect(remaining.count).toBe(0);
+	});
+
+	test("fix() removes duplicate entries keeping newest", () => {
+		const dbPath = join(tempDir, "merge-queue.db");
+		const queue = createMergeQueue(dbPath);
+		queue.enqueue({
+			branchName: "feature/dup",
+			taskId: "beads-abc",
+			agentName: "agent-1",
+			filesModified: ["src/a.ts"],
+		});
+		queue.enqueue({
+			branchName: "feature/dup",
+			taskId: "beads-def",
+			agentName: "agent-2",
+			filesModified: ["src/b.ts"],
+		});
+		queue.enqueue({
+			branchName: "feature/other",
+			taskId: "beads-ghi",
+			agentName: "agent-3",
+			filesModified: ["src/c.ts"],
+		});
+		queue.close();
+
+		const checks = checkMergeQueue(mockConfig, tempDir) as DoctorCheck[];
+
+		const dupCheck = checks.find((c) => c?.name === "merge-queue.db duplicates");
+		expect(dupCheck?.fix).toBeDefined();
+
+		const actions = dupCheck?.fix?.();
+		expect(Array.isArray(actions)).toBe(true);
+		const actionsArr = actions as string[];
+		expect(actionsArr.some((a) => a.includes("Removed") && a.includes("duplicate"))).toBe(true);
+
+		// Verify only 2 entries remain (1 per branch)
+		const verifyDb = new Database(dbPath);
+		const remaining = verifyDb.prepare("SELECT COUNT(*) as count FROM merge_queue").get() as {
+			count: number;
+		};
+		// Check the newest entry for feature/dup is kept (highest id)
+		const dupEntries = verifyDb
+			.prepare("SELECT agent_name FROM merge_queue WHERE branch_name = 'feature/dup'")
+			.all() as Array<{ agent_name: string }>;
+		verifyDb.close();
+		expect(remaining.count).toBe(2);
+		expect(dupEntries).toHaveLength(1);
+		expect(dupEntries[0]?.agent_name).toBe("agent-2"); // newest entry kept
+	});
 });

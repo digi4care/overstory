@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { DoctorCheck, DoctorCheckFn } from "./types.ts";
 
@@ -187,6 +188,12 @@ export const checkDatabases: DoctorCheckFn = (_config, overstoryDir): DoctorChec
 					message: `Database ${dbSpec.name} is not using WAL mode`,
 					details: ["WAL mode improves concurrent access performance"],
 					fixable: true,
+					fix: () => {
+						const fixDb = new Database(dbPath);
+						fixDb.exec("PRAGMA journal_mode=WAL");
+						fixDb.close();
+						return [`Enabled WAL mode on ${dbSpec.name}`];
+					},
 				});
 			} else {
 				checks.push({
@@ -222,13 +229,3 @@ export const checkDatabases: DoctorCheckFn = (_config, overstoryDir): DoctorChec
 
 	return checks;
 };
-
-/** Helper to check if file exists (synchronous). */
-function existsSync(path: string): boolean {
-	try {
-		const { existsSync } = require("node:fs");
-		return existsSync(path);
-	} catch {
-		return false;
-	}
-}

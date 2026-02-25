@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { OverstoryConfig } from "../types.ts";
@@ -287,5 +287,134 @@ describe("checkStructure", () => {
 		const tempFilesCheck = checks.find((c) => c.name === "Leftover temp files");
 		expect(tempFilesCheck).toBeDefined();
 		expect(tempFilesCheck?.status).toBe("pass");
+	});
+
+	test("fix() creates missing subdirectories", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const dirsCheck = checks.find((c) => c.name === "Required subdirectories");
+		expect(dirsCheck?.status).toBe("fail");
+		expect(dirsCheck?.fix).toBeDefined();
+
+		const actions = await dirsCheck?.fix?.();
+		expect(actions).toBeDefined();
+		expect(actions?.length).toBeGreaterThan(0);
+		expect(actions?.some((a) => a.includes("agents/"))).toBe(true);
+		expect(actions?.some((a) => a.includes("worktrees/"))).toBe(true);
+		expect(actions?.some((a) => a.includes("specs/"))).toBe(true);
+		expect(actions?.some((a) => a.includes("logs/"))).toBe(true);
+
+		// Verify directories were actually created
+		const { stat: fsStat } = await import("node:fs/promises");
+		const agentsStat = await fsStat(join(overstoryDir, "agents"));
+		expect(agentsStat.isDirectory()).toBe(true);
+		const worktreesStat = await fsStat(join(overstoryDir, "worktrees"));
+		expect(worktreesStat.isDirectory()).toBe(true);
+	});
+
+	test("fix() appends missing .gitignore entries", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+		await Bun.write(join(overstoryDir, ".gitignore"), `*\n!.gitignore\n!config.yaml\n`);
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const gitignoreCheck = checks.find((c) => c.name === ".gitignore entries");
+		expect(gitignoreCheck?.status).toBe("warn");
+		expect(gitignoreCheck?.fix).toBeDefined();
+
+		const actions = await gitignoreCheck?.fix?.();
+		expect(actions).toBeDefined();
+		expect(actions?.length).toBeGreaterThan(0);
+		expect(actions?.some((a) => a.includes("!agent-manifest.json"))).toBe(true);
+
+		// Verify entries were appended
+		const content = await Bun.file(join(overstoryDir, ".gitignore")).text();
+		expect(content).toContain("!agent-manifest.json");
+		expect(content).toContain("!hooks.json");
+	});
+
+	test("fix() removes leftover temp files", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+		const tmpFile = join(overstoryDir, "config.yaml.tmp");
+		const bakFile = join(overstoryDir, "old.bak");
+		await Bun.write(tmpFile, "temp content");
+		await Bun.write(bakFile, "backup content");
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const tempCheck = checks.find((c) => c.name === "Leftover temp files");
+		expect(tempCheck?.status).toBe("warn");
+		expect(tempCheck?.fix).toBeDefined();
+
+		const actions = await tempCheck?.fix?.();
+		expect(actions).toBeDefined();
+		expect(actions?.some((a) => a.includes("config.yaml.tmp"))).toBe(true);
+		expect(actions?.some((a) => a.includes("old.bak"))).toBe(true);
+
+		// Verify files were deleted
+		expect(await Bun.file(tmpFile).exists()).toBe(false);
+		expect(await Bun.file(bakFile).exists()).toBe(false);
+	});
+
+	test("passes when no stale lock files exist", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const lockCheck = checks.find((c) => c.name === "Stale lock files");
+		expect(lockCheck).toBeDefined();
+		expect(lockCheck?.status).toBe("pass");
+		expect(lockCheck?.fix).toBeUndefined();
+	});
+
+	test("warns when stale lock files exist", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+		const lockFile = join(overstoryDir, "mail.lock");
+		await Bun.write(lockFile, "locked");
+		// Set mtime to 10 minutes ago
+		const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+		await utimes(lockFile, tenMinutesAgo, tenMinutesAgo);
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const lockCheck = checks.find((c) => c.name === "Stale lock files");
+		expect(lockCheck).toBeDefined();
+		expect(lockCheck?.status).toBe("warn");
+		expect(lockCheck?.details).toContain("mail.lock");
+		expect(lockCheck?.fixable).toBe(true);
+		expect(lockCheck?.fix).toBeDefined();
+	});
+
+	test("does not warn about fresh lock files", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+		// Write a fresh lock file (just created = now)
+		await Bun.write(join(overstoryDir, "sessions.lock"), "locked");
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const lockCheck = checks.find((c) => c.name === "Stale lock files");
+		expect(lockCheck?.status).toBe("pass");
+	});
+
+	test("fix() removes stale lock files", async () => {
+		await mkdir(overstoryDir, { recursive: true });
+		const lockFile = join(overstoryDir, "stale.lock");
+		await Bun.write(lockFile, "locked");
+		// Set mtime to 10 minutes ago
+		const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+		await utimes(lockFile, tenMinutesAgo, tenMinutesAgo);
+
+		const checks = await checkStructure(mockConfig, overstoryDir);
+
+		const lockCheck = checks.find((c) => c.name === "Stale lock files");
+		expect(lockCheck?.fix).toBeDefined();
+
+		const actions = await lockCheck?.fix?.();
+		expect(actions?.some((a) => a.includes("stale.lock"))).toBe(true);
+
+		// Verify the lock file was removed
+		expect(await Bun.file(lockFile).exists()).toBe(false);
 	});
 });
