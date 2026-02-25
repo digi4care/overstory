@@ -83,8 +83,8 @@ async function checkVersionSync(toolRoot: string): Promise<DoctorCheck> {
 		const indexPath = join(toolRoot, "src", "index.ts");
 		const indexContent = await Bun.file(indexPath).text();
 
-		// Regex to find: const VERSION = "x.y.z"
-		const versionRegex = /const\s+VERSION\s*=\s*["']([^"']+)["']/;
+		// Regex to find: const VERSION = "x.y.z" or export const VERSION = "x.y.z"
+		const versionRegex = /(?:export\s+)?const\s+VERSION\s*=\s*["']([^"']+)["']/;
 		const match = versionRegex.exec(indexContent);
 
 		if (!match?.[1]) {

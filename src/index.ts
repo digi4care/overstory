@@ -7,7 +7,7 @@
  * Usage: ov <command> [args...]
  */
 
-import { Command } from "commander";
+import { Command, Help } from "commander";
 import { createAgentsCommand } from "./commands/agents.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { createCompletionsCommand } from "./commands/completions.ts";
@@ -40,9 +40,25 @@ import { traceCommand } from "./commands/trace.ts";
 import { createWatchCommand } from "./commands/watch.ts";
 import { createWorktreeCommand } from "./commands/worktree.ts";
 import { OverstoryError, WorktreeError } from "./errors.ts";
-import { setQuiet } from "./logging/color.ts";
+import { brand, chalk, muted, setQuiet } from "./logging/color.ts";
 
-const VERSION = "0.6.7";
+export const VERSION = "0.6.7";
+
+const rawArgs = process.argv.slice(2);
+
+// Handle --version --json before Commander processes the flag
+if ((rawArgs.includes("-v") || rawArgs.includes("--version")) && rawArgs.includes("--json")) {
+	const platform = `${process.platform}-${process.arch}`;
+	console.log(
+		JSON.stringify({
+			name: "@os-eco/overstory-cli",
+			version: VERSION,
+			runtime: "bun",
+			platform,
+		}),
+	);
+	process.exit();
+}
 
 const COMMANDS = [
 	"agents",
@@ -115,10 +131,58 @@ const program = new Command();
 program
 	.name("ov")
 	.description("Multi-agent orchestration for Claude Code")
-	.version(`ov v${VERSION}`, "-v, --version")
+	.version(VERSION, "-v, --version", "Print version")
 	.option("-q, --quiet", "Suppress non-error output")
 	.option("--json", "JSON output")
-	.option("--verbose", "Verbose output");
+	.option("--verbose", "Verbose output")
+	.addHelpCommand(false)
+	.configureHelp({
+		formatHelp(cmd, helper): string {
+			if (cmd.parent) {
+				return Help.prototype.formatHelp.call(helper, cmd, helper);
+			}
+
+			const COL_WIDTH = 20;
+			const lines: string[] = [];
+
+			lines.push(`${brand.bold("overstory")} ${muted(`v${VERSION}`)} — Multi-agent orchestration`);
+			lines.push("");
+
+			lines.push(`Usage: ${chalk.dim("ov")} <command> [options]`);
+			lines.push("");
+
+			const visibleCmds = helper.visibleCommands(cmd);
+			if (visibleCmds.length > 0) {
+				lines.push("Commands:");
+				for (const sub of visibleCmds) {
+					const term = helper.subcommandTerm(sub);
+					const firstSpace = term.indexOf(" ");
+					const name = firstSpace >= 0 ? term.slice(0, firstSpace) : term;
+					const args = firstSpace >= 0 ? ` ${term.slice(firstSpace + 1)}` : "";
+					const coloredTerm = `${chalk.green(name)}${args ? chalk.dim(args) : ""}`;
+					const rawLen = term.length;
+					const padding = " ".repeat(Math.max(2, COL_WIDTH - rawLen));
+					lines.push(`  ${coloredTerm}${padding}${helper.subcommandDescription(sub)}`);
+				}
+				lines.push("");
+			}
+
+			const visibleOpts = helper.visibleOptions(cmd);
+			if (visibleOpts.length > 0) {
+				lines.push("Options:");
+				for (const opt of visibleOpts) {
+					const flags = helper.optionTerm(opt);
+					const padding = " ".repeat(Math.max(2, COL_WIDTH - flags.length));
+					lines.push(`  ${chalk.dim(flags)}${padding}${helper.optionDescription(opt)}`);
+				}
+				lines.push("");
+			}
+
+			lines.push(`Run '${chalk.dim("ov")} <command> --help' for command-specific help.`);
+
+			return `${lines.join("\n")}\n`;
+		},
+	});
 
 // Apply global flags before any command action runs
 program.hook("preAction", (thisCmd) => {
