@@ -264,7 +264,7 @@ async function executeFeed(opts: FeedOpts): Promise<void> {
 		} else {
 			// JSON mode: print each event as a line
 			for (const event of initialEvents) {
-				process.stdout.write(`${JSON.stringify(event)}\n`);
+				jsonOutput("feed", { event });
 			}
 			if (initialEvents.length > 0) {
 				const lastEvent = initialEvents[initialEvents.length - 1];
@@ -308,7 +308,7 @@ async function executeFeed(opts: FeedOpts): Promise<void> {
 				} else {
 					// JSON mode: print each event as a line
 					for (const event of newEvents) {
-						process.stdout.write(`${JSON.stringify(event)}\n`);
+						jsonOutput("feed", { event });
 					}
 				}
 
