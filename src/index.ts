@@ -129,6 +129,8 @@ function suggestCommand(input: string): string | undefined {
 
 const program = new Command();
 
+let timingStart: number | undefined;
+
 program
 	.name("ov")
 	.description("Multi-agent orchestration for Claude Code")
@@ -136,6 +138,7 @@ program
 	.option("-q, --quiet", "Suppress non-error output")
 	.option("--json", "JSON output")
 	.option("--verbose", "Verbose output")
+	.option("--timing", "Print command execution time to stderr")
 	.addHelpCommand(false)
 	.configureHelp({
 		formatHelp(cmd, helper): string {
@@ -190,6 +193,17 @@ program.hook("preAction", (thisCmd) => {
 	const opts = thisCmd.optsWithGlobals();
 	if (opts.quiet) {
 		setQuiet(true);
+	}
+	if (program.opts().timing) {
+		timingStart = performance.now();
+	}
+});
+program.hook("postAction", () => {
+	if (program.opts().timing && timingStart !== undefined) {
+		const elapsed = performance.now() - timingStart;
+		const formatted =
+			elapsed < 1000 ? `${Math.round(elapsed)}ms` : `${(elapsed / 1000).toFixed(2)}s`;
+		process.stderr.write(`${muted(`Elapsed: ${formatted}`)}\n`);
 	}
 });
 
