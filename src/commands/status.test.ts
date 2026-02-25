@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stripAnsi } from "../logging/color.ts";
 import { createSessionStore } from "../sessions/store.ts";
 import { createTempGitRepo } from "../test-helpers.ts";
 import type { AgentSession } from "../types.ts";
@@ -258,7 +259,7 @@ describe("run scoping", () => {
 	test("printStatus shows run ID when currentRunId is set", () => {
 		const data = makeStatusData({ currentRunId: "run-123" });
 		printStatus(data);
-		expect(output()).toContain("Run: run-123");
+		expect(stripAnsi(output())).toContain("Run: run-123");
 	});
 
 	test("printStatus does not show run line when currentRunId is undefined", () => {

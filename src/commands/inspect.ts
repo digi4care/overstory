@@ -11,7 +11,7 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
-import { color } from "../logging/color.ts";
+import { accent, color } from "../logging/color.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession, StoredEvent, ToolStats } from "../types.ts";
@@ -253,21 +253,21 @@ export function printInspectData(data: InspectData): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const { session } = data;
 
-	w(`\nAgent Inspection: ${session.agentName}\n`);
+	w(`\nAgent Inspection: ${accent(session.agentName)}\n`);
 	w(`${"═".repeat(80)}\n\n`);
 
 	// Agent state and metadata
 	const stateIcon = getStateIcon(session.state);
 	w(`${stateIcon} State: ${session.state}\n`);
 	w(`Last activity: ${formatDuration(data.timeSinceLastActivity)} ago\n`);
-	w(`Task: ${session.taskId}\n`);
+	w(`Task: ${accent(session.taskId)}\n`);
 	w(`Capability: ${session.capability}\n`);
-	w(`Branch: ${session.branchName}\n`);
+	w(`Branch: ${accent(session.branchName)}\n`);
 	if (session.parentAgent) {
-		w(`Parent: ${session.parentAgent} (depth: ${session.depth})\n`);
+		w(`Parent: ${accent(session.parentAgent)} (depth: ${session.depth})\n`);
 	}
 	w(`Started: ${session.startedAt}\n`);
-	w(`Tmux: ${session.tmuxSession}\n`);
+	w(`Tmux: ${accent(session.tmuxSession)}\n`);
 	w("\n");
 
 	// Current file

@@ -15,7 +15,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import type { ColorFn } from "../logging/color.ts";
-import { color, noColor, visibleLength } from "../logging/color.ts";
+import { accent, color, noColor, visibleLength } from "../logging/color.ts";
 import { createMailStore, type MailStore } from "../mail/store.ts";
 import { createMergeQueue, type MergeQueue } from "../merge/queue.ts";
 import { createMetricsStore, type MetricsStore } from "../metrics/store.ts";
@@ -404,7 +404,7 @@ async function loadDashboardData(
 function renderHeader(width: number, interval: number, currentRunId?: string | null): string {
 	const left = color.bold(`ov dashboard v${PKG_VERSION}`);
 	const now = new Date().toLocaleTimeString();
-	const scope = currentRunId ? ` [run: ${currentRunId.slice(0, 8)}]` : " [all runs]";
+	const scope = currentRunId ? ` [run: ${accent(currentRunId.slice(0, 8))}]` : " [all runs]";
 	const right = `${now}${scope} | refresh: ${interval}ms`;
 	const padding = width - visibleLength(left) - right.length;
 	const line = left + " ".repeat(Math.max(0, padding)) + right;
@@ -497,10 +497,10 @@ function renderAgentPanel(
 
 		const icon = getStateIcon(agent.state);
 		const stateColor = getStateColor(agent.state);
-		const name = pad(truncate(agent.agentName, 15), 15);
+		const name = accent(pad(truncate(agent.agentName, 15), 15));
 		const capability = pad(truncate(agent.capability, 12), 12);
 		const state = pad(agent.state, 10);
-		const taskId = pad(truncate(agent.taskId, 16), 16);
+		const taskId = accent(pad(truncate(agent.taskId, 16), 16));
 		const endTime =
 			agent.state === "completed" || agent.state === "zombie"
 				? new Date(agent.lastActivity).getTime()
@@ -575,8 +575,8 @@ function renderMailPanel(
 
 		const priorityColorFn = getPriorityColor(msg.priority);
 		const priority = msg.priority === "normal" ? "" : `[${msg.priority}] `;
-		const from = truncate(msg.from, 12);
-		const to = truncate(msg.to, 12);
+		const from = accent(truncate(msg.from, 12));
+		const to = accent(truncate(msg.to, 12));
 		const subject = truncate(msg.subject, panelWidth - 40);
 		const time = timeAgo(msg.createdAt);
 
@@ -643,7 +643,7 @@ function renderMergeQueuePanel(
 
 		const statusColorFn = getMergeStatusColor(entry.status);
 		const status = pad(entry.status, 10);
-		const agent = truncate(entry.agentName, 15);
+		const agent = accent(truncate(entry.agentName, 15));
 		const branch = truncate(entry.branchName, panelWidth - 30);
 
 		const line = `${BOX.vertical} ${statusColorFn(status)} ${agent} ${branch}`;

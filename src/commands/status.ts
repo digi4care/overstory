@@ -10,7 +10,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
-import { color } from "../logging/color.ts";
+import { accent, color } from "../logging/color.ts";
 import { createMailStore } from "../mail/store.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMetricsStore } from "../metrics/store.ts";
@@ -259,7 +259,7 @@ export function printStatus(data: StatusData): void {
 	w("Overstory Status\n");
 	w(`${"═".repeat(60)}\n\n`);
 	if (data.currentRunId) {
-		w(`Run: ${data.currentRunId}\n`);
+		w(`Run: ${accent(data.currentRunId)}\n`);
 	}
 
 	// Active agents
@@ -275,8 +275,8 @@ export function printStatus(data: StatusData): void {
 			const duration = formatDuration(endTime - new Date(agent.startedAt).getTime());
 			const tmuxAlive = tmuxSessionNames.has(agent.tmuxSession);
 			const aliveMarker = tmuxAlive ? color.green(">") : color.red("x");
-			w(`   ${aliveMarker} ${agent.agentName} [${agent.capability}] `);
-			w(`${agent.state} | ${agent.taskId} | ${duration}\n`);
+			w(`   ${aliveMarker} ${accent(agent.agentName)} [${agent.capability}] `);
+			w(`${agent.state} | ${accent(agent.taskId)} | ${duration}\n`);
 
 			const detail = data.verboseDetails?.[agent.agentName];
 			if (detail) {

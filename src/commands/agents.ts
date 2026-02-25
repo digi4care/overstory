@@ -9,7 +9,7 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
-import { color } from "../logging/color.ts";
+import { accent, color } from "../logging/color.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { type AgentSession, SUPPORTED_CAPABILITIES } from "../types.ts";
 
@@ -167,10 +167,12 @@ function printAgents(agents: DiscoveredAgent[]): void {
 
 	for (const agent of agents) {
 		const icon = getStateIcon(agent.state);
-		w(`  ${icon} ${agent.agentName} [${agent.capability}]\n`);
-		w(`    State: ${agent.state} | Task: ${agent.taskId}\n`);
-		w(`    Branch: ${agent.branchName}\n`);
-		w(`    Parent: ${agent.parentAgent ?? "none"} | Depth: ${agent.depth}\n`);
+		w(`  ${icon} ${accent(agent.agentName)} [${agent.capability}]\n`);
+		w(`    State: ${agent.state} | Task: ${accent(agent.taskId)}\n`);
+		w(`    Branch: ${accent(agent.branchName)}\n`);
+		w(
+			`    Parent: ${agent.parentAgent ? accent(agent.parentAgent) : "none"} | Depth: ${agent.depth}\n`,
+		);
 
 		if (agent.fileScope.length === 0) {
 			w("    Files: (unrestricted)\n");
