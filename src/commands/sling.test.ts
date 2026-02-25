@@ -933,3 +933,21 @@ describe("buildAutoDispatch", () => {
 		expect(dispatch.to).toBe("my-builder");
 	});
 });
+
+/**
+ * Beacon verification loop (sling.ts step 13d)
+ *
+ * NOT UNIT-TESTABLE: The beacon verification loop at sling.ts lines 687-698
+ * uses capturePaneContent() to poll tmux and resend the beacon if the agent
+ * is still at the welcome screen ("Try "). This involves real tmux operations
+ * that cannot be reliably mocked without mock.module() (which leaks across
+ * test files — see mx-56558b).
+ *
+ * Manual verification:
+ * 1. `ov sling <task-id> --name test --capability builder`
+ * 2. Watch tmux pane: `tmux capture-pane -t overstory-<project>-test -p`
+ * 3. Verify the beacon text appears and the agent starts processing
+ *
+ * Integration coverage: The beacon loop has been validated through production
+ * agent spawns. Failure mode is agents stuck at welcome screen (overstory-3271).
+ */

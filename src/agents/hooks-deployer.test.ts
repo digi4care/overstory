@@ -820,6 +820,59 @@ describe("deployHooks", () => {
 		expect(parsed.hooks.CustomEvent).toHaveLength(1);
 		expect(parsed.hooks.CustomEvent[0].hooks[0].command).toBe("echo custom-event-hook");
 	});
+
+	test("SessionStart hook includes mail check command with agent name", async () => {
+		const worktreePath = join(tempDir, "worktree");
+		await deployHooks(worktreePath, "my-agent");
+
+		const outputPath = join(worktreePath, ".claude", "settings.local.json");
+		const content = await Bun.file(outputPath).text();
+		const parsed = JSON.parse(content);
+
+		const sessionStart = parsed.hooks.SessionStart;
+		const allCommands = sessionStart.flatMap((entry: { hooks: { command: string }[] }) =>
+			entry.hooks.map((h) => h.command),
+		);
+		const mailCheckCmd = allCommands.find((cmd: string) =>
+			cmd.includes("ov mail check --inject --agent my-agent"),
+		);
+		expect(mailCheckCmd).toBeDefined();
+	});
+
+	test("SessionStart template entry has both prime and mail check hooks", async () => {
+		const worktreePath = join(tempDir, "worktree");
+		await deployHooks(worktreePath, "test-agent");
+
+		const outputPath = join(worktreePath, ".claude", "settings.local.json");
+		const content = await Bun.file(outputPath).text();
+		const parsed = JSON.parse(content);
+
+		const sessionStart = parsed.hooks.SessionStart;
+		const allCommands = sessionStart.flatMap((entry: { hooks: { command: string }[] }) =>
+			entry.hooks.map((h) => h.command),
+		);
+		const hasPrime = allCommands.some((cmd: string) => cmd.includes("ov prime --agent"));
+		const hasMailCheck = allCommands.some((cmd: string) => cmd.includes("ov mail check --inject"));
+		expect(hasPrime).toBe(true);
+		expect(hasMailCheck).toBe(true);
+	});
+
+	test("SessionStart mail check command includes PATH_PREFIX", async () => {
+		const worktreePath = join(tempDir, "worktree");
+		await deployHooks(worktreePath, "path-test");
+
+		const outputPath = join(worktreePath, ".claude", "settings.local.json");
+		const content = await Bun.file(outputPath).text();
+		const parsed = JSON.parse(content);
+
+		const sessionStart = parsed.hooks.SessionStart;
+		const allCommands = sessionStart.flatMap((entry: { hooks: { command: string }[] }) =>
+			entry.hooks.map((h) => h.command),
+		);
+		const mailCheckCmd = allCommands.find((cmd: string) => cmd.includes("ov mail check --inject"));
+		expect(mailCheckCmd).toBeDefined();
+		expect(mailCheckCmd).toContain(PATH_PREFIX);
+	});
 });
 
 describe("isOverstoryHookEntry", () => {
