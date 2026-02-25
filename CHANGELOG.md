@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-02-24
+
+### Changed
+
+#### CLI Alias Migration
+- **`overstory` → `ov` across all CLI-facing text** — every user-facing string, error message, help text, and command comment across all `src/commands/*.ts` files now references `ov` instead of `overstory`
+- **`mulch` → `ml` in agent definitions and overlay** — all 8 base agent definitions (`agents/*.md`), overlay template (`templates/overlay.md.tmpl`), and overlay generator (`src/agents/overlay.ts`) updated to use the `ml` short alias
+- **Templates and hooks updated** — `templates/CLAUDE.md.tmpl`, `templates/hooks.json.tmpl`, and deployed agent defs all reference `ov`/`ml` aliases
+- **Canopy prompts re-emitted** — all canopy-managed prompts regenerated with alias-aware content
+
+#### Emoji-Free CLI Output (Set D Icons)
+- **Status icons replaced with ASCII Set D** — dashboard, status, and sling output now use `>` (working), `-` (booting), `!` (stalled), `x` (zombie/completed), `?` (unknown) instead of Unicode circles and checkmarks
+- **All emoji removed from CLI output** — warning prefixes, launch messages, and status indicators no longer use emoji characters, improving compatibility with terminals that lack Unicode support
+
+### Added
+
+#### Sling Reliability
+- **Auto-dispatch mail before tmux session** — `buildAutoDispatch()` sends dispatch mail to the agent's mailbox before creating the tmux session, eliminating the race where coordinator dispatch arrives after the agent boots and sits idle
+- **Beacon verification loop** — after beacon send, sling polls the tmux pane up to 5 times (2s intervals) to detect if the agent is still on the welcome screen; if so, resends the beacon automatically (fixes overstory-3271)
+- **`capturePaneContent()` exported from tmux.ts** — new helper for reading tmux pane text, used by beacon verification
+
+#### Binary Detection
+- **`detectOverstoryBinDir()` tries both `ov` and `overstory`** — loops through both command names when resolving the binary directory, ensuring compatibility regardless of how the tool was installed
+
+#### Claude Code Skills
+- **`/release` skill** — prepares releases by analyzing changes, bumping versions, updating CHANGELOG/README/CLAUDE.md
+- **`/issue-reviews` skill** — reviews GitHub issues from within Claude Code
+- **`/pr-reviews` skill** — reviews GitHub pull requests from within Claude Code
+
+#### Testing
+- Test suite: 2151 tests across 76 files (5424 expect() calls)
+
+### Fixed
+- **Mail dispatch race for newly slung agents** — dispatch mail is now written to SQLite before tmux session creation, ensuring it exists when the agent's SessionStart hook fires `ov mail check`
+- **`process.exit(1)` replaced with `process.exitCode = 1`** — CLI entry point no longer calls `process.exit()` directly, allowing Bun to clean up gracefully (async handlers, open file descriptors)
+- **Remaining `beadId` → `taskId` references** — completed rename in `trace.ts`, `trace.test.ts`, `spec.ts`, `worktree.test.ts`, and canopy prompts for coordinator/supervisor
+- **Post-merge quality gate failures** — fixed lint and type errors introduced during multi-agent merge sessions
+- **Mail test assertions** — updated to match lowercase Warning/Note output after emoji removal
+
 ## [0.6.5] - 2026-02-24
 
 ### Added
@@ -677,7 +716,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.5...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.6...HEAD
+[0.6.6]: https://github.com/jayminwest/overstory/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/jayminwest/overstory/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/jayminwest/overstory/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/jayminwest/overstory/compare/v0.6.2...v0.6.3

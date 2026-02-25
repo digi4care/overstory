@@ -42,7 +42,7 @@ import { createWorktreeCommand } from "./commands/worktree.ts";
 import { OverstoryError, WorktreeError } from "./errors.ts";
 import { setQuiet } from "./logging/color.ts";
 
-const VERSION = "0.6.5";
+const VERSION = "0.6.6";
 
 const COMMANDS = [
 	"agents",
