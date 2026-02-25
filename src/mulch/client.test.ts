@@ -647,16 +647,16 @@ describe("createMulchClient", () => {
 			}
 		});
 
-		test.skipIf(!hasMulch)("record fails with descriptive error for missing domain", async () => {
+		test.skipIf(!hasMulch)("record auto-creates missing domain", async () => {
 			await initMulch();
 			const client = createMulchClient(tempDir);
-			// Try to record to a domain that doesn't exist
+			// mulch 0.6.1+ auto-creates missing domains instead of erroring
 			await expect(
 				client.record("nonexistent-domain", {
 					type: "convention",
 					description: "test",
 				}),
-			).rejects.toThrow(AgentError);
+			).resolves.toBeUndefined();
 		});
 
 		test.skipIf(!hasMulch)("handles empty status output correctly", async () => {
