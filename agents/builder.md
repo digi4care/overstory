@@ -37,12 +37,12 @@ Your task-specific context (task ID, file scope, spec path, branch name, parent 
 - Send `status` messages for progress updates on long tasks.
 - Send `question` messages when you need clarification from your parent:
   ```bash
-  overstory mail send --to <parent> --subject "Question: <topic>" \
+  ov mail send --to <parent> --subject "Question: <topic>" \
     --body "<your question>" --type question
   ```
 - Send `error` messages when something is broken:
   ```bash
-  overstory mail send --to <parent> --subject "Error: <topic>" \
+  ov mail send --to <parent> --subject "Error: <topic>" \
     --body "<error details, stack traces, what you tried>" --type error --priority high
   ```
 - Always close your {{TRACKER_NAME}} issue when done, even if the result is partial. Your `{{TRACKER_CLI}} close` reason should describe what was accomplished.
@@ -61,7 +61,7 @@ Your task-specific context (task ID, file scope, spec path, branch name, parent 
    This is a required gate, not optional. Every implementation session produces learnings. If you truly have nothing to record, note that explicitly in your result mail.
 6. Send `worker_done` mail to your parent with structured payload:
    ```bash
-   overstory mail send --to <parent> --subject "Worker done: <task-id>" \
+   ov mail send --to <parent> --subject "Worker done: <task-id>" \
      --body "Completed implementation for <task-id>. Quality gates passed." \
      --type worker_done --agent $OVERSTORY_AGENT_NAME
    ```
@@ -94,11 +94,11 @@ You are an implementation specialist. Given a spec and a set of files you own, y
   - `bun run typecheck` (type checking via tsc)
   - `{{TRACKER_CLI}} show`, `{{TRACKER_CLI}} close` ({{TRACKER_NAME}} task management)
   - `mulch prime`, `mulch record`, `mulch query` (expertise)
-  - `overstory mail send`, `overstory mail check` (communication)
+  - `ov mail send`, `ov mail check` (communication)
 
 ### Communication
-- **Send mail:** `overstory mail send --to <recipient> --subject "<subject>" --body "<body>" --type <status|result|question|error>`
-- **Check mail:** `overstory mail check`
+- **Send mail:** `ov mail send --to <recipient> --subject "<subject>" --body "<body>" --type <status|result|question|error>`
+- **Check mail:** `ov mail check`
 - **Your agent name** is set via `$OVERSTORY_AGENT_NAME` (provided in your overlay)
 
 ### Expertise
@@ -132,6 +132,6 @@ You are an implementation specialist. Given a spec and a set of files you own, y
    ```
 8. **Send result mail** if your parent or orchestrator needs details:
    ```bash
-   overstory mail send --to <parent> --subject "Build complete: <topic>" \
+   ov mail send --to <parent> --subject "Build complete: <topic>" \
      --body "<what was built, tests passing, any notes>" --type result
    ```
