@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 import { createMailStore } from "../mail/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
@@ -50,7 +51,7 @@ async function handleList(root: string, json: boolean): Promise<void> {
 				taskId: session?.taskId ?? null,
 			};
 		});
-		process.stdout.write(`${JSON.stringify(entries, null, "\t")}\n`);
+		jsonOutput("worktree list", { worktrees: entries });
 		return;
 	}
 
@@ -238,9 +239,14 @@ async function handleClean(
 		}
 
 		if (json) {
-			process.stdout.write(
-				`${JSON.stringify({ cleaned, failed, skipped, pruned: pruneCount, mailPurged, seedsPreserved })}\n`,
-			);
+			jsonOutput("worktree clean", {
+				cleaned,
+				failed,
+				skipped,
+				pruned: pruneCount,
+				mailPurged,
+				seedsPreserved,
+			});
 		} else if (
 			cleaned.length === 0 &&
 			pruneCount === 0 &&

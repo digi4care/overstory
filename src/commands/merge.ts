@@ -14,6 +14,7 @@
 import { join } from "node:path";
 import { loadConfig } from "../config.ts";
 import { MergeError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint } from "../logging/color.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMergeResolver } from "../merge/resolver.ts";
@@ -225,7 +226,7 @@ async function handleBranch(
 
 	if (dryRun) {
 		if (json) {
-			process.stdout.write(`${JSON.stringify(entry)}\n`);
+			jsonOutput("merge", { ...entry });
 		} else {
 			process.stdout.write(`${formatDryRun(entry)}\n`);
 		}
@@ -239,7 +240,7 @@ async function handleBranch(
 	queue.updateStatus(branchName, result.success ? "merged" : "conflict", result.tier);
 
 	if (json) {
-		process.stdout.write(`${JSON.stringify(result)}\n`);
+		jsonOutput("merge", { ...result });
 	} else {
 		process.stdout.write(`${formatResult(result)}\n`);
 	}
@@ -271,7 +272,7 @@ async function handleAll(
 
 	if (pendingEntries.length === 0) {
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ results: [], count: 0 })}\n`);
+			jsonOutput("merge", { results: [], count: 0 });
 		} else {
 			printHint("No pending branches to merge");
 		}
@@ -280,7 +281,7 @@ async function handleAll(
 
 	if (dryRun) {
 		if (json) {
-			process.stdout.write(`${JSON.stringify(pendingEntries)}\n`);
+			jsonOutput("merge", { entries: pendingEntries });
 		} else {
 			process.stdout.write(
 				`${pendingEntries.length} pending branch${pendingEntries.length === 1 ? "" : "es"}:\n\n`,
@@ -315,9 +316,7 @@ async function handleAll(
 	}
 
 	if (json) {
-		process.stdout.write(
-			`${JSON.stringify({ results, count: results.length, successCount, failCount })}\n`,
-		);
+		jsonOutput("merge", { results, count: results.length, successCount, failCount });
 	} else {
 		process.stdout.write(
 			`Done: ${successCount} merged, ${failCount} failed out of ${results.length} total.\n`,

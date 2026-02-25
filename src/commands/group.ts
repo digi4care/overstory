@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { GroupError, ValidationError } from "../errors.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
 import { createTrackerClient, resolveBackend, type TrackerClient } from "../tracker/factory.ts";
 import type { TaskGroup, TaskGroupProgress } from "../types.ts";
@@ -325,7 +326,7 @@ export function createGroupCommand(): Command {
 					tracker,
 				);
 				if (opts.json) {
-					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
+					jsonOutput("group create", { ...group });
 				} else {
 					printSuccess("Created group", group.name);
 					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
@@ -356,7 +357,7 @@ export function createGroupCommand(): Command {
 					}
 					const progress = await getGroupProgress(projectRoot, group, groups, tracker);
 					if (json) {
-						process.stdout.write(`${JSON.stringify(progress, null, "\t")}\n`);
+						jsonOutput("group status", { ...progress });
 					} else {
 						printGroupProgress(progress);
 					}
@@ -364,7 +365,7 @@ export function createGroupCommand(): Command {
 					const activeGroups = groups.filter((g) => g.status === "active");
 					if (activeGroups.length === 0) {
 						if (json) {
-							process.stdout.write("[]\n");
+							jsonOutput("group status", { groups: [] });
 						} else {
 							printHint("No active groups");
 						}
@@ -376,7 +377,7 @@ export function createGroupCommand(): Command {
 						progressList.push(progress);
 					}
 					if (json) {
-						process.stdout.write(`${JSON.stringify(progressList, null, "\t")}\n`);
+						jsonOutput("group status", { groups: progressList });
 					} else {
 						for (const progress of progressList) {
 							printGroupProgress(progress);
@@ -413,7 +414,7 @@ export function createGroupCommand(): Command {
 					tracker,
 				);
 				if (opts.json) {
-					process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
+					jsonOutput("group add", { ...group });
 				} else {
 					printSuccess("Added to group", group.name);
 					process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
@@ -433,7 +434,7 @@ export function createGroupCommand(): Command {
 
 			const group = await removeFromGroup(projectRoot, groupId, ids);
 			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(group, null, "\t")}\n`);
+				jsonOutput("group remove", { ...group });
 			} else {
 				printSuccess("Removed from group", group.name);
 				process.stdout.write(`  Members: ${group.memberIssueIds.join(", ")}\n`);
@@ -458,7 +459,7 @@ export function createGroupCommand(): Command {
 				return;
 			}
 			if (opts.json) {
-				process.stdout.write(`${JSON.stringify(groups, null, "\t")}\n`);
+				jsonOutput("group list", { groups });
 			} else {
 				for (const group of groups) {
 					const status = group.status === "completed" ? "[completed]" : "[active]";

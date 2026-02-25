@@ -11,6 +11,7 @@ import { Command } from "commander";
 import { resolveProjectRoot } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
+import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
 import { isGroupAddress, resolveGroupAddress } from "../mail/broadcast.ts";
 import { createMailClient } from "../mail/client.ts";
@@ -369,9 +370,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 
 			// Output broadcast summary
 			if (opts.json) {
-				process.stdout.write(
-					`${JSON.stringify({ messageIds, recipientCount: recipients.length })}\n`,
-				);
+				jsonOutput("mail send", { messageIds, recipientCount: recipients.length });
 			} else {
 				process.stdout.write(
 					`Broadcast sent to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"} (${to})\n`,
@@ -428,7 +427,7 @@ async function handleSend(opts: SendOpts, cwd: string): Promise<void> {
 		}
 
 		if (opts.json) {
-			process.stdout.write(`${JSON.stringify({ id })}\n`);
+			jsonOutput("mail send", { id });
 		} else {
 			printSuccess("Sent message", id);
 		}
@@ -557,7 +556,7 @@ async function handleCheck(opts: CheckOpts, cwd: string): Promise<void> {
 			const messages = client.check(agent);
 
 			if (json) {
-				process.stdout.write(`${JSON.stringify(messages)}\n`);
+				jsonOutput("mail check", { messages });
 			} else if (messages.length === 0) {
 				printHint("No new messages");
 			} else {
@@ -592,7 +591,7 @@ function handleList(opts: ListOpts, cwd: string): void {
 		const messages = client.list({ from, to, unread });
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify(messages)}\n`);
+			jsonOutput("mail list", { messages });
 		} else if (messages.length === 0) {
 			printHint("No messages found");
 		} else {
@@ -633,7 +632,7 @@ function handleReply(id: string, opts: ReplyOpts, cwd: string): void {
 		const replyId = client.reply(id, body, from);
 
 		if (opts.json) {
-			process.stdout.write(`${JSON.stringify({ id: replyId })}\n`);
+			jsonOutput("mail reply", { id: replyId });
 		} else {
 			printSuccess("Reply sent", replyId);
 		}
@@ -673,7 +672,7 @@ function handlePurge(opts: PurgeOpts, cwd: string): void {
 		const purged = store.purge({ all, olderThanMs, agent });
 
 		if (json) {
-			process.stdout.write(`${JSON.stringify({ purged })}\n`);
+			jsonOutput("mail purge", { purged });
 		} else {
 			printSuccess(`Purged ${purged} message(s)`);
 		}

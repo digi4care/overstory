@@ -220,21 +220,27 @@ describe("worktreeCommand", () => {
 			await worktreeCommand(["list", "--json"]);
 			const out = output();
 
-			const parsed = JSON.parse(out.trim()) as Array<{
-				path: string;
-				branch: string;
-				head: string;
-				agentName: string | null;
-				state: string | null;
-				taskId: string | null;
-			}>;
+			const parsed = JSON.parse(out.trim()) as {
+				success: boolean;
+				command: string;
+				worktrees: Array<{
+					path: string;
+					branch: string;
+					head: string;
+					agentName: string | null;
+					state: string | null;
+					taskId: string | null;
+				}>;
+			};
 
-			expect(parsed).toHaveLength(1);
-			expect(parsed[0]?.path).toBe(worktreePath);
-			expect(parsed[0]?.branch).toBe("overstory/test-agent/task-1");
-			expect(parsed[0]?.agentName).toBe("test-agent");
-			expect(parsed[0]?.state).toBe("working");
-			expect(parsed[0]?.taskId).toBe("task-1");
+			expect(parsed.success).toBe(true);
+			expect(parsed.command).toBe("worktree list");
+			expect(parsed.worktrees).toHaveLength(1);
+			expect(parsed.worktrees[0]?.path).toBe(worktreePath);
+			expect(parsed.worktrees[0]?.branch).toBe("overstory/test-agent/task-1");
+			expect(parsed.worktrees[0]?.agentName).toBe("test-agent");
+			expect(parsed.worktrees[0]?.state).toBe("working");
+			expect(parsed.worktrees[0]?.taskId).toBe("task-1");
 		});
 
 		test("worktrees without sessions show unknown state", async () => {
