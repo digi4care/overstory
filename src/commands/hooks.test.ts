@@ -227,7 +227,7 @@ describe("hooks uninstall", () => {
 		);
 
 		const output = await captureStdout(() => hooksCommand(["uninstall"]));
-		expect(output).toContain("preserved other settings");
+		expect(output).toContain("Removed");
 
 		const content = await Bun.file(join(claudeDir, "settings.local.json")).text();
 		const parsed = JSON.parse(content) as Record<string, unknown>;

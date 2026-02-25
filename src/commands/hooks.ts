@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 
 interface HookEntry {
 	matcher: string;
@@ -120,8 +121,8 @@ async function installHooks(force: boolean): Promise<void> {
 	await mkdir(targetDir, { recursive: true });
 	await Bun.write(targetPath, `${JSON.stringify(targetConfig, null, "\t")}\n`);
 
-	process.stdout.write("\u2713 Installed orchestrator hooks to .claude/settings.local.json\n");
-	process.stdout.write("  Source: .overstory/hooks.json\n");
+	printSuccess("Installed orchestrator hooks");
+	printHint("Source: .overstory/hooks.json");
 }
 
 /**
@@ -139,7 +140,7 @@ async function uninstallHooks(): Promise<void> {
 	const targetFile = Bun.file(targetPath);
 
 	if (!(await targetFile.exists())) {
-		process.stdout.write("No .claude/settings.local.json found \u2014 nothing to uninstall.\n");
+		printWarning("No .claude/settings.local.json found", "nothing to uninstall");
 		return;
 	}
 
@@ -159,12 +160,10 @@ async function uninstallHooks(): Promise<void> {
 	const remainingKeys = Object.keys(rest);
 	if (remainingKeys.length === 0) {
 		await unlink(targetPath);
-		process.stdout.write("\u2713 Removed .claude/settings.local.json (was hooks-only)\n");
+		printSuccess("Removed hooks from settings.local.json");
 	} else {
 		await Bun.write(targetPath, `${JSON.stringify(rest, null, "\t")}\n`);
-		process.stdout.write(
-			"\u2713 Removed hooks from .claude/settings.local.json (preserved other settings)\n",
-		);
+		printSuccess("Removed hooks from settings.local.json");
 	}
 }
 
@@ -199,7 +198,7 @@ async function statusHooks(json: boolean): Promise<void> {
 			`Hooks installed (.claude/settings.local.json): ${installed ? "yes" : "no"}\n`,
 		);
 		if (!installed && sourceExists) {
-			process.stdout.write(`\nRun 'ov hooks install' to install.\n`);
+			printHint("Run ov hooks install to install");
 		}
 	}
 }

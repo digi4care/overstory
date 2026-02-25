@@ -76,7 +76,7 @@ export function isQuiet(): boolean {
 	return quietMode;
 }
 
-// --- Standardized message formatters ---
+// --- Standardized message formatters (visual-spec.md Message Formats) ---
 
 /** Success: brand checkmark + brand message. Optional accent-colored ID. */
 export function printSuccess(msg: string, id?: string): void {
