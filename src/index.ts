@@ -194,7 +194,7 @@ program.hook("preAction", (thisCmd) => {
 	if (opts.quiet) {
 		setQuiet(true);
 	}
-	if (program.opts().timing) {
+	if (opts.timing) {
 		timingStart = performance.now();
 	}
 });
@@ -203,7 +203,7 @@ program.hook("postAction", () => {
 		const elapsed = performance.now() - timingStart;
 		const formatted =
 			elapsed < 1000 ? `${Math.round(elapsed)}ms` : `${(elapsed / 1000).toFixed(2)}s`;
-		process.stderr.write(`${muted(`Elapsed: ${formatted}`)}\n`);
+		process.stderr.write(`${muted(`Done in ${formatted}`)}\n`);
 	}
 });
 
