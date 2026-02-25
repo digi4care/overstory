@@ -561,8 +561,8 @@ describe("feedCommand", () => {
 
 			// The full 200-char value should not appear
 			expect(out).not.toContain(longValue);
-			// But a truncated version with "..." should
-			expect(out).toContain("...");
+			// But a truncated version with "…" should
+			expect(out).toContain("…");
 		});
 
 		test("agent color assignment is stable", async () => {

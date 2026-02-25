@@ -13,66 +13,9 @@ import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
 import { accent, color } from "../logging/color.ts";
+import { buildEventDetail, formatAbsoluteTime, formatDate } from "../logging/format.ts";
+import { separator } from "../logging/theme.ts";
 import type { StoredEvent } from "../types.ts";
-
-/**
- * Format an absolute time from an ISO timestamp.
- * Returns "HH:MM:SS" portion.
- */
-function formatAbsoluteTime(timestamp: string): string {
-	const match = /T(\d{2}:\d{2}:\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return timestamp;
-}
-
-/**
- * Format the date portion of an ISO timestamp.
- * Returns "YYYY-MM-DD".
- */
-function formatDate(timestamp: string): string {
-	const match = /^(\d{4}-\d{2}-\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return "";
-}
-
-/**
- * Build a detail string for an error event based on its fields.
- */
-function buildErrorDetail(event: StoredEvent): string {
-	const parts: string[] = [];
-
-	if (event.toolName) {
-		parts.push(`tool=${event.toolName}`);
-	}
-
-	if (event.data) {
-		try {
-			const parsed: unknown = JSON.parse(event.data);
-			if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-				const data = parsed as Record<string, unknown>;
-				for (const [key, value] of Object.entries(data)) {
-					if (value !== null && value !== undefined) {
-						const strValue = typeof value === "string" ? value : JSON.stringify(value);
-						// Truncate long values
-						const truncated = strValue.length > 80 ? `${strValue.slice(0, 77)}...` : strValue;
-						parts.push(`${key}=${truncated}`);
-					}
-				}
-			}
-		} catch {
-			// data is not valid JSON; show it raw if short enough
-			if (event.data.length <= 80) {
-				parts.push(event.data);
-			}
-		}
-	}
-
-	return parts.join(" ");
-}
 
 /**
  * Group errors by agent name, preserving insertion order.
@@ -96,8 +39,7 @@ function groupByAgent(events: StoredEvent[]): Map<string, StoredEvent[]> {
 function printErrors(events: StoredEvent[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold(color.red("Errors"))}\n`);
-	w(`${"=".repeat(70)}\n`);
+	w(`${color.bold(color.red("Errors"))}\n${separator()}\n`);
 
 	if (events.length === 0) {
 		w(`${color.dim("No errors found.")}\n`);
@@ -124,7 +66,7 @@ function printErrors(events: StoredEvent[]): void {
 			const time = formatAbsoluteTime(event.createdAt);
 			const timestamp = date ? `${date} ${time}` : time;
 
-			const detail = buildErrorDetail(event);
+			const detail = buildEventDetail(event);
 			const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
 
 			w(`  ${color.dim(timestamp)} ${color.red(color.bold("ERROR"))}${detailSuffix}\n`);

@@ -127,7 +127,7 @@ describe("doctorCommand", () => {
 			const out = output();
 
 			expect(out).toContain("Overstory Doctor");
-			expect(out).toContain("================");
+			expect(out).toContain("────────────────");
 		});
 
 		test("shows summary line with zero counts", async () => {

@@ -317,7 +317,7 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1"]);
 			const out = output();
 
-			expect(out).toContain("=".repeat(70));
+			expect(out).toContain("─".repeat(70));
 		});
 
 		test("event type labels are shown", async () => {
@@ -370,7 +370,7 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1"]);
 			const out = output();
 
-			expect(out).toContain("duration=42ms");
+			expect(out).toContain("dur=42ms");
 		});
 
 		test("custom data fields are shown in detail", async () => {
@@ -389,8 +389,7 @@ describe("traceCommand", () => {
 			await traceCommand(["builder-1"]);
 			const out = output();
 
-			expect(out).toContain("reason=testing");
-			expect(out).toContain("count=5");
+			expect(out).toContain('data={"reason":"testing","count":5}');
 		});
 
 		test("date separator appears in timeline", async () => {
@@ -684,8 +683,8 @@ describe("traceCommand", () => {
 
 			// The full 200-char value should not appear
 			expect(out).not.toContain(longValue);
-			// But a truncated version with "..." should
-			expect(out).toContain("...");
+			// But a truncated version with "…" should
+			expect(out).toContain("…");
 		});
 
 		test("non-JSON data is shown raw if short", async () => {

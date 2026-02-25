@@ -14,8 +14,9 @@ import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
-import type { ColorFn } from "../logging/color.ts";
 import { color } from "../logging/color.ts";
+import { formatAbsoluteTime, formatDate, logLevelColor, logLevelLabel } from "../logging/format.ts";
+import { renderHeader } from "../logging/theme.ts";
 import type { LogEvent } from "../types.ts";
 
 /**
@@ -50,30 +51,6 @@ function parseRelativeTime(timeStr: string): Date {
 
 	// Not a relative format, treat as ISO 8601
 	return new Date(timeStr);
-}
-
-/**
- * Format the date portion of an ISO timestamp.
- * Returns "YYYY-MM-DD".
- */
-function formatDate(timestamp: string): string {
-	const match = /^(\d{4}-\d{2}-\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return "";
-}
-
-/**
- * Format an absolute time from an ISO timestamp.
- * Returns "HH:MM:SS" portion.
- */
-function formatAbsoluteTime(timestamp: string): string {
-	const match = /T(\d{2}:\d{2}:\d{2})/.exec(timestamp);
-	if (match?.[1]) {
-		return match[1];
-	}
-	return timestamp;
 }
 
 /**
@@ -235,46 +212,13 @@ function filterEvents(
 	});
 }
 
-/** Resolve a log level string to a color function. */
-function getLevelColor(level: string): ColorFn {
-	switch (level) {
-		case "debug":
-			return color.gray;
-		case "info":
-			return color.blue;
-		case "warn":
-			return color.yellow;
-		case "error":
-			return color.red;
-		default:
-			return color.gray;
-	}
-}
-
-/** Resolve a log level to its label string. */
-function getLevelLabel(level: string): string {
-	switch (level) {
-		case "debug":
-			return "DBG";
-		case "info":
-			return "INF";
-		case "warn":
-			return "WRN";
-		case "error":
-			return "ERR";
-		default:
-			return String(level).slice(0, 3).toUpperCase();
-	}
-}
-
 /**
  * Print log events with ANSI colors and date separators.
  */
 function printLogs(events: LogEvent[]): void {
 	const w = process.stdout.write.bind(process.stdout);
 
-	w(`${color.bold("Logs")}\n`);
-	w(`${"=".repeat(70)}\n`);
+	w(`${renderHeader("Logs")}\n`);
 
 	if (events.length === 0) {
 		w(`${color.dim("No log files found.")}\n`);
@@ -297,8 +241,8 @@ function printLogs(events: LogEvent[]): void {
 		}
 
 		const time = formatAbsoluteTime(event.timestamp);
-		const levelColorFn = getLevelColor(event.level);
-		const levelStr = getLevelLabel(event.level);
+		const levelColorFn = logLevelColor(event.level);
+		const levelStr = logLevelLabel(event.level);
 
 		const agentLabel = event.agentName ? `[${event.agentName}]` : "[unknown]";
 		const detail = buildLogDetail(event);
@@ -373,8 +317,8 @@ async function followLogs(
 
 								// Print immediately
 								const time = formatAbsoluteTime(event.timestamp);
-								const levelColorFn = getLevelColor(event.level);
-								const levelStr = getLevelLabel(event.level);
+								const levelColorFn = logLevelColor(event.level);
+								const levelStr = logLevelLabel(event.level);
 
 								const agentLabel = event.agentName ? `[${event.agentName}]` : "[unknown]";
 								const detail = buildLogDetail(event);
