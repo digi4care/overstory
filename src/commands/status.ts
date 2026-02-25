@@ -11,6 +11,8 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
 import { accent, color } from "../logging/color.ts";
+import { formatDuration } from "../logging/format.ts";
+import { renderHeader } from "../logging/theme.ts";
 import { createMailStore } from "../mail/store.ts";
 import { createMergeQueue } from "../merge/queue.ts";
 import { createMetricsStore } from "../metrics/store.ts";
@@ -66,20 +68,6 @@ export async function getCachedTmuxSessions(
 	} catch {
 		return tmuxCache?.data ?? [];
 	}
-}
-
-/**
- * Format a duration in ms to a human-readable string.
- */
-function formatDuration(ms: number): string {
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainSec = seconds % 60;
-	if (minutes < 60) return `${minutes}m ${remainSec}s`;
-	const hours = Math.floor(minutes / 60);
-	const remainMin = minutes % 60;
-	return `${hours}h ${remainMin}m`;
 }
 
 export interface VerboseAgentDetail {
@@ -256,8 +244,7 @@ export function printStatus(data: StatusData): void {
 	const now = Date.now();
 	const w = process.stdout.write.bind(process.stdout);
 
-	w("Overstory Status\n");
-	w(`${"═".repeat(60)}\n\n`);
+	w(`${renderHeader("Overstory Status")}\n\n`);
 	if (data.currentRunId) {
 		w(`Run: ${accent(data.currentRunId)}\n`);
 	}

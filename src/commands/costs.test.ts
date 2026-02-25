@@ -303,7 +303,7 @@ describe("costsCommand", () => {
 			await costsCommand([]);
 			const out = output();
 
-			expect(out).toContain("=".repeat(70));
+			expect(out).toContain("\u2500".repeat(70));
 		});
 
 		test("shows Total row", async () => {

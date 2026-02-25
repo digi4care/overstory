@@ -14,8 +14,14 @@ import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
-import type { ColorFn } from "../logging/color.ts";
-import { accent, color, noColor, visibleLength } from "../logging/color.ts";
+import { accent, brand, color, visibleLength } from "../logging/color.ts";
+import {
+	formatDuration,
+	formatRelativeTime,
+	mergeStatusColor,
+	priorityColor,
+} from "../logging/format.ts";
+import { stateColor, stateIcon } from "../logging/theme.ts";
 import { createMailStore, type MailStore } from "../mail/store.ts";
 import { createMergeQueue, type MergeQueue } from "../merge/queue.ts";
 import { createMetricsStore, type MetricsStore } from "../metrics/store.ts";
@@ -53,38 +59,6 @@ const BOX = {
 	teeRight: "┤",
 	cross: "┼",
 };
-
-/**
- * Format a duration in ms to a human-readable string.
- */
-function formatDuration(ms: number): string {
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainSec = seconds % 60;
-	if (minutes < 60) return `${minutes}m ${remainSec}s`;
-	const hours = Math.floor(minutes / 60);
-	const remainMin = minutes % 60;
-	return `${hours}h ${remainMin}m`;
-}
-
-/**
- * Format a timestamp to "time ago" format.
- */
-function timeAgo(timestamp: string): string {
-	const now = Date.now();
-	const then = new Date(timestamp).getTime();
-	const diffMs = now - then;
-	const diffSec = Math.floor(diffMs / 1000);
-
-	if (diffSec < 60) return `${diffSec}s ago`;
-	const diffMin = Math.floor(diffSec / 60);
-	if (diffMin < 60) return `${diffMin}m ago`;
-	const diffHr = Math.floor(diffMin / 60);
-	if (diffHr < 24) return `${diffHr}h ago`;
-	const diffDay = Math.floor(diffHr / 24);
-	return `${diffDay}d ago`;
-}
 
 /**
  * Truncate a string to fit within maxLen characters, adding ellipsis if needed.
@@ -402,7 +376,7 @@ async function loadDashboardData(
  * Render the header bar (line 1).
  */
 function renderHeader(width: number, interval: number, currentRunId?: string | null): string {
-	const left = color.bold(`ov dashboard v${PKG_VERSION}`);
+	const left = brand.bold(`ov dashboard v${PKG_VERSION}`);
 	const now = new Date().toLocaleTimeString();
 	const scope = currentRunId ? ` [run: ${accent(currentRunId.slice(0, 8))}]` : " [all runs]";
 	const right = `${now}${scope} | refresh: ${interval}ms`;
@@ -410,46 +384,6 @@ function renderHeader(width: number, interval: number, currentRunId?: string | n
 	const line = left + " ".repeat(Math.max(0, padding)) + right;
 	const separator = horizontalLine(width, BOX.topLeft, BOX.horizontal, BOX.topRight);
 	return `${line}\n${separator}`;
-}
-
-/**
- * Get color function for agent state.
- */
-function getStateColor(state: string): ColorFn {
-	switch (state) {
-		case "working":
-			return color.green;
-		case "booting":
-			return color.yellow;
-		case "stalled":
-			return color.red;
-		case "zombie":
-			return color.dim;
-		case "completed":
-			return color.cyan;
-		default:
-			return noColor;
-	}
-}
-
-/**
- * Get status icon for agent state.
- */
-function getStateIcon(state: string): string {
-	switch (state) {
-		case "working":
-			return ">";
-		case "booting":
-			return "-";
-		case "stalled":
-			return "!";
-		case "zombie":
-			return "x";
-		case "completed":
-			return "x";
-		default:
-			return "?";
-	}
 }
 
 /**
@@ -465,7 +399,7 @@ function renderAgentPanel(
 	let output = "";
 
 	// Panel header
-	const headerLine = `${BOX.vertical} ${color.bold("Agents")} (${data.status.agents.length})`;
+	const headerLine = `${BOX.vertical} ${brand.bold("Agents")} (${data.status.agents.length})`;
 	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
@@ -495,8 +429,8 @@ function renderAgentPanel(
 		const agent = visibleAgents[i];
 		if (!agent) continue;
 
-		const icon = getStateIcon(agent.state);
-		const stateColor = getStateColor(agent.state);
+		const icon = stateIcon(agent.state);
+		const stateColorFn = stateColor(agent.state);
 		const name = accent(pad(truncate(agent.agentName, 15), 15));
 		const capability = pad(truncate(agent.capability, 12), 12);
 		const state = pad(agent.state, 10);
@@ -510,7 +444,7 @@ function renderAgentPanel(
 		const tmuxAlive = data.status.tmuxSessions.some((s) => s.name === agent.tmuxSession);
 		const tmuxDot = tmuxAlive ? color.green(">") : color.red("x");
 
-		const line = `${BOX.vertical} ${stateColor(icon)}  ${name} ${capability} ${stateColor(state)} ${taskId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
+		const line = `${BOX.vertical} ${stateColorFn(icon)}  ${name} ${capability} ${stateColorFn(state)} ${taskId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${line}\n`;
 	}
 
@@ -528,24 +462,6 @@ function renderAgentPanel(
 }
 
 /**
- * Get color function for mail priority.
- */
-function getPriorityColor(priority: string): ColorFn {
-	switch (priority) {
-		case "urgent":
-			return color.red;
-		case "high":
-			return color.yellow;
-		case "normal":
-			return noColor;
-		case "low":
-			return color.dim;
-		default:
-			return noColor;
-	}
-}
-
-/**
  * Render the mail panel (middle-left ~30% height, ~60% width).
  */
 function renderMailPanel(
@@ -559,7 +475,7 @@ function renderMailPanel(
 	let output = "";
 
 	const unreadCount = data.status.unreadMailCount;
-	const headerLine = `${BOX.vertical} ${color.bold("Mail")} (${unreadCount} unread)`;
+	const headerLine = `${BOX.vertical} ${brand.bold("Mail")} (${unreadCount} unread)`;
 	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
@@ -573,12 +489,12 @@ function renderMailPanel(
 		const msg = messages[i];
 		if (!msg) continue;
 
-		const priorityColorFn = getPriorityColor(msg.priority);
+		const priorityColorFn = priorityColor(msg.priority);
 		const priority = msg.priority === "normal" ? "" : `[${msg.priority}] `;
 		const from = accent(truncate(msg.from, 12));
 		const to = accent(truncate(msg.to, 12));
 		const subject = truncate(msg.subject, panelWidth - 40);
-		const time = timeAgo(msg.createdAt);
+		const time = formatRelativeTime(msg.createdAt);
 
 		const coloredPriority = priority ? priorityColorFn(priority) : "";
 		const line = `${BOX.vertical} ${coloredPriority}${from} → ${to}: ${subject} (${time})`;
@@ -596,24 +512,6 @@ function renderMailPanel(
 }
 
 /**
- * Get color function for merge queue status.
- */
-function getMergeStatusColor(status: string): ColorFn {
-	switch (status) {
-		case "pending":
-			return color.yellow;
-		case "merging":
-			return color.blue;
-		case "conflict":
-			return color.red;
-		case "merged":
-			return color.green;
-		default:
-			return noColor;
-	}
-}
-
-/**
  * Render the merge queue panel (middle-right ~30% height, ~40% width).
  */
 function renderMergeQueuePanel(
@@ -627,7 +525,7 @@ function renderMergeQueuePanel(
 	const panelWidth = width - startCol + 1;
 	let output = "";
 
-	const headerLine = `${BOX.vertical} ${color.bold("Merge Queue")} (${data.mergeQueue.length})`;
+	const headerLine = `${BOX.vertical} ${brand.bold("Merge Queue")} (${data.mergeQueue.length})`;
 	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 
@@ -641,7 +539,7 @@ function renderMergeQueuePanel(
 		const entry = entries[i];
 		if (!entry) continue;
 
-		const statusColorFn = getMergeStatusColor(entry.status);
+		const statusColorFn = mergeStatusColor(entry.status);
 		const status = pad(entry.status, 10);
 		const agent = accent(truncate(entry.agentName, 15));
 		const branch = truncate(entry.branchName, panelWidth - 30);
@@ -674,7 +572,7 @@ function renderMetricsPanel(
 	const separator = horizontalLine(width, BOX.tee, BOX.horizontal, BOX.teeRight);
 	output += `${CURSOR.cursorTo(startRow, 1)}${separator}\n`;
 
-	const headerLine = `${BOX.vertical} ${color.bold("Metrics")}`;
+	const headerLine = `${BOX.vertical} ${brand.bold("Metrics")}`;
 	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
 	output += `${CURSOR.cursorTo(startRow + 1, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
 

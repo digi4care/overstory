@@ -13,6 +13,7 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonError, jsonOutput } from "../json.ts";
 import { color } from "../logging/color.ts";
+import { renderHeader, separator } from "../logging/theme.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { estimateCost, parseTranscriptUsage } from "../metrics/transcript.ts";
 import { openSessionStore } from "../sessions/compat.ts";
@@ -141,10 +142,8 @@ function groupByCapability(sessions: SessionMetrics[]): CapabilityGroup[] {
 /** Print the standard per-agent cost summary table. */
 function printCostSummary(sessions: SessionMetrics[]): void {
 	const w = process.stdout.write.bind(process.stdout);
-	const separator = "\u2500".repeat(70);
 
-	w(`${color.bold("Cost Summary")}\n`);
-	w(`${"=".repeat(70)}\n`);
+	w(`${renderHeader("Cost Summary")}\n`);
 
 	if (sessions.length === 0) {
 		w(`${color.dim("No session data found.")}\n`);
@@ -156,7 +155,7 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 			`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 			`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 	);
-	w(`${color.dim(separator)}\n`);
+	w(`${color.dim(separator())}\n`);
 
 	for (const s of sessions) {
 		const cacheTotal = s.cacheReadTokens + s.cacheCreationTokens;
@@ -170,7 +169,7 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 	}
 
 	const totals = computeTotals(sessions);
-	w(`${color.dim(separator)}\n`);
+	w(`${color.dim(separator())}\n`);
 	w(
 		`${color.green(
 			color.bold(
@@ -187,10 +186,8 @@ function printCostSummary(sessions: SessionMetrics[]): void {
 /** Print the capability-grouped cost table. */
 function printByCapability(sessions: SessionMetrics[]): void {
 	const w = process.stdout.write.bind(process.stdout);
-	const separator = "\u2500".repeat(70);
 
-	w(`${color.bold("Cost by Capability")}\n`);
-	w(`${"=".repeat(70)}\n`);
+	w(`${renderHeader("Cost by Capability")}\n`);
 
 	if (sessions.length === 0) {
 		w(`${color.dim("No session data found.")}\n`);
@@ -202,7 +199,7 @@ function printByCapability(sessions: SessionMetrics[]): void {
 			`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 			`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 	);
-	w(`${color.dim(separator)}\n`);
+	w(`${color.dim(separator())}\n`);
 
 	const groups = groupByCapability(sessions);
 
@@ -218,7 +215,7 @@ function printByCapability(sessions: SessionMetrics[]): void {
 	}
 
 	const totals = computeTotals(sessions);
-	w(`${color.dim(separator)}\n`);
+	w(`${color.dim(separator())}\n`);
 	w(
 		`${color.green(
 			color.bold(
@@ -299,17 +296,15 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 			});
 		} else {
 			const w = process.stdout.write.bind(process.stdout);
-			const separator = "\u2500".repeat(70);
 
-			w(`${color.bold("Orchestrator Session Cost")}\n`);
-			w(`${"=".repeat(70)}\n`);
+			w(`${renderHeader("Orchestrator Session Cost")}\n`);
 			w(`${padRight("Model:", 12)}${usage.modelUsed ?? "unknown"}\n`);
 			w(`${padRight("Transcript:", 12)}${transcriptPath}\n`);
-			w(`${color.dim(separator)}\n`);
+			w(`${color.dim(separator())}\n`);
 			w(`${padRight("Input tokens:", 22)}${padLeft(formatNumber(usage.inputTokens), 12)}\n`);
 			w(`${padRight("Output tokens:", 22)}${padLeft(formatNumber(usage.outputTokens), 12)}\n`);
 			w(`${padRight("Cache tokens:", 22)}${padLeft(formatNumber(cacheTotal), 12)}\n`);
-			w(`${color.dim(separator)}\n`);
+			w(`${color.dim(separator())}\n`);
 			w(
 				`${color.green(color.bold(padRight("Estimated cost:", 22) + padLeft(formatCost(cost), 12)))}\n`,
 			);
@@ -453,16 +448,14 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 				});
 			} else {
 				const w = process.stdout.write.bind(process.stdout);
-				const separator = "\u2500".repeat(70);
 
-				w(`${color.bold(`Live Token Usage (${agentData.length} active agents)`)}\n`);
-				w(`${"=".repeat(70)}\n`);
+				w(`${renderHeader(`Live Token Usage (${agentData.length} active agents)`)}\n`);
 				w(
 					`${padRight("Agent", 19)}${padRight("Capability", 12)}` +
 						`${padLeft("Input", 10)}${padLeft("Output", 10)}` +
 						`${padLeft("Cache", 10)}${padLeft("Cost", 10)}\n`,
 				);
-				w(`${color.dim(separator)}\n`);
+				w(`${color.dim(separator())}\n`);
 
 				for (const agent of agentData) {
 					const cacheTotal = agent.cacheReadTokens + agent.cacheCreationTokens;
@@ -475,7 +468,7 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 					);
 				}
 
-				w(`${color.dim(separator)}\n`);
+				w(`${color.dim(separator())}\n`);
 				w(
 					`${color.green(
 						color.bold(

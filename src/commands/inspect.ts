@@ -11,44 +11,12 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
-import { accent, color } from "../logging/color.ts";
+import { accent } from "../logging/color.ts";
+import { formatDuration } from "../logging/format.ts";
+import { renderHeader, separator, stateIconColored } from "../logging/theme.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentSession, StoredEvent, ToolStats } from "../types.ts";
-
-/**
- * Format a duration in ms to a human-readable string.
- */
-function formatDuration(ms: number): string {
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainSec = seconds % 60;
-	if (minutes < 60) return `${minutes}m ${remainSec}s`;
-	const hours = Math.floor(minutes / 60);
-	const remainMin = minutes % 60;
-	return `${hours}h ${remainMin}m`;
-}
-
-/**
- * Get colored state icon based on agent state.
- */
-function getStateIcon(state: AgentSession["state"]): string {
-	switch (state) {
-		case "booting":
-			return color.green("-");
-		case "working":
-			return color.cyan(">");
-		case "stalled":
-			return color.yellow("!");
-		case "completed":
-			return color.dim("x");
-		case "zombie":
-			return color.dim("x");
-		default:
-			return "?";
-	}
-}
 
 /**
  * Extract current file from most recent Edit/Write/Read tool_start event.
@@ -253,12 +221,10 @@ export function printInspectData(data: InspectData): void {
 	const w = process.stdout.write.bind(process.stdout);
 	const { session } = data;
 
-	w(`\nAgent Inspection: ${accent(session.agentName)}\n`);
-	w(`${"═".repeat(80)}\n\n`);
+	w(`\n${renderHeader(`Agent Inspection: ${accent(session.agentName)}`)}\n\n`);
 
 	// Agent state and metadata
-	const stateIcon = getStateIcon(session.state);
-	w(`${stateIcon} State: ${session.state}\n`);
+	w(`${stateIconColored(session.state)} State: ${session.state}\n`);
 	w(`Last activity: ${formatDuration(data.timeSinceLastActivity)} ago\n`);
 	w(`Task: ${accent(session.taskId)}\n`);
 	w(`Capability: ${session.capability}\n`);
@@ -278,7 +244,7 @@ export function printInspectData(data: InspectData): void {
 	// Token usage
 	if (data.tokenUsage) {
 		w("Token Usage\n");
-		w(`${"─".repeat(80)}\n`);
+		w(`${separator()}\n`);
 		w(`  Input:         ${data.tokenUsage.inputTokens.toLocaleString()}\n`);
 		w(`  Output:        ${data.tokenUsage.outputTokens.toLocaleString()}\n`);
 		w(`  Cache read:    ${data.tokenUsage.cacheReadTokens.toLocaleString()}\n`);
@@ -295,7 +261,7 @@ export function printInspectData(data: InspectData): void {
 	// Tool usage statistics (top 10)
 	if (data.toolStats.length > 0) {
 		w("Tool Usage (Top 10)\n");
-		w(`${"─".repeat(80)}\n`);
+		w(`${separator()}\n`);
 		const top10 = data.toolStats.slice(0, 10);
 		for (const stat of top10) {
 			const avgMs = stat.avgDurationMs.toFixed(0);
@@ -308,7 +274,7 @@ export function printInspectData(data: InspectData): void {
 	// Recent tool calls
 	if (data.recentToolCalls.length > 0) {
 		w(`Recent Tool Calls (last ${data.recentToolCalls.length})\n`);
-		w(`${"─".repeat(80)}\n`);
+		w(`${separator()}\n`);
 		for (const call of data.recentToolCalls) {
 			const time = new Date(call.timestamp).toLocaleTimeString();
 			const duration = call.durationMs !== null ? `${call.durationMs}ms` : "pending";
@@ -324,9 +290,9 @@ export function printInspectData(data: InspectData): void {
 	// tmux output
 	if (data.tmuxOutput) {
 		w("Live Tmux Output\n");
-		w(`${"─".repeat(80)}\n`);
+		w(`${separator()}\n`);
 		w(`${data.tmuxOutput}\n`);
-		w(`${"─".repeat(80)}\n`);
+		w(`${separator()}\n`);
 	}
 }
 

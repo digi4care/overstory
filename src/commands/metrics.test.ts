@@ -443,7 +443,7 @@ describe("formatDuration helper", () => {
 		expect(out).toContain("1h 2m");
 	});
 
-	test("3600000ms formats as 1h 0m", async () => {
+	test("3600000ms formats as 1h", async () => {
 		const dbPath = join(tempDir, ".overstory", "metrics.db");
 		const store = createMetricsStore(dbPath);
 		store.recordSession(makeSession(3_600_000));
@@ -452,6 +452,6 @@ describe("formatDuration helper", () => {
 		await metricsCommand([]);
 		const out = output();
 
-		expect(out).toContain("1h 0m");
+		expect(out).toContain("1h");
 	});
 });

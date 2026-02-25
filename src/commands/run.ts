@@ -17,23 +17,10 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonError, jsonOutput } from "../json.ts";
 import { accent, printError, printHint, printSuccess } from "../logging/color.ts";
+import { formatDuration } from "../logging/format.ts";
+import { renderHeader, separator } from "../logging/theme.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import type { AgentSession, Run } from "../types.ts";
-
-/**
- * Format milliseconds as human-readable duration.
- */
-function formatDuration(ms: number): string {
-	if (ms === 0) return "0s";
-	const seconds = Math.floor(ms / 1000);
-	if (seconds < 60) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainSec = seconds % 60;
-	if (minutes < 60) return `${minutes}m ${remainSec}s`;
-	const hours = Math.floor(minutes / 60);
-	const remainMin = minutes % 60;
-	return `${hours}h ${remainMin}m`;
-}
 
 /**
  * Get the path to the current-run.txt file.
@@ -109,8 +96,7 @@ async function showCurrentRun(overstoryDir: string, json: boolean): Promise<void
 			return;
 		}
 
-		process.stdout.write("Current Run\n");
-		process.stdout.write(`${"=".repeat(50)}\n`);
+		process.stdout.write(`${renderHeader("Current Run")}\n`);
 		process.stdout.write(`  ID:       ${accent(run.id)}\n`);
 		process.stdout.write(`  Status:   ${run.status}\n`);
 		process.stdout.write(`  Started:  ${run.startedAt}\n`);
@@ -151,12 +137,11 @@ async function listRuns(overstoryDir: string, limit: number, json: boolean): Pro
 			return;
 		}
 
-		process.stdout.write("Recent Runs\n");
-		process.stdout.write(`${"=".repeat(70)}\n`);
+		process.stdout.write(`${renderHeader("Recent Runs")}\n`);
 		process.stdout.write(
 			`${"ID".padEnd(36)} ${"Status".padEnd(10)} ${"Agents".padEnd(7)} Duration\n`,
 		);
-		process.stdout.write(`${"-".repeat(70)}\n`);
+		process.stdout.write(`${separator()}\n`);
 
 		for (const run of runs) {
 			const id = accent(run.id.length > 35 ? `${run.id.slice(0, 32)}...` : run.id.padEnd(36));
@@ -245,8 +230,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 			return;
 		}
 
-		process.stdout.write("Run Details\n");
-		process.stdout.write(`${"=".repeat(60)}\n`);
+		process.stdout.write(`${renderHeader("Run Details")}\n`);
 		process.stdout.write(`  ID:       ${accent(run.id)}\n`);
 		process.stdout.write(`  Status:   ${run.status}\n`);
 		process.stdout.write(`  Started:  ${run.startedAt}\n`);
@@ -258,7 +242,7 @@ async function showRun(overstoryDir: string, runId: string, json: boolean): Prom
 
 		if (agents.length > 0) {
 			process.stdout.write(`\nAgents (${agents.length}):\n`);
-			process.stdout.write(`${"-".repeat(60)}\n`);
+			process.stdout.write(`${separator()}\n`);
 			for (const agent of agents) {
 				const agentDuration = formatAgentDuration(agent);
 				process.stdout.write(
