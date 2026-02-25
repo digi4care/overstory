@@ -345,3 +345,107 @@ describe("initCommand: canonical branch detection", () => {
 		expect(content).toContain("canonicalBranch: main");
 	});
 });
+
+describe("initCommand: --yes flag", () => {
+	let tempDir: string;
+	let originalCwd: string;
+	let originalWrite: typeof process.stdout.write;
+
+	beforeEach(async () => {
+		tempDir = await createTempGitRepo();
+		originalCwd = process.cwd();
+		process.chdir(tempDir);
+
+		// Suppress stdout noise from initCommand
+		originalWrite = process.stdout.write;
+		process.stdout.write = (() => true) as typeof process.stdout.write;
+	});
+
+	afterEach(async () => {
+		process.chdir(originalCwd);
+		process.stdout.write = originalWrite;
+		await cleanupTempDir(tempDir);
+	});
+
+	test("--yes reinitializes when .overstory/ already exists", async () => {
+		// First init
+		await initCommand({});
+
+		// Tamper with config to verify reinit happens
+		const configPath = join(tempDir, ".overstory", "config.yaml");
+		await Bun.write(configPath, "# tampered\n");
+
+		// Second init with --yes should reinitialize (not return early)
+		await initCommand({ yes: true });
+
+		// Verify config was regenerated (not the tampered content)
+		const content = await Bun.file(configPath).text();
+		expect(content).not.toBe("# tampered\n");
+		expect(content).toContain("# Overstory configuration");
+	});
+
+	test("--yes works on fresh project (no .overstory/ yet)", async () => {
+		await initCommand({ yes: true });
+
+		const configPath = join(tempDir, ".overstory", "config.yaml");
+		const exists = await Bun.file(configPath).exists();
+		expect(exists).toBe(true);
+
+		const content = await Bun.file(configPath).text();
+		expect(content).toContain("# Overstory configuration");
+	});
+
+	test("--yes overwrites agent-defs on reinit", async () => {
+		// First init
+		await initCommand({});
+
+		// Tamper with an agent def
+		const scoutPath = join(tempDir, ".overstory", "agent-defs", "scout.md");
+		await Bun.write(scoutPath, "TAMPERED CONTENT");
+
+		// Reinit with --yes should overwrite
+		await initCommand({ yes: true });
+
+		const restored = await Bun.file(scoutPath).text();
+		expect(restored).not.toBe("TAMPERED CONTENT");
+	});
+});
+
+describe("initCommand: --name flag", () => {
+	let tempDir: string;
+	let originalCwd: string;
+	let originalWrite: typeof process.stdout.write;
+
+	beforeEach(async () => {
+		tempDir = await createTempGitRepo();
+		originalCwd = process.cwd();
+		process.chdir(tempDir);
+
+		// Suppress stdout noise from initCommand
+		originalWrite = process.stdout.write;
+		process.stdout.write = (() => true) as typeof process.stdout.write;
+	});
+
+	afterEach(async () => {
+		process.chdir(originalCwd);
+		process.stdout.write = originalWrite;
+		await cleanupTempDir(tempDir);
+	});
+
+	test("--name overrides auto-detected project name", async () => {
+		await initCommand({ name: "custom-project" });
+
+		const configPath = join(tempDir, ".overstory", "config.yaml");
+		const content = await Bun.file(configPath).text();
+		expect(content).toContain("name: custom-project");
+	});
+
+	test("--name combined with --yes works for fully non-interactive init", async () => {
+		await initCommand({ yes: true, name: "scripted-project" });
+
+		const configPath = join(tempDir, ".overstory", "config.yaml");
+		const content = await Bun.file(configPath).text();
+		expect(content).toContain("name: scripted-project");
+		expect(content).toContain("# Overstory configuration");
+	});
+});
