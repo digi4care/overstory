@@ -957,7 +957,9 @@ describe("waitForTuiReady", () => {
 	});
 
 	test("returns true immediately when pane has content on first poll", async () => {
-		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help" to get started', "", 0));
+		spawnSpy.mockImplementation(() =>
+			mockSpawnResult('Try "help" to get started\nbypass permissions', "", 0),
+		);
 
 		const ready = await waitForTuiReady("overstory-agent", 5_000, 500);
 
@@ -976,8 +978,8 @@ describe("waitForTuiReady", () => {
 					// First 3 capture-pane polls: empty pane (TUI still loading)
 					return mockSpawnResult("", "", 0);
 				}
-				// 4th poll: content appears
-				return mockSpawnResult("Welcome to Claude Code!\n\n\u276f", "", 0);
+				// 4th poll: content appears with both prompt indicator and status bar
+				return mockSpawnResult("Welcome to Claude Code!\n\n\u276f\nbypass permissions", "", 0);
 			}
 			// has-session: session is alive throughout
 			return mockSpawnResult("", "", 0);
@@ -1010,8 +1012,8 @@ describe("waitForTuiReady", () => {
 	});
 
 	test("uses default timeout and poll interval", async () => {
-		// Return content immediately
-		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help"', "", 0));
+		// Return content immediately with both indicators
+		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help"\nshift+tab', "", 0));
 
 		const ready = await waitForTuiReady("overstory-agent");
 
@@ -1056,6 +1058,122 @@ describe("waitForTuiReady", () => {
 		// Should have polled multiple times (not returned early)
 		expect(captureCallCount).toBeGreaterThan(1);
 		expect(sleepSpy).toHaveBeenCalled();
+	});
+
+	test("returns false when only prompt seen but no status bar", async () => {
+		// Pane always shows prompt indicator but never shows status bar text
+		spawnSpy.mockImplementation((...args: unknown[]) => {
+			const cmd = args[0] as string[];
+			if (cmd[1] === "capture-pane") {
+				return mockSpawnResult("Welcome to Claude Code!\n\u276f", "", 0);
+			}
+			// has-session: session is alive
+			return mockSpawnResult("", "", 0);
+		});
+
+		const ready = await waitForTuiReady("overstory-agent", 1_000, 500);
+
+		expect(ready).toBe(false);
+	});
+
+	test("returns false when only status bar seen but no prompt", async () => {
+		// Pane always shows status bar but never shows prompt indicator
+		spawnSpy.mockImplementation((...args: unknown[]) => {
+			const cmd = args[0] as string[];
+			if (cmd[1] === "capture-pane") {
+				return mockSpawnResult("bypass permissions", "", 0);
+			}
+			// has-session: session is alive
+			return mockSpawnResult("", "", 0);
+		});
+
+		const ready = await waitForTuiReady("overstory-agent", 1_000, 500);
+
+		expect(ready).toBe(false);
+	});
+
+	test("returns true when prompt and status bar appear on different polls", async () => {
+		let captureCallCount = 0;
+		spawnSpy.mockImplementation((...args: unknown[]) => {
+			const cmd = args[0] as string[];
+			if (cmd[1] === "capture-pane") {
+				captureCallCount++;
+				if (captureCallCount <= 2) {
+					// First 2 polls: only prompt indicator visible (phase 1 only)
+					return mockSpawnResult("Welcome to Claude Code!\n\u276f", "", 0);
+				}
+				// 3rd poll onwards: both prompt and status bar visible
+				return mockSpawnResult("Welcome to Claude Code!\n\u276f\nbypass permissions", "", 0);
+			}
+			// has-session: session is alive
+			return mockSpawnResult("", "", 0);
+		});
+
+		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+
+		expect(ready).toBe(true);
+		// Should have slept at least twice (2 polls with only prompt before both appeared)
+		expect(sleepSpy).toHaveBeenCalledTimes(2);
+	});
+
+	test("detects trust dialog and auto-confirms with Enter", async () => {
+		const sendKeysCalls: string[][] = [];
+		let captureCallCount = 0;
+		spawnSpy.mockImplementation((...args: unknown[]) => {
+			const cmd = args[0] as string[];
+			if (cmd[1] === "capture-pane") {
+				captureCallCount++;
+				if (captureCallCount === 1) {
+					// First poll: trust dialog is showing
+					return mockSpawnResult("Do you trust this folder?", "", 0);
+				}
+				// Subsequent polls: trust confirmed, real TUI with both indicators
+				return mockSpawnResult('Try "help"\nshift+tab', "", 0);
+			}
+			if (cmd[1] === "send-keys") {
+				sendKeysCalls.push(cmd);
+				return mockSpawnResult("", "", 0);
+			}
+			// has-session: session is alive
+			return mockSpawnResult("", "", 0);
+		});
+
+		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+
+		expect(ready).toBe(true);
+		// sendKeys should have been called once to confirm the trust dialog
+		expect(sendKeysCalls).toHaveLength(1);
+		const trustCall = sendKeysCalls[0];
+		expect(trustCall).toEqual(["tmux", "send-keys", "-t", "overstory-agent", "", "Enter"]);
+	});
+
+	test("handles trust dialog only once (trustHandled flag)", async () => {
+		const sendKeysCalls: string[][] = [];
+		let captureCallCount = 0;
+		spawnSpy.mockImplementation((...args: unknown[]) => {
+			const cmd = args[0] as string[];
+			if (cmd[1] === "capture-pane") {
+				captureCallCount++;
+				if (captureCallCount <= 3) {
+					// Multiple polls still show trust dialog (slow dialog dismissal)
+					return mockSpawnResult("Do you trust this folder?", "", 0);
+				}
+				// Eventually TUI loads with both indicators
+				return mockSpawnResult('Try "help"\nbypass permissions', "", 0);
+			}
+			if (cmd[1] === "send-keys") {
+				sendKeysCalls.push(cmd);
+				return mockSpawnResult("", "", 0);
+			}
+			// has-session: session is alive
+			return mockSpawnResult("", "", 0);
+		});
+
+		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+
+		expect(ready).toBe(true);
+		// sendKeys must be called exactly once — trustHandled prevents duplicate Enter sends
+		expect(sendKeysCalls).toHaveLength(1);
 	});
 });
 
