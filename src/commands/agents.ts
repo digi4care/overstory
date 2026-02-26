@@ -10,6 +10,7 @@ import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
 import { accent, color } from "../logging/color.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { type AgentSession, SUPPORTED_CAPABILITIES } from "../types.ts";
 
@@ -41,12 +42,19 @@ const KNOWN_INSTRUCTION_PATHS = [
  * or can't be read.
  *
  * @param worktreePath - Absolute path to the agent's worktree
+ * @param runtimeInstructionPath - Optional runtime-specific instruction path to try first
  * @returns Array of file paths (relative to worktree root)
  */
-export async function extractFileScope(worktreePath: string): Promise<string[]> {
+export async function extractFileScope(
+	worktreePath: string,
+	runtimeInstructionPath?: string,
+): Promise<string[]> {
 	try {
 		let content: string | null = null;
-		for (const relPath of KNOWN_INSTRUCTION_PATHS) {
+		const pathsToTry = runtimeInstructionPath
+			? [runtimeInstructionPath, ...KNOWN_INSTRUCTION_PATHS]
+			: KNOWN_INSTRUCTION_PATHS;
+		for (const relPath of pathsToTry) {
 			const overlayPath = join(worktreePath, relPath);
 			const overlayFile = Bun.file(overlayPath);
 			if (await overlayFile.exists()) {
@@ -112,6 +120,16 @@ export async function discoverAgents(
 	const overstoryDir = join(root, ".overstory");
 	const { store } = openSessionStore(overstoryDir);
 
+	// Resolve runtime instruction path from config; fall back gracefully if config is absent.
+	let runtimeInstructionPath: string | undefined;
+	try {
+		const config = await loadConfig(root);
+		const runtime = getRuntime(undefined, config);
+		runtimeInstructionPath = runtime.instructionPath;
+	} catch {
+		// Config may not exist in all contexts; KNOWN_INSTRUCTION_PATHS will be used as fallback.
+	}
+
 	try {
 		const sessions: AgentSession[] = opts?.includeAll ? store.getAll() : store.getActive();
 
@@ -124,7 +142,7 @@ export async function discoverAgents(
 		// Extract file scopes for each agent
 		const agents: DiscoveredAgent[] = await Promise.all(
 			filteredSessions.map(async (session) => {
-				const fileScope = await extractFileScope(session.worktreePath);
+				const fileScope = await extractFileScope(session.worktreePath, runtimeInstructionPath);
 				return {
 					agentName: session.agentName,
 					capability: session.capability,

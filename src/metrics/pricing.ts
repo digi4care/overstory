@@ -26,8 +26,9 @@ export interface ModelPricing {
 	cacheCreationPerMTok: number;
 }
 
-/** Hardcoded pricing for known Claude models. */
+/** Pricing for known AI models across providers. */
 const MODEL_PRICING: Record<string, ModelPricing> = {
+	// --- Claude ---
 	opus: {
 		inputPerMTok: 15,
 		outputPerMTok: 75,
@@ -46,18 +47,72 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
 		cacheReadPerMTok: 0.08, // 10% of input
 		cacheCreationPerMTok: 0.2, // 25% of input
 	},
+	// --- OpenAI GPT ---
+	"gpt-4o-mini": {
+		inputPerMTok: 0.15,
+		outputPerMTok: 0.6,
+		cacheReadPerMTok: 0.075, // 50% of input
+		cacheCreationPerMTok: 0.15,
+	},
+	"gpt-4o": {
+		inputPerMTok: 2.5,
+		outputPerMTok: 10,
+		cacheReadPerMTok: 1.25,
+		cacheCreationPerMTok: 2.5,
+	},
+	"gpt-5": {
+		inputPerMTok: 10,
+		outputPerMTok: 40,
+		cacheReadPerMTok: 5,
+		cacheCreationPerMTok: 10,
+	},
+	o1: {
+		inputPerMTok: 15,
+		outputPerMTok: 60,
+		cacheReadPerMTok: 7.5,
+		cacheCreationPerMTok: 15,
+	},
+	o3: {
+		inputPerMTok: 10,
+		outputPerMTok: 40,
+		cacheReadPerMTok: 5,
+		cacheCreationPerMTok: 10,
+	},
+	// --- Google Gemini ---
+	"gemini-flash": {
+		inputPerMTok: 0.1,
+		outputPerMTok: 0.4,
+		cacheReadPerMTok: 0.025,
+		cacheCreationPerMTok: 0.1,
+	},
+	"gemini-pro": {
+		inputPerMTok: 1.25,
+		outputPerMTok: 5,
+		cacheReadPerMTok: 0.3125,
+		cacheCreationPerMTok: 1.25,
+	},
 };
 
 /**
  * Determine the pricing tier for a given model string.
- * Matches on substring: "opus" -> opus pricing, "sonnet" -> sonnet, "haiku" -> haiku.
+ * Matches on substring in priority order to avoid ambiguous overlaps.
  * Returns null if unrecognized.
  */
 export function getPricingForModel(model: string): ModelPricing | null {
 	const lower = model.toLowerCase();
+	// --- Claude ---
 	if (lower.includes("opus")) return MODEL_PRICING.opus ?? null;
 	if (lower.includes("sonnet")) return MODEL_PRICING.sonnet ?? null;
 	if (lower.includes("haiku")) return MODEL_PRICING.haiku ?? null;
+	// --- OpenAI GPT --- (gpt-4o-mini before gpt-4o; o3 before o1)
+	if (lower.includes("gpt-4o-mini")) return MODEL_PRICING["gpt-4o-mini"] ?? null;
+	if (lower.includes("gpt-4o")) return MODEL_PRICING["gpt-4o"] ?? null;
+	if (lower.includes("gpt-5")) return MODEL_PRICING["gpt-5"] ?? null;
+	if (lower.includes("o3")) return MODEL_PRICING.o3 ?? null;
+	if (lower.includes("o1")) return MODEL_PRICING.o1 ?? null;
+	// --- Google Gemini --- (flash before generic gemini+pro check)
+	if (lower.includes("flash")) return MODEL_PRICING["gemini-flash"] ?? null;
+	if (lower.includes("gemini") && lower.includes("pro")) return MODEL_PRICING["gemini-pro"] ?? null;
 	return null;
 }
 

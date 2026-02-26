@@ -311,10 +311,36 @@ describe("estimateCost", () => {
 			outputTokens: 1_000_000,
 			cacheReadTokens: 0,
 			cacheCreationTokens: 0,
-			modelUsed: "gpt-4o",
+			modelUsed: "unknown-model-xyz",
 		});
 
 		expect(cost).toBeNull();
+	});
+
+	test("calculates cost for gpt-4o", () => {
+		const cost = estimateCost({
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheReadTokens: 1_000_000,
+			cacheCreationTokens: 1_000_000,
+			modelUsed: "gpt-4o",
+		});
+
+		// gpt-4o: input=2.5, output=10, cacheRead=1.25, cacheCreation=2.5 => total=16.25
+		expect(cost).toBeCloseTo(16.25, 2);
+	});
+
+	test("calculates cost for gemini flash", () => {
+		const cost = estimateCost({
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheReadTokens: 1_000_000,
+			cacheCreationTokens: 1_000_000,
+			modelUsed: "gemini-2.5-flash",
+		});
+
+		// gemini-flash: input=0.1, output=0.4, cacheRead=0.025, cacheCreation=0.1 => total=0.625
+		expect(cost).toBeCloseTo(0.625, 3);
 	});
 
 	test("returns null when modelUsed is null", () => {
@@ -392,8 +418,64 @@ describe("getPricingForModel", () => {
 	});
 
 	test("returns null for unknown model", () => {
-		const pricing = getPricingForModel("gpt-4o");
+		const pricing = getPricingForModel("unknown-model-xyz");
 		expect(pricing).toBeNull();
+	});
+
+	test("matches gpt-4o", () => {
+		const pricing = getPricingForModel("gpt-4o");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(2.5);
+		}
+	});
+
+	test("matches gpt-4o-mini", () => {
+		const pricing = getPricingForModel("gpt-4o-mini");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(0.15);
+		}
+	});
+
+	test("matches gpt-5", () => {
+		const pricing = getPricingForModel("gpt-5");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(10);
+		}
+	});
+
+	test("matches o1", () => {
+		const pricing = getPricingForModel("o1");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(15);
+		}
+	});
+
+	test("matches o3", () => {
+		const pricing = getPricingForModel("o3");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(10);
+		}
+	});
+
+	test("matches gemini flash", () => {
+		const pricing = getPricingForModel("gemini-2.5-flash");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(0.1);
+		}
+	});
+
+	test("matches gemini pro", () => {
+		const pricing = getPricingForModel("gemini-2.5-pro");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(1.25);
+		}
 	});
 });
 

@@ -3,7 +3,7 @@
  *
  * This is a Claude Code-specific JSONL parser that extracts token usage data
  * from assistant-type entries in transcript files at
- * ~/.claude/projects/{project-slug}/{session-id}.jsonl.
+ * the runtime-specific transcript directory (e.g. ~/.claude/projects/ for Claude Code).
  *
  * Runtime-agnostic pricing logic lives in ./pricing.ts. Other runtimes
  * implement their own transcript parsing via AgentRuntime.parseTranscript().
