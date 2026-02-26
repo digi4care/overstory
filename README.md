@@ -246,6 +246,7 @@ overstory/
       checkpoint.ts               Session checkpoint save/restore
       lifecycle.ts                Handoff orchestration
       hooks-deployer.ts           Deploy hooks + tool enforcement
+      guard-rules.ts              Shared guard constants (tool lists, bash patterns)
     worktree/                     Git worktree + tmux management
     mail/                         SQLite mail system (typed protocol, broadcast)
     merge/                        FIFO queue + conflict resolution
@@ -254,7 +255,7 @@ overstory/
     metrics/                      SQLite metrics + transcript parsing
     doctor/                       Health check modules (10 checks)
     insights/                     Session insight analyzer for auto-expertise
-    runtimes/                     AgentRuntime abstraction (registry + adapters)
+    runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi)
     tracker/                      Pluggable task tracker (beads + seeds backends)
     mulch/                        mulch client (programmatic API + CLI wrapper)
     e2e/                          End-to-end lifecycle tests

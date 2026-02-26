@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-02-26
+
+### Added
+
+#### Pi Runtime Adapter
+- **`src/runtimes/pi.ts`** — `PiRuntime` adapter implementing `AgentRuntime` for Mario Zechner's Pi coding agent — `buildSpawnCommand()` maps to `pi --model`, `deployConfig()` writes `.pi/extensions/overstory-guard.ts` + `.pi/settings.json`, `detectReady()` looks for Pi TUI header, `parseTranscript()` handles Pi's top-level `message_end` / `model_change` JSONL format
+- **`src/runtimes/pi-guards.ts`** — Pi guard extension generator (`generatePiGuardExtension()`) — produces self-contained TypeScript files for `.pi/extensions/` that enforce the same security policies as Claude Code's `settings.local.json` PreToolUse hooks (team tool blocking, write tool blocking, path boundary enforcement, dangerous bash pattern detection)
+- **`src/runtimes/types.ts`** — `RuntimeConnection` interface for RPC lifecycle: `sendPrompt()`, `followUp()`, `abort()`, `getState()`, `close()` — enables direct stdin/stdout communication with runtimes that support it (Pi JSON-RPC), bypassing tmux for mail delivery, shutdown, and health checks
+- **`src/runtimes/types.ts`** — `RpcProcessHandle` and `ConnectionState` supporting types for the RPC connection interface
+- **`AgentRuntime.connect?()`** — optional method on the runtime interface for establishing direct RPC connections; orchestrator checks `if (runtime.connect)` before calling, falls back to tmux when absent
+- Pi runtime registered in `src/runtimes/registry.ts`
+
+#### Guard Rule Extraction
+- **`src/agents/guard-rules.ts`** — extracted shared guard constants (`NATIVE_TEAM_TOOLS`, `INTERACTIVE_TOOLS`, `WRITE_TOOLS`, `DANGEROUS_BASH_PATTERNS`, `SAFE_BASH_PREFIXES`) from `hooks-deployer.ts` into a pure data module — single source of truth consumed by both Claude Code hooks and Pi guard extensions
+
+#### Transcript Path Decoupling
+- **`transcriptPath` field on `AgentSession`** — new nullable column in sessions.db, populated by runtimes that report their transcript location directly instead of relying on `~/.claude/projects/` path inference
+- **`SessionStore.updateTranscriptPath()`** — new method to set transcript path per agent
+- **`ov log` transcript resolution** — now checks `session.transcriptPath` first before falling back to legacy `~/.claude/projects/` heuristic; discovered paths are also written back to the session store for future lookups
+- SQLite migration (`migrateAddTranscriptPath`) adds the column to existing databases safely
+
+#### `runtime.printCommand` Config Field
+- **`OverstoryConfig.runtime.printCommand`** — new optional config field for routing headless one-shot AI calls (merge resolver, watchdog triage) through a specific runtime adapter, independent of the default interactive runtime
+
+#### Testing
+- **`src/runtimes/pi.test.ts`** — 526-line test suite covering all 7 `AgentRuntime` methods for the Pi adapter
+- **`src/runtimes/pi-guards.test.ts`** — 389-line test suite for Pi guard extension generation across capabilities, path boundaries, and edge cases
+- Test suite: 2458 tests across 83 files (6026 `expect()` calls)
+
+### Fixed
+- **Watchdog completion nudges clarified as informational** — `buildCompletionMessage()` now says "Awaiting lead verification" instead of "Ready for merge/cleanup", preventing coordinators from prematurely merging based on watchdog nudges
+- **Coordinator `PREMATURE_MERGE` anti-pattern strengthened** — coordinator.md now explicitly states that watchdog nudges are informational only and that only a typed `merge_ready` mail from the owning lead authorizes a merge
+- **`transcriptPath: null` added to all `AgentSession` constructions** — fixes schema consistency across coordinator, supervisor, monitor, and sling agent creation paths
+
+### Changed
+- **`deployHooks()` replaced by `runtime.deployConfig()`** — coordinator, supervisor, monitor, and sling now use the runtime abstraction for deploying hooks/guards instead of calling `deployHooks()` directly, enabling Pi (and future runtimes) to deploy their native guard mechanisms
+- **`merge/resolver.ts` wired through `runtime.buildPrintCommand()`** — AI-assisted merge resolution (Tier 3 and Tier 4) now uses the configured runtime for headless calls instead of hardcoding `claude --print`
+- **`watchdog/triage.ts` wired through `runtime.buildPrintCommand()`** — AI-assisted failure triage now uses the configured runtime for headless calls instead of hardcoding `claude --print`
+- **`writeOverlay()` receives `runtime.instructionPath`** — sling now threads the runtime's instruction file path through overlay generation, so beacon and auto-dispatch messages reference the correct file (e.g. `.claude/CLAUDE.md` for Claude, same for Pi)
+
 ## [0.7.0] - 2026-02-25
 
 ### Added
@@ -966,7 +1006,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/jayminwest/overstory/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jayminwest/overstory/compare/v0.6.12...v0.7.0
 [0.6.12]: https://github.com/jayminwest/overstory/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/jayminwest/overstory/compare/v0.6.10...v0.6.11

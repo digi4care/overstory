@@ -95,6 +95,7 @@ overstory/                        # This repo (the overstory tool itself)
       overlay.ts                  # Dynamic CLAUDE.md overlay generator
       identity.ts                 # Persistent agent identity (CVs)
       hooks-deployer.ts           # Deploy hooks config to worktree
+      guard-rules.ts              # Shared guard constants (tool lists, bash patterns)
       lifecycle.ts                # Session handoff (checkpoint/resume/complete)
       checkpoint.ts               # Session checkpoint save/load/clear
     worktree/
@@ -118,9 +119,11 @@ overstory/                        # This repo (the overstory tool itself)
       client.ts                   # Mail operations (send/check/list/read/reply)
       broadcast.ts                # Group address resolution (@all, @builders, etc.)
     runtimes/
-      types.ts                    # AgentRuntime interface + supporting types
+      types.ts                    # AgentRuntime interface + supporting types (incl. RuntimeConnection, RpcProcessHandle)
       registry.ts                 # Runtime registry (getRuntime() factory)
       claude.ts                   # Claude Code runtime adapter
+      pi.ts                       # Pi runtime adapter (Mario Zechner's Pi coding agent)
+      pi-guards.ts                # Pi guard extension generator (.pi/extensions/)
     mulch/
       client.ts                   # mulch client (programmatic API for record/search/query, CLI wrapper for rest)
     merge/
