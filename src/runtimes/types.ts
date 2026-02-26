@@ -166,6 +166,20 @@ export interface AgentRuntime {
 	buildEnv(model: ResolvedModel): Record<string, string>;
 
 	/**
+	 * Whether this runtime requires the beacon verification/resend loop after initial send.
+	 *
+	 * Claude Code's TUI sometimes swallows Enter during late initialization, so the
+	 * orchestrator resends the beacon if the pane still appears idle (overstory-3271).
+	 * Pi's TUI does not exhibit this behavior AND its idle/processing states are
+	 * indistinguishable via detectReady (both show the header and status bar), so
+	 * the resend loop would spam Pi with duplicate startup messages.
+	 *
+	 * Runtimes that omit this method (or return true) get the resend loop.
+	 * Pi returns false to skip it.
+	 */
+	requiresBeaconVerification?(): boolean;
+
+	/**
 	 * Establish direct RPC connection to running agent process.
 	 * Runtimes without RPC (Claude, Codex) omit this method.
 	 * Orchestrator checks `if (runtime.connect)` before calling, falls back to tmux when absent.

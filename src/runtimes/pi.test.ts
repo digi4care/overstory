@@ -161,23 +161,39 @@ describe("PiRuntime", () => {
 			expect(state).toEqual({ phase: "loading" });
 		});
 
-		test("returns loading when only 'pi' present", () => {
-			const state = runtime.detectReady("Welcome to pi agent");
+		test("returns loading when only 'pi v' header present (no status bar)", () => {
+			const state = runtime.detectReady(" pi v0.55.1\n escape to interrupt");
 			expect(state).toEqual({ phase: "loading" });
 		});
 
-		test("returns loading when only 'model:' present", () => {
-			const state = runtime.detectReady("model: sonnet");
+		test("returns loading when only status bar present (no header)", () => {
+			const state = runtime.detectReady("0.0%/200k (auto)         (anthropic) claude-opus-4-6");
 			expect(state).toEqual({ phase: "loading" });
 		});
 
-		test("returns ready when both 'pi' and 'model:' present", () => {
-			const state = runtime.detectReady("pi agent v1.0\nmodel: claude-sonnet");
+		test("returns ready for real Pi TUI pane content", () => {
+			const pane = [
+				" pi v0.55.1",
+				" escape to interrupt",
+				" ctrl+c to clear",
+				"",
+				"[Context]",
+				"  ~/Projects/os-eco/CLAUDE.md",
+				"",
+				"[Extensions]",
+				"  project",
+				"    overstory-guard.ts",
+				"",
+				"────────────────────────────────",
+				"~/Projects/os-eco/overstory (main)",
+				"0.0%/200k (auto)         (anthropic) claude-opus-4-6 • high",
+			].join("\n");
+			const state = runtime.detectReady(pane);
 			expect(state).toEqual({ phase: "ready" });
 		});
 
-		test("returns ready for typical Pi startup header", () => {
-			const state = runtime.detectReady("pi\nmodel: sonnet\n> ");
+		test("returns ready for minimal header + status bar", () => {
+			const state = runtime.detectReady("pi v1.0\n\n42.5%/200k done");
 			expect(state).toEqual({ phase: "ready" });
 		});
 
@@ -190,6 +206,13 @@ describe("PiRuntime", () => {
 			// Pi does not have a trust dialog; even 'trust this folder' should not trigger dialog
 			const state = runtime.detectReady("trust this folder");
 			expect(state.phase).not.toBe("dialog");
+		});
+
+		test("handles bedrock model provider in status bar", () => {
+			const pane =
+				" pi v0.55.1\n\n0.0%/200k (auto)         (amazon-bedrock) us.anthropic.claude-opus-4-6-v1 • high";
+			const state = runtime.detectReady(pane);
+			expect(state).toEqual({ phase: "ready" });
 		});
 	});
 

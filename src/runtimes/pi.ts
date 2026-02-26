@@ -109,6 +109,19 @@ export class PiRuntime implements AgentRuntime {
 	}
 
 	/**
+	 * Pi does not require beacon verification/resend.
+	 *
+	 * Claude Code's TUI sometimes swallows Enter during late initialization, so the
+	 * orchestrator resends the beacon until the pane leaves the "idle" state. Pi's TUI
+	 * does not have this issue AND its idle vs. processing states are indistinguishable
+	 * via detectReady (the header "pi v..." and status bar token counter are visible in
+	 * both states). Enabling the resend loop would spam Pi with duplicate beacon messages.
+	 */
+	requiresBeaconVerification(): boolean {
+		return false;
+	}
+
+	/**
 	 * Detect Pi TUI readiness from a tmux pane content snapshot.
 	 *
 	 * Pi shows a header containing "pi" and "model:" when the TUI has fully rendered.
@@ -118,7 +131,12 @@ export class PiRuntime implements AgentRuntime {
 	 * @returns Current readiness phase
 	 */
 	detectReady(paneContent: string): ReadyState {
-		if (paneContent.includes("pi") && paneContent.includes("model:")) {
+		// Pi's TUI shows "pi v<version>" in the header and a status bar with
+		// a token usage indicator like "0.0%/200k" when fully rendered.
+		// Earlier detection checked for "model:" which Pi's TUI never contains.
+		const hasHeader = paneContent.includes("pi v");
+		const hasStatusBar = /\d+\.\d+%\/\d+k/.test(paneContent);
+		if (hasHeader && hasStatusBar) {
 			return { phase: "ready" };
 		}
 		return { phase: "loading" };

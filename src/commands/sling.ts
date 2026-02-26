@@ -793,20 +793,30 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// screen (detectReady returns "ready"), resend the beacon. Claude Code's TUI
 		// sometimes consumes the Enter keystroke during late initialization, swallowing
 		// the beacon text entirely (overstory-3271).
-		const verifyAttempts = 5;
-		for (let v = 0; v < verifyAttempts; v++) {
-			await Bun.sleep(2_000);
-			const paneContent = await capturePaneContent(tmuxSessionName);
-			if (paneContent) {
-				const readyState = runtime.detectReady(paneContent);
-				if (readyState.phase !== "ready") {
-					break; // Agent is processing — beacon was received
+		//
+		// Skipped for runtimes that return false from requiresBeaconVerification().
+		// Pi's TUI idle and processing states are indistinguishable via detectReady
+		// (both show "pi v..." header and the token-usage status bar), so the loop
+		// would incorrectly conclude the beacon was not received and spam duplicate
+		// startup messages.
+		const needsVerification =
+			!runtime.requiresBeaconVerification || runtime.requiresBeaconVerification();
+		if (needsVerification) {
+			const verifyAttempts = 5;
+			for (let v = 0; v < verifyAttempts; v++) {
+				await Bun.sleep(2_000);
+				const paneContent = await capturePaneContent(tmuxSessionName);
+				if (paneContent) {
+					const readyState = runtime.detectReady(paneContent);
+					if (readyState.phase !== "ready") {
+						break; // Agent is processing — beacon was received
+					}
 				}
+				// Still at welcome/idle screen — resend beacon
+				await sendKeys(tmuxSessionName, beacon);
+				await Bun.sleep(1_000);
+				await sendKeys(tmuxSessionName, ""); // Follow-up Enter
 			}
-			// Still at welcome/idle screen — resend beacon
-			await sendKeys(tmuxSessionName, beacon);
-			await Bun.sleep(1_000);
-			await sendKeys(tmuxSessionName, ""); // Follow-up Enter
 		}
 
 		// 14. Output result
