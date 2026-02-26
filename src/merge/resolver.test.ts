@@ -203,6 +203,9 @@ function createMockMulchClient(
 				action: "analyze",
 			};
 		},
+		async appendOutcome() {
+			// No-op stub: resolver tests don't exercise outcome appending
+		},
 	};
 }
 

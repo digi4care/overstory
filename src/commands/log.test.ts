@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readdir, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
@@ -11,7 +11,7 @@ import type { MulchClient } from "../mulch/client.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
 import { cleanupTempDir } from "../test-helpers.ts";
 import type { AgentSession, MulchLearnResult, StoredEvent } from "../types.ts";
-import { autoRecordExpertise, logCommand } from "./log.ts";
+import { appendOutcomeToAppliedRecords, autoRecordExpertise, logCommand } from "./log.ts";
 
 /**
  * Tests for `overstory log` command.
@@ -59,18 +59,28 @@ describe("logCommand", () => {
 	}
 
 	/**
-	 * Fake MulchClient for testing autoRecordExpertise.
-	 * Only learn() and record() are implemented — other methods are stubs.
+	 * Fake MulchClient for testing autoRecordExpertise and appendOutcomeToAppliedRecords.
+	 * Only learn(), record(), and appendOutcome() are implemented — other methods are stubs.
 	 * Justified: we are testing orchestration logic, not the mulch CLI itself.
 	 */
 	function createFakeMulchClient(
 		learnResult: MulchLearnResult,
-		opts?: { recordShouldFail?: boolean },
+		opts?: { recordShouldFail?: boolean; appendOutcomeShouldFail?: boolean },
 	): {
 		client: MulchClient;
 		recordCalls: Array<{ domain: string; options: Record<string, unknown> }>;
+		appendOutcomeCalls: Array<{
+			domain: string;
+			id: string;
+			outcome: Record<string, unknown>;
+		}>;
 	} {
 		const recordCalls: Array<{ domain: string; options: Record<string, unknown> }> = [];
+		const appendOutcomeCalls: Array<{
+			domain: string;
+			id: string;
+			outcome: Record<string, unknown>;
+		}> = [];
 		const client = {
 			async learn() {
 				return learnResult;
@@ -81,8 +91,14 @@ describe("logCommand", () => {
 				}
 				recordCalls.push({ domain, options });
 			},
+			async appendOutcome(domain: string, id: string, outcome: Record<string, unknown>) {
+				if (opts?.appendOutcomeShouldFail) {
+					throw new Error("mulch appendOutcome failed");
+				}
+				appendOutcomeCalls.push({ domain, id, outcome });
+			},
 		} as unknown as MulchClient;
-		return { client, recordCalls };
+		return { client, recordCalls, appendOutcomeCalls };
 	}
 
 	test("--help flag shows help text", async () => {
@@ -1509,5 +1525,179 @@ try {
 		expect(event.eventType).toBe("tool_end");
 		expect(event.toolName).toBe("Bash");
 		// tool_result is not stored in EventStore (filtered out), but tool_name was parsed correctly
+	});
+});
+
+describe("appendOutcomeToAppliedRecords", () => {
+	let tempDir: string;
+
+	/** Minimal fake MulchClient for appendOutcomeToAppliedRecords tests. */
+	function makeOutcomeClient(opts?: { appendOutcomeShouldFail?: boolean }): {
+		client: MulchClient;
+		appendOutcomeCalls: Array<{ domain: string; id: string; outcome: Record<string, unknown> }>;
+	} {
+		const appendOutcomeCalls: Array<{
+			domain: string;
+			id: string;
+			outcome: Record<string, unknown>;
+		}> = [];
+		const client = {
+			async appendOutcome(domain: string, id: string, outcome: Record<string, unknown>) {
+				if (opts?.appendOutcomeShouldFail) throw new Error("mulch appendOutcome failed");
+				appendOutcomeCalls.push({ domain, id, outcome });
+			},
+		} as unknown as MulchClient;
+		return { client, appendOutcomeCalls };
+	}
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "outcome-test-"));
+	});
+
+	afterEach(async () => {
+		await cleanupTempDir(tempDir);
+	});
+
+	test("returns 0 when applied-records.json does not exist (backward compat)", async () => {
+		const { client } = makeOutcomeClient();
+		const count = await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: "bead-001",
+			projectRoot: tempDir,
+		});
+		expect(count).toBe(0);
+	});
+
+	test("returns 0 when records array is empty", async () => {
+		const agentDir = join(tempDir, ".overstory", "agents", "test-agent");
+		await mkdir(agentDir, { recursive: true });
+		await Bun.write(
+			join(agentDir, "applied-records.json"),
+			JSON.stringify({
+				taskId: "bead-001",
+				agentName: "test-agent",
+				capability: "builder",
+				records: [],
+			}),
+		);
+
+		const { client } = makeOutcomeClient();
+		const count = await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: "bead-001",
+			projectRoot: tempDir,
+		});
+		expect(count).toBe(0);
+	});
+
+	test("calls appendOutcome for each record and returns count", async () => {
+		const agentDir = join(tempDir, ".overstory", "agents", "test-agent");
+		await mkdir(agentDir, { recursive: true });
+		const records = [
+			{ id: "mx-aaa111", domain: "agents" },
+			{ id: "mx-bbb222", domain: "typescript" },
+		];
+		await Bun.write(
+			join(agentDir, "applied-records.json"),
+			JSON.stringify({
+				taskId: "bead-001",
+				agentName: "test-agent",
+				capability: "builder",
+				records,
+			}),
+		);
+
+		const { client, appendOutcomeCalls } = makeOutcomeClient();
+		const count = await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: "bead-001",
+			projectRoot: tempDir,
+		});
+
+		expect(count).toBe(2);
+		expect(appendOutcomeCalls).toHaveLength(2);
+		expect(appendOutcomeCalls[0]).toMatchObject({ id: "mx-aaa111", domain: "agents" });
+		expect(appendOutcomeCalls[1]).toMatchObject({ id: "mx-bbb222", domain: "typescript" });
+		expect(appendOutcomeCalls[0]?.outcome).toMatchObject({
+			status: "success",
+			agent: "test-agent",
+		});
+	});
+
+	test("cleans up applied-records.json after processing", async () => {
+		const agentDir = join(tempDir, ".overstory", "agents", "test-agent");
+		await mkdir(agentDir, { recursive: true });
+		const appliedPath = join(agentDir, "applied-records.json");
+		await Bun.write(
+			appliedPath,
+			JSON.stringify({
+				taskId: "bead-001",
+				agentName: "test-agent",
+				capability: "builder",
+				records: [{ id: "mx-abc123", domain: "agents" }],
+			}),
+		);
+
+		const { client } = makeOutcomeClient();
+		await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: "bead-001",
+			projectRoot: tempDir,
+		});
+
+		expect(await Bun.file(appliedPath).exists()).toBe(false);
+	});
+
+	test("continues when individual appendOutcome calls fail (non-fatal per record)", async () => {
+		const agentDir = join(tempDir, ".overstory", "agents", "test-agent");
+		await mkdir(agentDir, { recursive: true });
+		const records = [
+			{ id: "mx-fail111", domain: "agents" },
+			{ id: "mx-fail222", domain: "typescript" },
+		];
+		await Bun.write(
+			join(agentDir, "applied-records.json"),
+			JSON.stringify({
+				taskId: "bead-002",
+				agentName: "test-agent",
+				capability: "builder",
+				records,
+			}),
+		);
+
+		// appendOutcomeShouldFail=true makes all calls throw — should return 0 but not throw
+		const { client } = makeOutcomeClient({ appendOutcomeShouldFail: true });
+		const count = await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: "bead-002",
+			projectRoot: tempDir,
+		});
+		expect(count).toBe(0);
+	});
+
+	test("returns 0 for malformed JSON", async () => {
+		const agentDir = join(tempDir, ".overstory", "agents", "test-agent");
+		await mkdir(agentDir, { recursive: true });
+		await Bun.write(join(agentDir, "applied-records.json"), "not-valid-json{{{");
+
+		const { client } = makeOutcomeClient();
+		const count = await appendOutcomeToAppliedRecords({
+			mulchClient: client,
+			agentName: "test-agent",
+			capability: "builder",
+			taskId: null,
+			projectRoot: tempDir,
+		});
+		expect(count).toBe(0);
 	});
 });

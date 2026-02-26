@@ -353,6 +353,43 @@ export function validateHierarchy(
 }
 
 /**
+ * Extract mulch record IDs and their domains from mulch prime output text.
+ * Parses the markdown structure produced by ml prime: domain headings
+ * (## <name>) followed by record lines containing (mx-XXXXXX) identifiers.
+ * @param primeText - The output text from ml prime
+ * @returns Array of {id, domain} pairs. Deduplicated.
+ */
+export function extractMulchRecordIds(primeText: string): Array<{ id: string; domain: string }> {
+	const results: Array<{ id: string; domain: string }> = [];
+	const seen = new Set<string>();
+	let currentDomain = "";
+
+	for (const line of primeText.split("\n")) {
+		const domainMatch = line.match(/^## ([\w-]+)/);
+		if (domainMatch) {
+			currentDomain = domainMatch[1] ?? "";
+			continue;
+		}
+		if (currentDomain) {
+			const idRegex = /\(mx-([a-f0-9]+)\)/g;
+			let match = idRegex.exec(line);
+			while (match !== null) {
+				const shortId = match[1] ?? "";
+				if (shortId) {
+					const key = `${currentDomain}:mx-${shortId}`;
+					if (!seen.has(key)) {
+						seen.add(key);
+						results.push({ id: `mx-${shortId}`, domain: currentDomain });
+					}
+				}
+				match = idRegex.exec(line);
+			}
+		}
+	}
+	return results;
+}
+
+/**
  * Entry point for `ov sling <task-id> [flags]`.
  *
  * @param taskId - The task ID to assign to the agent
@@ -754,7 +791,23 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			});
 		}
 
-		// 11b. Preflight: verify tmux is available before attempting session creation
+		// 11b. Save applied mulch record IDs for session-end outcome tracking.
+		// Written to .overstory/agents/{name}/applied-records.json so log.ts
+		// can append outcomes when the session completes.
+		if (mulchExpertise) {
+			const appliedRecords = extractMulchRecordIds(mulchExpertise);
+			if (appliedRecords.length > 0) {
+				const appliedRecordsPath = join(identityBaseDir, name, "applied-records.json");
+				const appliedData = { taskId, agentName: name, capability, records: appliedRecords };
+				try {
+					await Bun.write(appliedRecordsPath, `${JSON.stringify(appliedData, null, "\t")}\n`);
+				} catch {
+					// Non-fatal: outcome tracking is supplementary context
+				}
+			}
+		}
+
+		// 11c. Preflight: verify tmux is available before attempting session creation
 		await ensureTmuxAvailable();
 
 		// 12. Create tmux session running claude in interactive mode

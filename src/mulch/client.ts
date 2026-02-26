@@ -32,6 +32,18 @@ export interface MulchClient {
 		},
 	): Promise<string>;
 
+	/** Append an outcome entry to an existing record by ID in the given domain. */
+	appendOutcome(
+		domain: string,
+		id: string,
+		outcome: {
+			status: "success" | "failure" | "partial";
+			agent?: string;
+			notes?: string;
+			duration?: number;
+		},
+	): Promise<void>;
+
 	/** Show domain statistics. */
 	status(): Promise<MulchStatus>;
 
@@ -233,6 +245,22 @@ interface MulchProgrammaticApi {
 		domain: string,
 		options?: { type?: string; classification?: string; file?: string; cwd?: string },
 	): Promise<MulchExpertiseRecord[]>;
+	appendOutcome(
+		domain: string,
+		id: string,
+		outcome: {
+			status: "success" | "failure" | "partial";
+			agent?: string;
+			notes?: string;
+			duration?: number;
+			recorded_at?: string;
+		},
+		options?: { cwd?: string },
+	): Promise<{
+		record: MulchExpertiseRecord;
+		outcome: { status: string; agent?: string; notes?: string; recorded_at?: string };
+		total_outcomes: number;
+	}>;
 }
 
 const MULCH_PKG = "@os-eco/mulch-cli";
@@ -610,6 +638,22 @@ export function createMulchClient(cwd: string): MulchClient {
 				return JSON.parse(trimmed) as MulchCompactResult;
 			} catch {
 				throw new AgentError(`Failed to parse JSON from mulch compact: ${trimmed.slice(0, 200)}`);
+			}
+		},
+
+		async appendOutcome(domain, id, outcome) {
+			const api = await loadMulchApi();
+			try {
+				await api.appendOutcome(
+					domain,
+					id,
+					{ ...outcome, recorded_at: new Date().toISOString() },
+					{ cwd },
+				);
+			} catch (error) {
+				throw new AgentError(
+					`mulch appendOutcome ${domain}/${id} failed: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			}
 		},
 	};

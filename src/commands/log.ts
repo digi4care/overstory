@@ -370,6 +370,76 @@ export async function autoRecordExpertise(params: {
 	return recordedDomains;
 }
 
+interface AppliedRecordsData {
+	taskId: string | null;
+	agentName: string;
+	capability: string;
+	records: Array<{ id: string; domain: string }>;
+}
+
+/**
+ * Append outcome entries to the mulch records that were applied when this agent was spawned.
+ *
+ * At spawn time, sling.ts writes .overstory/agents/{name}/applied-records.json listing
+ * the mx-* IDs from the prime output. At session-end, this function reads that file,
+ * appends a "success" outcome to each record, and deletes the file.
+ *
+ * @returns Number of records successfully updated.
+ */
+export async function appendOutcomeToAppliedRecords(params: {
+	mulchClient: MulchClient;
+	agentName: string;
+	capability: string;
+	taskId: string | null;
+	projectRoot: string;
+}): Promise<number> {
+	const appliedRecordsPath = join(
+		params.projectRoot,
+		".overstory",
+		"agents",
+		params.agentName,
+		"applied-records.json",
+	);
+	const appliedFile = Bun.file(appliedRecordsPath);
+	if (!(await appliedFile.exists())) return 0;
+
+	let data: AppliedRecordsData;
+	try {
+		data = JSON.parse(await appliedFile.text()) as AppliedRecordsData;
+	} catch {
+		return 0;
+	}
+
+	const { records } = data;
+	if (!records || records.length === 0) return 0;
+
+	const taskSuffix = params.taskId ? ` for task ${params.taskId}` : "";
+	const outcome = {
+		status: "success" as const,
+		agent: params.agentName,
+		notes: `Applied by ${params.capability} agent ${params.agentName}${taskSuffix}. Session completed.`,
+	};
+
+	let appended = 0;
+	for (const { id, domain } of records) {
+		try {
+			await params.mulchClient.appendOutcome(domain, id, outcome);
+			appended++;
+		} catch {
+			// Non-fatal per record
+		}
+	}
+
+	try {
+		const { unlink } = await import("node:fs/promises");
+		await unlink(appliedRecordsPath);
+	} catch {
+		// Non-fatal: file may already be gone
+	}
+
+	return appended;
+}
+
 /**
  * Core implementation for the log command.
  */
@@ -677,6 +747,23 @@ async function runLog(opts: {
 							});
 						} catch {
 							// Non-fatal: mulch learn/record should not break session-end handling
+						}
+					}
+
+					// Append outcomes to applied mulch records (outcome feedback loop).
+					// Reads applied-records.json written by sling.ts at spawn time.
+					if (!PERSISTENT_CAPABILITIES.has(agentSession.capability)) {
+						try {
+							const mulchClient = createMulchClient(config.project.root);
+							await appendOutcomeToAppliedRecords({
+								mulchClient,
+								agentName: opts.agent,
+								capability: agentSession.capability,
+								taskId,
+								projectRoot: config.project.root,
+							});
+						} catch {
+							// Non-fatal
 						}
 					}
 				}

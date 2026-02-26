@@ -14,6 +14,7 @@ import {
 	checkParentAgentLimit,
 	checkRunSessionLimit,
 	checkTaskLock,
+	extractMulchRecordIds,
 	inferDomainsFromFiles,
 	isRunningAsRoot,
 	parentHasScouts,
@@ -1205,5 +1206,71 @@ describe("sling runtime integration", () => {
 		const runtime = new ClaudeRuntime();
 		const state = runtime.detectReady("Running tool: Read\nbypass permissions");
 		expect(state.phase).toBe("loading");
+	});
+});
+
+describe("extractMulchRecordIds", () => {
+	test("returns empty array for empty string", () => {
+		expect(extractMulchRecordIds("")).toEqual([]);
+	});
+
+	test("returns empty when no mx-IDs present", () => {
+		const text = "## agents (2 records)\n- convention without ID";
+		expect(extractMulchRecordIds(text)).toEqual([]);
+	});
+
+	test("extracts single ID from a domain", () => {
+		const text = "## agents (1 records)\n- [convention] Some. (mx-abc123)";
+		expect(extractMulchRecordIds(text)).toEqual([{ id: "mx-abc123", domain: "agents" }]);
+	});
+
+	test("extracts multiple IDs from same domain", () => {
+		const text = ["## typescript", "- first. (mx-aaa111)", "- second. (mx-bbb222)"].join("\n");
+		expect(extractMulchRecordIds(text)).toEqual([
+			{ id: "mx-aaa111", domain: "typescript" },
+			{ id: "mx-bbb222", domain: "typescript" },
+		]);
+	});
+
+	test("extracts IDs from multiple domains", () => {
+		const text = ["## agents", "- agent. (mx-111aaa)", "## typescript", "- ts. (mx-222bbb)"].join(
+			"\n",
+		);
+		expect(extractMulchRecordIds(text)).toEqual([
+			{ id: "mx-111aaa", domain: "agents" },
+			{ id: "mx-222bbb", domain: "typescript" },
+		]);
+	});
+
+	test("ignores non-domain headings with no mx-IDs", () => {
+		const text = [
+			"## Quick Reference",
+			"- use mulch search",
+			"## agents",
+			"- real. (mx-deadbeef)",
+		].join("\n");
+		expect(extractMulchRecordIds(text)).toEqual([{ id: "mx-deadbeef", domain: "agents" }]);
+	});
+
+	test("deduplicates repeated pairs", () => {
+		const text = ["## agents", "- first. (mx-aabbcc)", "- dup. (mx-aabbcc)"].join("\n");
+		expect(extractMulchRecordIds(text)).toEqual([{ id: "mx-aabbcc", domain: "agents" }]);
+	});
+
+	test("handles realistic ml prime output", () => {
+		const text = [
+			"## agents (3 records, updated just now)",
+			"- [convention] lead.md convention. (mx-636708)",
+			"- [convention] writeOverlay(). (mx-b7fa3d)",
+			"## typescript (2 records, updated just now)",
+			"- [convention] No any types. (mx-2ce43d)",
+			"## Quick Reference",
+			"- mulch search",
+		].join("\n");
+		const result = extractMulchRecordIds(text);
+		expect(result).toHaveLength(3);
+		expect(result).toContainEqual({ id: "mx-636708", domain: "agents" });
+		expect(result).toContainEqual({ id: "mx-b7fa3d", domain: "agents" });
+		expect(result).toContainEqual({ id: "mx-2ce43d", domain: "typescript" });
 	});
 });
