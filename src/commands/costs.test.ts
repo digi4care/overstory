@@ -1023,6 +1023,48 @@ describe("costsCommand", () => {
 		});
 	});
 
+	// === --bead filter ===
+
+	describe("--bead filter", () => {
+		test("--bead filters by task ID (JSON)", async () => {
+			const dbPath = join(tempDir, ".overstory", "metrics.db");
+			const store = createMetricsStore(dbPath);
+			store.recordSession(makeMetrics({ agentName: "builder-1", taskId: "task-A" }));
+			store.recordSession(makeMetrics({ agentName: "builder-2", taskId: "task-A" }));
+			store.recordSession(
+				makeMetrics({ agentName: "scout-1", taskId: "task-B", capability: "scout" }),
+			);
+			store.close();
+
+			await costsCommand(["--json", "--bead", "task-A"]);
+			const out = output();
+
+			const parsed = JSON.parse(out.trim()) as { sessions: Record<string, unknown>[] };
+			expect(parsed.sessions).toHaveLength(2);
+			expect(parsed.sessions.every((s) => s.taskId === "task-A")).toBe(true);
+		});
+
+		test("--bead returns empty for unknown task", async () => {
+			const dbPath = join(tempDir, ".overstory", "metrics.db");
+			const store = createMetricsStore(dbPath);
+			store.recordSession(makeMetrics({ agentName: "builder-1", taskId: "task-A" }));
+			store.close();
+
+			await costsCommand(["--json", "--bead", "nonexistent"]);
+			const out = output();
+
+			const parsed = JSON.parse(out.trim()) as { sessions: unknown[] };
+			expect(parsed.sessions).toEqual([]);
+		});
+
+		test("--bead appears in help text", async () => {
+			await costsCommand(["--help"]);
+			const out = output();
+
+			expect(out).toContain("--bead");
+		});
+	});
+
 	// === --self flag ===
 
 	describe("--self flag", () => {
@@ -1111,7 +1153,7 @@ describe("costsCommand", () => {
 			await costsCommand(["--self"]);
 			const out = output();
 
-			expect(out).toContain("No orchestrator transcript found");
+			expect(out).toContain("No transcript found");
 		});
 
 		test("--self --json outputs error JSON when no transcript found", async () => {
@@ -1122,7 +1164,8 @@ describe("costsCommand", () => {
 			const out = output();
 
 			const parsed = JSON.parse(out.trim()) as Record<string, unknown>;
-			expect(parsed.error).toBe("No orchestrator transcript found");
+			expect(typeof parsed.error).toBe("string");
+			expect(parsed.error as string).toContain("No transcript found");
 		});
 
 		test("--self in help text", async () => {

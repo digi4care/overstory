@@ -13,6 +13,7 @@ export interface MetricsStore {
 	getRecentSessions(limit?: number): SessionMetrics[];
 	getSessionsByAgent(agentName: string): SessionMetrics[];
 	getSessionsByRun(runId: string): SessionMetrics[];
+	getSessionsByTask(taskId: string): SessionMetrics[];
 	getAverageDuration(capability?: string): number;
 	/** Count the total number of sessions in the database (no limit cap). */
 	countSessions(): number;
@@ -250,6 +251,10 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 		SELECT * FROM sessions WHERE run_id = $run_id ORDER BY started_at DESC
 	`);
 
+	const byTaskStmt = db.prepare<SessionRow, { $task_id: string }>(`
+		SELECT * FROM sessions WHERE task_id = $task_id ORDER BY started_at DESC
+	`);
+
 	const avgDurationAllStmt = db.prepare<{ avg_duration: number | null }, Record<string, never>>(`
 		SELECT AVG(duration_ms) AS avg_duration FROM sessions WHERE completed_at IS NOT NULL
 	`);
@@ -339,6 +344,11 @@ export function createMetricsStore(dbPath: string): MetricsStore {
 
 		getSessionsByRun(runId: string): SessionMetrics[] {
 			const rows = byRunStmt.all({ $run_id: runId });
+			return rows.map(rowToMetrics);
+		},
+
+		getSessionsByTask(taskId: string): SessionMetrics[] {
+			const rows = byTaskStmt.all({ $task_id: taskId });
 			return rows.map(rowToMetrics);
 		},
 
