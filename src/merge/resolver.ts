@@ -13,10 +13,12 @@
 
 import { MergeError } from "../errors.ts";
 import type { MulchClient } from "../mulch/client.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import type {
 	ConflictHistory,
 	MergeEntry,
 	MergeResult,
+	OverstoryConfig,
 	ParsedConflictPattern,
 	ResolutionTier,
 } from "../types.ts";
@@ -243,6 +245,7 @@ async function tryAiResolve(
 	conflictFiles: string[],
 	repoRoot: string,
 	pastResolutions?: string[],
+	config?: OverstoryConfig,
 ): Promise<{ success: boolean; remainingConflicts: string[] }> {
 	const remainingConflicts: string[] = [];
 
@@ -265,7 +268,9 @@ async function tryAiResolve(
 				content,
 			].join(" ");
 
-			const proc = Bun.spawn(["claude", "--print", "-p", prompt], {
+			const runtime = getRuntime(config?.runtime?.printCommand ?? config?.runtime?.default, config);
+			const argv = runtime.buildPrintCommand(prompt);
+			const proc = Bun.spawn(argv, {
 				cwd: repoRoot,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -315,6 +320,7 @@ async function tryReimagine(
 	entry: MergeEntry,
 	canonicalBranch: string,
 	repoRoot: string,
+	config?: OverstoryConfig,
 ): Promise<{ success: boolean }> {
 	// Abort the current merge
 	await runGit(repoRoot, ["merge", "--abort"]);
@@ -348,7 +354,9 @@ async function tryReimagine(
 				branchContent,
 			].join("");
 
-			const proc = Bun.spawn(["claude", "--print", "-p", prompt], {
+			const runtime = getRuntime(config?.runtime?.printCommand ?? config?.runtime?.default, config);
+			const argv = runtime.buildPrintCommand(prompt);
+			const proc = Bun.spawn(argv, {
 				cwd: repoRoot,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -556,6 +564,7 @@ export function createMergeResolver(options: {
 	aiResolveEnabled: boolean;
 	reimagineEnabled: boolean;
 	mulchClient?: MulchClient;
+	config?: OverstoryConfig;
 }): MergeResolver {
 	return {
 		async resolve(
@@ -632,7 +641,12 @@ export function createMergeResolver(options: {
 			// Tier 3: AI-resolve
 			if (options.aiResolveEnabled && !history.skipTiers.includes("ai-resolve")) {
 				lastTier = "ai-resolve";
-				const aiResult = await tryAiResolve(conflictFiles, repoRoot, history.pastResolutions);
+				const aiResult = await tryAiResolve(
+					conflictFiles,
+					repoRoot,
+					history.pastResolutions,
+					options.config,
+				);
 				if (aiResult.success) {
 					if (options.mulchClient) {
 						recordConflictPattern(options.mulchClient, entry, "ai-resolve", conflictFiles, true);
@@ -651,7 +665,12 @@ export function createMergeResolver(options: {
 			// Tier 4: Re-imagine
 			if (options.reimagineEnabled && !history.skipTiers.includes("reimagine")) {
 				lastTier = "reimagine";
-				const reimagineResult = await tryReimagine(entry, canonicalBranch, repoRoot);
+				const reimagineResult = await tryReimagine(
+					entry,
+					canonicalBranch,
+					repoRoot,
+					options.config,
+				);
 				if (reimagineResult.success) {
 					if (options.mulchClient) {
 						recordConflictPattern(options.mulchClient, entry, "reimagine", conflictFiles, true);
