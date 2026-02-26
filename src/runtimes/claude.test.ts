@@ -73,6 +73,46 @@ describe("ClaudeRuntime", () => {
 			);
 		});
 
+		test("with appendSystemPromptFile uses $(cat ...) expansion", () => {
+			const opts: SpawnOpts = {
+				model: "opus",
+				permissionMode: "bypass",
+				cwd: "/project",
+				env: {},
+				appendSystemPromptFile: "/project/.overstory/agent-defs/coordinator.md",
+			};
+			const cmd = runtime.buildSpawnCommand(opts);
+			expect(cmd).toBe(
+				`claude --model opus --permission-mode bypassPermissions --append-system-prompt "$(cat '/project/.overstory/agent-defs/coordinator.md')"`,
+			);
+		});
+
+		test("appendSystemPromptFile with single quotes in path", () => {
+			const opts: SpawnOpts = {
+				model: "opus",
+				permissionMode: "bypass",
+				cwd: "/project",
+				env: {},
+				appendSystemPromptFile: "/project/it's a path/agent.md",
+			};
+			const cmd = runtime.buildSpawnCommand(opts);
+			expect(cmd).toContain("$(cat '/project/it'\\''s a path/agent.md')");
+		});
+
+		test("appendSystemPromptFile takes precedence over appendSystemPrompt", () => {
+			const opts: SpawnOpts = {
+				model: "opus",
+				permissionMode: "bypass",
+				cwd: "/project",
+				env: {},
+				appendSystemPromptFile: "/project/.overstory/agent-defs/coordinator.md",
+				appendSystemPrompt: "This inline content should be ignored",
+			};
+			const cmd = runtime.buildSpawnCommand(opts);
+			expect(cmd).toContain("$(cat ");
+			expect(cmd).not.toContain("This inline content should be ignored");
+		});
+
 		test("without appendSystemPrompt omits the flag", () => {
 			const opts: SpawnOpts = {
 				model: "haiku",

@@ -169,18 +169,19 @@ async function startSupervisor(opts: {
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
 		// Inject the supervisor base definition via --append-system-prompt.
+		// Pass file path (not content) to avoid tmux "command too long" (overstory#45).
 		const tmuxSession = `overstory-${config.project.name}-supervisor-${opts.name}`;
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "supervisor.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let appendSystemPrompt: string | undefined;
+		let appendSystemPromptFile: string | undefined;
 		if (await agentDefFile.exists()) {
-			appendSystemPrompt = await agentDefFile.text();
+			appendSystemPromptFile = agentDefPath;
 		}
 		const spawnCmd = runtime.buildSpawnCommand({
 			model: resolvedModel.model,
 			permissionMode: "bypass",
 			cwd: projectRoot,
-			appendSystemPrompt,
+			appendSystemPromptFile,
 			env: {
 				...runtime.buildEnv(resolvedModel),
 				OVERSTORY_AGENT_NAME: opts.name,

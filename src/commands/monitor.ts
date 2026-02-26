@@ -142,17 +142,18 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 		}
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
+		// Pass file path (not content) to avoid tmux "command too long" (overstory#45).
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "monitor.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let appendSystemPrompt: string | undefined;
+		let appendSystemPromptFile: string | undefined;
 		if (await agentDefFile.exists()) {
-			appendSystemPrompt = await agentDefFile.text();
+			appendSystemPromptFile = agentDefPath;
 		}
 		const spawnCmd = runtime.buildSpawnCommand({
 			model: resolvedModel.model,
 			permissionMode: "bypass",
 			cwd: projectRoot,
-			appendSystemPrompt,
+			appendSystemPromptFile,
 			env: {
 				...runtime.buildEnv(resolvedModel),
 				OVERSTORY_AGENT_NAME: MONITOR_NAME,

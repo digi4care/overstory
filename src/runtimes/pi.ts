@@ -75,7 +75,11 @@ export class PiRuntime implements AgentRuntime {
 	buildSpawnCommand(opts: SpawnOpts): string {
 		let cmd = `pi --model ${this.expandModel(opts.model)}`;
 
-		if (opts.appendSystemPrompt) {
+		if (opts.appendSystemPromptFile) {
+			// Read from file at shell expansion time — avoids tmux command length limits.
+			const escaped = opts.appendSystemPromptFile.replace(/'/g, "'\\''");
+			cmd += ` --append-system-prompt "$(cat '${escaped}')"`;
+		} else if (opts.appendSystemPrompt) {
 			// POSIX single-quote escape: end quote, backslash-quote, start quote.
 			const escaped = opts.appendSystemPrompt.replace(/'/g, "'\\''");
 			cmd += ` --append-system-prompt '${escaped}'`;

@@ -54,7 +54,14 @@ export class ClaudeRuntime implements AgentRuntime {
 		const permMode = opts.permissionMode === "bypass" ? "bypassPermissions" : "default";
 		let cmd = `claude --model ${opts.model} --permission-mode ${permMode}`;
 
-		if (opts.appendSystemPrompt) {
+		if (opts.appendSystemPromptFile) {
+			// Read from file at shell expansion time — avoids tmux IPC message size
+			// limits (~8-16KB) that cause "command too long" errors when large agent
+			// definitions are inlined. The $(cat ...) expands inside the tmux pane's
+			// shell, so the tmux IPC message only carries the short command string.
+			const escaped = opts.appendSystemPromptFile.replace(/'/g, "'\\''");
+			cmd += ` --append-system-prompt "$(cat '${escaped}')"`;
+		} else if (opts.appendSystemPrompt) {
 			// Single-quote the content for safe shell expansion.
 			// POSIX single-quoted strings cannot contain single quotes, so escape
 			// them using the standard technique: end quote, escaped quote, start quote.

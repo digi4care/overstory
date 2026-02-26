@@ -15,6 +15,8 @@ export interface SpawnOpts {
 	systemPrompt?: string;
 	/** Optional system prompt suffix appended after the base instructions. */
 	appendSystemPrompt?: string;
+	/** Path to a file whose contents are appended as system prompt (avoids tmux command length limits). */
+	appendSystemPromptFile?: string;
 	/** Working directory for the spawned process. */
 	cwd: string;
 	/** Additional environment variables to pass to the spawned process. */

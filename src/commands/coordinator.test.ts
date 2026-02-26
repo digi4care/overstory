@@ -540,7 +540,9 @@ describe("startCoordinator", () => {
 		expect(calls.createSession).toHaveLength(1);
 		const cmd = calls.createSession[0]?.command ?? "";
 		expect(cmd).toContain("--append-system-prompt");
-		expect(cmd).toContain("# Coordinator Agent");
+		// File path is passed via $(cat ...) instead of inlining content (overstory#45)
+		expect(cmd).toContain("$(cat '");
+		expect(cmd).toContain("agent-defs/coordinator.md");
 	});
 
 	test("reads model from manifest instead of hardcoding", async () => {

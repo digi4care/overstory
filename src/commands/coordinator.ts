@@ -363,17 +363,20 @@ async function startCoordinator(
 		// Inject the coordinator base definition via --append-system-prompt so the
 		// coordinator knows its role, hierarchy rules, and delegation patterns
 		// (overstory-gaio, overstory-0kwf).
+		// Pass the file path (not content) so the shell inside the tmux pane reads
+		// it via $(cat ...) — avoids tmux IPC "command too long" errors with large
+		// agent definitions (overstory#45).
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "coordinator.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let appendSystemPrompt: string | undefined;
+		let appendSystemPromptFile: string | undefined;
 		if (await agentDefFile.exists()) {
-			appendSystemPrompt = await agentDefFile.text();
+			appendSystemPromptFile = agentDefPath;
 		}
 		const spawnCmd = runtime.buildSpawnCommand({
 			model: resolvedModel.model,
 			permissionMode: "bypass",
 			cwd: projectRoot,
-			appendSystemPrompt,
+			appendSystemPromptFile,
 			env: {
 				...runtime.buildEnv(resolvedModel),
 				OVERSTORY_AGENT_NAME: COORDINATOR_NAME,

@@ -126,6 +126,34 @@ describe("PiRuntime", () => {
 			);
 		});
 
+		test("with appendSystemPromptFile uses $(cat ...) expansion", () => {
+			const opts: SpawnOpts = {
+				model: "opus",
+				permissionMode: "bypass",
+				cwd: "/project",
+				env: {},
+				appendSystemPromptFile: "/project/.overstory/agent-defs/coordinator.md",
+			};
+			const cmd = runtime.buildSpawnCommand(opts);
+			expect(cmd).toBe(
+				`pi --model anthropic/claude-opus-4-6 --append-system-prompt "$(cat '/project/.overstory/agent-defs/coordinator.md')"`,
+			);
+		});
+
+		test("appendSystemPromptFile takes precedence over appendSystemPrompt", () => {
+			const opts: SpawnOpts = {
+				model: "opus",
+				permissionMode: "bypass",
+				cwd: "/project",
+				env: {},
+				appendSystemPromptFile: "/project/.overstory/agent-defs/coordinator.md",
+				appendSystemPrompt: "This inline content should be ignored",
+			};
+			const cmd = runtime.buildSpawnCommand(opts);
+			expect(cmd).toContain("$(cat ");
+			expect(cmd).not.toContain("This inline content should be ignored");
+		});
+
 		test("without appendSystemPrompt omits the flag", () => {
 			const opts: SpawnOpts = {
 				model: "haiku",
