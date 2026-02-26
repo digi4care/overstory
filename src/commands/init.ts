@@ -10,14 +10,147 @@
  */
 
 import { Database } from "bun:sqlite";
-import { mkdir, readdir } from "node:fs/promises";
+import { mkdir, readdir, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { DEFAULT_CONFIG } from "../config.ts";
 import { ValidationError } from "../errors.ts";
-import { printHint, printSuccess } from "../logging/color.ts";
+import { jsonOutput } from "../json.ts";
+import { printHint, printSuccess, printWarning } from "../logging/color.ts";
 import type { AgentManifest, OverstoryConfig } from "../types.ts";
 
 const OVERSTORY_DIR = ".overstory";
+
+// ---- Ecosystem Bootstrap ----
+
+/**
+ * Spawner abstraction for testability.
+ * Wraps Bun.spawn for running sibling CLI tools.
+ */
+export type Spawner = (
+	args: string[],
+	opts?: { cwd?: string },
+) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+
+const defaultSpawner: Spawner = async (args, opts) => {
+	const proc = Bun.spawn(args, {
+		cwd: opts?.cwd,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const exitCode = await proc.exited;
+	const stdout = await new Response(proc.stdout).text();
+	const stderr = await new Response(proc.stderr).text();
+	return { exitCode, stdout, stderr };
+};
+
+interface SiblingTool {
+	name: string;
+	cli: string;
+	dotDir: string;
+	initCmd: string[];
+	onboardCmd: string[];
+}
+
+const SIBLING_TOOLS: SiblingTool[] = [
+	{ name: "mulch", cli: "ml", dotDir: ".mulch", initCmd: ["init"], onboardCmd: ["onboard"] },
+	{ name: "seeds", cli: "sd", dotDir: ".seeds", initCmd: ["init"], onboardCmd: ["onboard"] },
+	{ name: "canopy", cli: "cn", dotDir: ".canopy", initCmd: ["init"], onboardCmd: ["onboard"] },
+];
+
+type ToolStatus = "initialized" | "already_initialized" | "skipped";
+type OnboardStatus = "appended" | "current";
+
+/**
+ * Resolve the set of sibling tools to bootstrap.
+ *
+ * If opts.tools is set (comma-separated list of names), filter to those.
+ * Otherwise start with all three and remove any skipped via skip flags.
+ */
+export function resolveToolSet(opts: InitOptions): SiblingTool[] {
+	if (opts.tools) {
+		const requested = opts.tools.split(",").map((t) => t.trim());
+		return SIBLING_TOOLS.filter((t) => requested.includes(t.name));
+	}
+	return SIBLING_TOOLS.filter((t) => {
+		if (t.name === "mulch" && opts.skipMulch) return false;
+		if (t.name === "seeds" && opts.skipSeeds) return false;
+		if (t.name === "canopy" && opts.skipCanopy) return false;
+		return true;
+	});
+}
+
+async function isToolInstalled(cli: string, spawner: Spawner): Promise<boolean> {
+	const result = await spawner([cli, "--version"]);
+	return result.exitCode === 0;
+}
+
+async function initSiblingTool(
+	tool: SiblingTool,
+	projectRoot: string,
+	spawner: Spawner,
+): Promise<ToolStatus> {
+	const installed = await isToolInstalled(tool.cli, spawner);
+	if (!installed) {
+		printWarning(
+			`${tool.name} not installed — skipping`,
+			`install: npm i -g @os-eco/${tool.name}-cli`,
+		);
+		return "skipped";
+	}
+
+	const result = await spawner([tool.cli, ...tool.initCmd], { cwd: projectRoot });
+	if (result.exitCode !== 0) {
+		// Check if dot directory already exists (already initialized)
+		try {
+			await stat(join(projectRoot, tool.dotDir));
+			return "already_initialized";
+		} catch {
+			// Directory doesn't exist — real failure
+			printWarning(`${tool.name} init failed`, result.stderr.trim() || result.stdout.trim());
+			return "skipped";
+		}
+	}
+
+	printSuccess(`Bootstrapped ${tool.name}`);
+	return "initialized";
+}
+
+async function onboardTool(
+	tool: SiblingTool,
+	projectRoot: string,
+	spawner: Spawner,
+): Promise<OnboardStatus> {
+	const installed = await isToolInstalled(tool.cli, spawner);
+	if (!installed) return "current";
+
+	const result = await spawner([tool.cli, ...tool.onboardCmd], { cwd: projectRoot });
+	return result.exitCode === 0 ? "appended" : "current";
+}
+
+/**
+ * Set up .gitattributes with merge=union entries for JSONL files.
+ *
+ * Only adds entries not already present. Returns true if file was modified.
+ */
+async function setupGitattributes(projectRoot: string): Promise<boolean> {
+	const entries = [".mulch/expertise/*.jsonl merge=union", ".seeds/issues.jsonl merge=union"];
+
+	const gitattrsPath = join(projectRoot, ".gitattributes");
+	let existing = "";
+
+	try {
+		existing = await Bun.file(gitattrsPath).text();
+	} catch {
+		// File doesn't exist yet — will be created
+	}
+
+	const missing = entries.filter((e) => !existing.includes(e));
+	if (missing.length === 0) return false;
+
+	const separator = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
+	await Bun.write(gitattrsPath, `${existing}${separator}${missing.join("\n")}\n`);
+	return true;
+}
 
 /**
  * Detect the project name from git or fall back to directory name.
@@ -511,6 +644,17 @@ export interface InitOptions {
 	yes?: boolean;
 	name?: string;
 	force?: boolean;
+	/** Comma-separated list of ecosystem tools to bootstrap (e.g. "mulch,seeds"). Default: all. */
+	tools?: string;
+	skipMulch?: boolean;
+	skipSeeds?: boolean;
+	skipCanopy?: boolean;
+	/** Skip the onboard step (injecting CLAUDE.md sections for ecosystem tools). */
+	skipOnboard?: boolean;
+	/** Output final result as JSON envelope. */
+	json?: boolean;
+	/** Injectable spawner for testability. */
+	_spawner?: Spawner;
 }
 
 /**
@@ -531,6 +675,7 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	const force = opts.force ?? false;
 	const yes = opts.yes ?? false;
 	const projectRoot = process.cwd();
+	const spawner = opts._spawner ?? defaultSpawner;
 	const overstoryPath = join(projectRoot, OVERSTORY_DIR);
 
 	// 0. Verify we're inside a git repository
@@ -631,6 +776,53 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 		for (const dbName of migrated) {
 			printSuccess("Migrated", dbName);
 		}
+	}
+
+	// 9. Bootstrap sibling ecosystem tools
+	const toolSet = resolveToolSet(opts);
+	const toolResults: Record<string, { status: ToolStatus; path: string }> = {
+		overstory: { status: "initialized", path: overstoryPath },
+	};
+
+	if (toolSet.length > 0) {
+		process.stdout.write("\n");
+		process.stdout.write("Bootstrapping ecosystem tools...\n\n");
+	}
+
+	for (const tool of toolSet) {
+		const status = await initSiblingTool(tool, projectRoot, spawner);
+		toolResults[tool.name] = {
+			status,
+			path: join(projectRoot, tool.dotDir),
+		};
+	}
+
+	// 10. Set up .gitattributes with merge=union for JSONL files
+	const gitattrsUpdated = await setupGitattributes(projectRoot);
+	if (gitattrsUpdated) {
+		printCreated(".gitattributes");
+	}
+
+	// 11. Run onboard for each tool (inject CLAUDE.md sections)
+	const onboardResults: Record<string, OnboardStatus> = {};
+	if (!opts.skipOnboard) {
+		for (const tool of toolSet) {
+			if (toolResults[tool.name]?.status !== "skipped") {
+				const status = await onboardTool(tool, projectRoot, spawner);
+				onboardResults[tool.name] = status;
+			}
+		}
+	}
+
+	// 12. Output final result
+	if (opts.json) {
+		jsonOutput("init", {
+			project: projectName,
+			tools: toolResults,
+			onboard: onboardResults,
+			gitattributes: gitattrsUpdated,
+		});
+		return;
 	}
 
 	printSuccess("Initialized");
