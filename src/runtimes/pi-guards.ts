@@ -85,13 +85,14 @@ function toRegExpArrayLiteral(patterns: string[]): string {
  * Claude Code's `settings.local.json` PreToolUse hooks.
  *
  * Guard order (per AgentRuntime spec):
- * 1. Block NATIVE_TEAM_TOOLS + INTERACTIVE_TOOLS (all agents).
- * 2. Block WRITE_TOOLS for non-implementation capabilities.
- * 3. Path boundary on Write/Edit/NotebookEdit (all agents, defense-in-depth).
- * 4. Universal Bash danger guards: git push, reset --hard, wrong branch naming.
- * 5a. Non-implementation agents: safe prefix whitelist then dangerous pattern blocklist.
- * 5b. Implementation agents (builder/merger): file-modifying bash path boundary.
- * 6. Default allow.
+ * 1. Block NATIVE_TEAM_TOOLS (all agents) — use ov sling for delegation.
+ * 2. Block INTERACTIVE_TOOLS (all agents) — escalate via ov mail instead.
+ * 3. Block WRITE_TOOLS for non-implementation capabilities.
+ * 4. Path boundary on Write/Edit/NotebookEdit (all agents, defense-in-depth).
+ * 5. Universal Bash danger guards: git push, reset --hard, wrong branch naming.
+ * 6a. Non-implementation agents: safe prefix whitelist then dangerous pattern blocklist.
+ * 6b. Implementation agents (builder/merger): file-modifying bash path boundary.
+ * 7. Default allow.
  *
  * @param hooks - Agent identity, capability, worktree path, and optional quality gates.
  * @returns Self-contained TypeScript source code for the Pi guard extension file.
@@ -104,14 +105,6 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 	const isNonImpl = NON_IMPLEMENTATION_CAPABILITIES.has(capability);
 	const isCoordination = COORDINATION_CAPABILITIES.has(capability);
 
-	// Build blocked tools: team tools + interactive tools for all agents,
-	// plus write tools for non-implementation capabilities.
-	const blockedTools: string[] = [
-		...NATIVE_TEAM_TOOLS,
-		...INTERACTIVE_TOOLS,
-		...(isNonImpl ? WRITE_TOOLS : []),
-	];
-
 	// Build safe Bash prefixes: base set + coordination extras + quality gate commands.
 	const safePrefixes: string[] = [
 		...SAFE_BASH_PREFIXES,
@@ -119,7 +112,9 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		...gatePrefixes,
 	];
 
-	const blockedToolsCode = toSetLiteral(blockedTools);
+	const teamBlockedCode = toSetLiteral([...NATIVE_TEAM_TOOLS]);
+	const interactiveBlockedCode = toSetLiteral([...INTERACTIVE_TOOLS]);
+	const writeBlockedCode = isNonImpl ? toSetLiteral([...WRITE_TOOLS]) : null;
 	const safePrefixesCode = toStringArrayLiteral(safePrefixes);
 	const dangerousPatternsCode = toRegExpArrayLiteral(DANGEROUS_BASH_PATTERNS);
 	const fileModifyingPatternsCode = toRegExpArrayLiteral(FILE_MODIFYING_BASH_PATTERNS);
@@ -129,7 +124,8 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		? [
 				"",
 				`\t\t\t// Non-implementation agents: whitelist safe prefixes, block dangerous patterns.`,
-				`\t\t\tif (SAFE_PREFIXES.some((p) => cmd.startsWith(p))) {`,
+				`\t\t\tconst trimmed = cmd.trimStart();`,
+				`\t\t\tif (SAFE_PREFIXES.some((p) => trimmed.startsWith(p))) {`,
 				`\t\t\t\treturn { type: "allow" };`,
 				`\t\t\t}`,
 				`\t\t\tif (DANGEROUS_PATTERNS.some((re) => re.test(cmd))) {`,
@@ -148,7 +144,7 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 				`\t\t\t\t\t.filter((t) => t.startsWith("/"))`,
 				`\t\t\t\t\t.map((t) => t.replace(/[";>]*$/, ""));`,
 				`\t\t\t\tfor (const p of paths) {`,
-				`\t\t\t\t\tif (!p.startsWith("/dev/") && !p.startsWith("/tmp/") && !p.startsWith(WORKTREE_PATH)) {`,
+				`\t\t\t\t\tif (!p.startsWith("/dev/") && !p.startsWith("/tmp/") && !p.startsWith(WORKTREE_PATH + '/') && p !== WORKTREE_PATH) {`,
 				`\t\t\t\t\t\treturn {`,
 				`\t\t\t\t\t\t\ttype: "block",`,
 				`\t\t\t\t\t\t\treason: "Bash path boundary violation: command targets a path outside your worktree. All file modifications must stay within your assigned worktree.",`,
@@ -167,9 +163,19 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		`const AGENT_NAME = "${agentName}";`,
 		`const WORKTREE_PATH = "${worktreePath}";`,
 		``,
-		`// Tools blocked for this agent capability.`,
-		`const BLOCKED_TOOLS = ${blockedToolsCode};`,
+		`// Native team/task tools blocked (all agents) — use ov sling for delegation.`,
+		`const TEAM_BLOCKED = ${teamBlockedCode};`,
 		``,
+		`// Interactive tools blocked (all agents) — escalate via ov mail instead.`,
+		`const INTERACTIVE_BLOCKED = ${interactiveBlockedCode};`,
+		``,
+		...(isNonImpl && writeBlockedCode !== null
+			? [
+					`// Write tools blocked for non-implementation capabilities.`,
+					`const WRITE_BLOCKED = ${writeBlockedCode};`,
+					``,
+				]
+			: []),
 		`// Write-scope tools where path boundary is enforced (all agents, defense-in-depth).`,
 		`const WRITE_SCOPE_TOOLS = new Set<string>(["Write", "Edit", "NotebookEdit"]);`,
 		``,
@@ -184,22 +190,42 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		``,
 		`export default (): Extension => ({`,
 		`\ttool_call: async (event) => {`,
-		`\t\t// 1. Block native team/task tools and interactive tools (all agents).`,
-		`\t\tif (BLOCKED_TOOLS.has(event.name)) {`,
+		`\t\t// 1. Block native team/task tools (all agents).`,
+		`\t\tif (TEAM_BLOCKED.has(event.name)) {`,
 		`\t\t\treturn {`,
 		`\t\t\t\ttype: "block",`,
 		`\t\t\t\treason: \`Overstory agents must use 'ov sling' for delegation — \${event.name} is not allowed\`,`,
 		`\t\t\t};`,
 		`\t\t}`,
 		``,
-		`\t\t// 2. Path boundary enforcement for Write/Edit/NotebookEdit (all agents).`,
+		`\t\t// 2. Block interactive tools (all agents).`,
+		`\t\tif (INTERACTIVE_BLOCKED.has(event.name)) {`,
+		`\t\t\treturn {`,
+		`\t\t\t\ttype: "block",`,
+		`\t\t\t\treason: \`\${event.name} requires human interaction — use ov mail (--type question) to escalate\`,`,
+		`\t\t\t};`,
+		`\t\t}`,
+		``,
+		...(isNonImpl
+			? [
+					`\t\t// 3. Block write tools for non-implementation capabilities.`,
+					`\t\tif (WRITE_BLOCKED.has(event.name)) {`,
+					`\t\t\treturn {`,
+					`\t\t\t\ttype: "block",`,
+					`\t\t\t\treason: \`${capability} agents cannot modify files — \${event.name} is not allowed\`,`,
+					`\t\t\t};`,
+					`\t\t}`,
+					``,
+				]
+			: []),
+		`\t\t// ${isNonImpl ? "4" : "3"}. Path boundary enforcement for Write/Edit/NotebookEdit (all agents).`,
 		`\t\tif (WRITE_SCOPE_TOOLS.has(event.name)) {`,
 		`\t\t\tconst filePath = String(`,
 		`\t\t\t\t(event.input as Record<string, unknown>)?.file_path ??`,
 		`\t\t\t\t(event.input as Record<string, unknown>)?.notebook_path ??`,
 		`\t\t\t\t"",`,
 		`\t\t\t);`,
-		`\t\t\tif (filePath && !filePath.startsWith(WORKTREE_PATH)) {`,
+		`\t\t\tif (filePath && !filePath.startsWith(WORKTREE_PATH + '/') && filePath !== WORKTREE_PATH) {`,
 		`\t\t\t\treturn {`,
 		`\t\t\t\t\ttype: "block",`,
 		`\t\t\t\t\treason: "Path boundary violation: file is outside your assigned worktree. All writes must target files within your worktree.",`,
@@ -207,7 +233,7 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		`\t\t\t}`,
 		`\t\t}`,
 		``,
-		`\t\t// 3. Bash command guards.`,
+		`\t\t// ${isNonImpl ? "5" : "4"}. Bash command guards.`,
 		`\t\tif (event.name === "Bash" || event.name === "bash") {`,
 		`\t\t\tconst cmd = String((event.input as Record<string, unknown>)?.command ?? "");`,
 		``,

@@ -48,36 +48,58 @@ describe("generatePiGuardExtension", () => {
 		});
 	});
 
-	describe("BLOCKED_TOOLS — native team tools and interactive tools (all capabilities)", () => {
-		test("all NATIVE_TEAM_TOOLS appear in BLOCKED_TOOLS for builder", () => {
+	describe("TEAM_BLOCKED / INTERACTIVE_BLOCKED — separate sets per category (all capabilities)", () => {
+		test("all NATIVE_TEAM_TOOLS appear in TEAM_BLOCKED for builder", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			const blockedSection = extractBlockedToolsSection(generated);
+			const teamSection = extractTeamBlockedSection(generated);
 			for (const tool of NATIVE_TEAM_TOOLS) {
-				expect(blockedSection).toContain(`"${tool}"`);
+				expect(teamSection).toContain(`"${tool}"`);
 			}
 		});
 
-		test("all INTERACTIVE_TOOLS appear in BLOCKED_TOOLS for builder", () => {
+		test("all INTERACTIVE_TOOLS appear in INTERACTIVE_BLOCKED for builder", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			const blockedSection = extractBlockedToolsSection(generated);
+			const interactiveSection = extractInteractiveBlockedSection(generated);
 			for (const tool of INTERACTIVE_TOOLS) {
-				expect(blockedSection).toContain(`"${tool}"`);
+				expect(interactiveSection).toContain(`"${tool}"`);
 			}
 		});
 
-		test("BLOCKED_TOOLS check uses has() for efficiency", () => {
+		test("TEAM_BLOCKED and INTERACTIVE_BLOCKED checks use has() for efficiency", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("BLOCKED_TOOLS.has(event.name)");
+			expect(generated).toContain("TEAM_BLOCKED.has(event.name)");
+			expect(generated).toContain("INTERACTIVE_BLOCKED.has(event.name)");
+		});
+
+		test("team tools use delegation block reason", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain("Overstory agents must use 'ov sling' for delegation");
+		});
+
+		test("interactive tools use human-interaction block reason", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				"requires human interaction — use ov mail (--type question) to escalate",
+			);
 		});
 	});
 
 	describe("Builder — implementation capability", () => {
-		test("write tools are NOT in BLOCKED_TOOLS for builder", () => {
+		test("write tools are NOT in TEAM_BLOCKED or INTERACTIVE_BLOCKED for builder", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			const blockedSection = extractBlockedToolsSection(generated);
-			expect(blockedSection).not.toContain('"Write"');
-			expect(blockedSection).not.toContain('"Edit"');
-			expect(blockedSection).not.toContain('"NotebookEdit"');
+			const teamSection = extractTeamBlockedSection(generated);
+			const interactiveSection = extractInteractiveBlockedSection(generated);
+			expect(teamSection).not.toContain('"Write"');
+			expect(teamSection).not.toContain('"Edit"');
+			expect(teamSection).not.toContain('"NotebookEdit"');
+			expect(interactiveSection).not.toContain('"Write"');
+			expect(interactiveSection).not.toContain('"Edit"');
+			expect(interactiveSection).not.toContain('"NotebookEdit"');
+		});
+
+		test("WRITE_BLOCKED constant is absent for builder", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).not.toContain("const WRITE_BLOCKED =");
 		});
 
 		test("has FILE_MODIFYING_PATTERNS section", () => {
@@ -100,21 +122,43 @@ describe("generatePiGuardExtension", () => {
 			expect(generated).toContain("FILE_MODIFYING_PATTERNS.some((re) => re.test(cmd))");
 			expect(generated).toContain("Bash path boundary violation");
 		});
+
+		test("builder Bash path boundary uses + '/' and exact match", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain("!p.startsWith(WORKTREE_PATH + '/')");
+			expect(generated).toContain("p !== WORKTREE_PATH");
+		});
+
+		test("builder does NOT use cmd.trimStart() (no safe prefix check)", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).not.toContain("cmd.trimStart()");
+		});
 	});
 
 	describe("Scout — non-implementation capability", () => {
-		test("write tools ARE in BLOCKED_TOOLS for scout (WRITE_BLOCKED)", () => {
+		test("write tools ARE in WRITE_BLOCKED for scout", () => {
 			const generated = generatePiGuardExtension(scoutHooks());
-			const blockedSection = extractBlockedToolsSection(generated);
-			expect(blockedSection).toContain('"Write"');
-			expect(blockedSection).toContain('"Edit"');
-			expect(blockedSection).toContain('"NotebookEdit"');
+			const writeSection = extractWriteBlockedSection(generated);
+			expect(writeSection).toContain('"Write"');
+			expect(writeSection).toContain('"Edit"');
+			expect(writeSection).toContain('"NotebookEdit"');
+		});
+
+		test("WRITE_BLOCKED uses capability-specific block reason", () => {
+			const generated = generatePiGuardExtension(scoutHooks());
+			expect(generated).toContain("scout agents cannot modify files");
 		});
 
 		test("has whitelist+blocklist pattern (SAFE_PREFIXES then DANGEROUS_PATTERNS)", () => {
 			const generated = generatePiGuardExtension(scoutHooks());
-			expect(generated).toContain("SAFE_PREFIXES.some((p) => cmd.startsWith(p))");
+			expect(generated).toContain("SAFE_PREFIXES.some((p) => trimmed.startsWith(p))");
 			expect(generated).toContain("DANGEROUS_PATTERNS.some((re) => re.test(cmd))");
+		});
+
+		test("safe prefix check uses cmd.trimStart() for leading whitespace tolerance", () => {
+			const generated = generatePiGuardExtension(scoutHooks());
+			expect(generated).toContain("const trimmed = cmd.trimStart();");
+			expect(generated).toContain("trimmed.startsWith(p)");
 		});
 
 		test("SAFE_PREFIXES check comes before DANGEROUS_PATTERNS check", () => {
@@ -145,10 +189,10 @@ describe("generatePiGuardExtension", () => {
 			expect(safePrefixesSection).toContain('"git commit"');
 		});
 
-		test("write tools are in BLOCKED_TOOLS (coordination is non-implementation)", () => {
+		test("write tools are in WRITE_BLOCKED (coordination is non-implementation)", () => {
 			const generated = generatePiGuardExtension(coordinatorHooks());
-			const blockedSection = extractBlockedToolsSection(generated);
-			expect(blockedSection).toContain('"Write"');
+			const writeSection = extractWriteBlockedSection(generated);
+			expect(writeSection).toContain('"Write"');
 		});
 
 		test("builder does NOT have git add/commit in safe prefixes", () => {
@@ -169,9 +213,14 @@ describe("generatePiGuardExtension", () => {
 			}
 		});
 
-		test("path boundary check uses WORKTREE_PATH", () => {
+		test("path boundary check uses WORKTREE_PATH + '/' for subpath safety", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("filePath.startsWith(WORKTREE_PATH)");
+			expect(generated).toContain("filePath.startsWith(WORKTREE_PATH + '/')");
+		});
+
+		test("path boundary allows exact worktree path match", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain("filePath !== WORKTREE_PATH");
 		});
 
 		test("path boundary checks file_path and notebook_path fields", () => {
@@ -293,12 +342,36 @@ describe("generatePiGuardExtension", () => {
 // --- Helpers ---
 
 /**
- * Extract the BLOCKED_TOOLS Set literal section from generated code.
- * Returns the text between "BLOCKED_TOOLS = new Set" and the first "]);"
+ * Extract the TEAM_BLOCKED Set literal section from generated code.
+ * Returns the text between "TEAM_BLOCKED = new Set" and the first "]);"
  * after that point.
  */
-function extractBlockedToolsSection(generated: string): string {
-	const start = generated.indexOf("BLOCKED_TOOLS = new Set");
+function extractTeamBlockedSection(generated: string): string {
+	const start = generated.indexOf("TEAM_BLOCKED = new Set");
+	const end = generated.indexOf("]);", start);
+	if (start === -1 || end === -1) return "";
+	return generated.slice(start, end + 3);
+}
+
+/**
+ * Extract the INTERACTIVE_BLOCKED Set literal section from generated code.
+ * Returns the text between "INTERACTIVE_BLOCKED = new Set" and the first "]);"
+ * after that point.
+ */
+function extractInteractiveBlockedSection(generated: string): string {
+	const start = generated.indexOf("INTERACTIVE_BLOCKED = new Set");
+	const end = generated.indexOf("]);", start);
+	if (start === -1 || end === -1) return "";
+	return generated.slice(start, end + 3);
+}
+
+/**
+ * Extract the WRITE_BLOCKED Set literal section from generated code.
+ * Returns the text between "WRITE_BLOCKED = new Set" and the first "]);"
+ * after that point.
+ */
+function extractWriteBlockedSection(generated: string): string {
+	const start = generated.indexOf("WRITE_BLOCKED = new Set");
 	const end = generated.indexOf("]);", start);
 	if (start === -1 || end === -1) return "";
 	return generated.slice(start, end + 3);
