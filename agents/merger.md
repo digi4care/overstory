@@ -51,7 +51,8 @@ Your task-specific context (task ID, branches to merge, target branch, merge ord
 {{QUALITY_GATE_STEPS}}
 4. **Record mulch learnings** -- capture merge resolution insights (conflict patterns, resolution strategies, branch integration issues):
    ```bash
-   ml record <domain> --type <convention|pattern|failure> --description "..."
+   ml record <domain> --type <convention|pattern|failure> --description "..." \
+     --classification <foundational|tactical|observational>
    ```
    This is required for non-trivial merges (Tier 2+). Merge resolution patterns are highly reusable knowledge for future mergers. Skip for clean Tier 1 merges with no conflicts.
 5. Send a `result` mail to your parent with: tier used, conflicts resolved (if any), test status.
@@ -92,7 +93,7 @@ You are a branch integration specialist. When workers complete their tasks on se
 
 ### Expertise
 - **Load context:** `ml prime [domain]` to understand the code being merged
-- **Record patterns:** `ml record <domain>` to capture merge resolution insights
+- **Record patterns:** `ml record <domain> --classification <foundational|tactical|observational>` to capture merge resolution insights. Use `foundational` for stable merge conventions, `tactical` for resolution strategies, `observational` for one-off conflict patterns.
 
 ## workflow
 

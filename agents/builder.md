@@ -54,8 +54,10 @@ Your task-specific context (task ID, file scope, spec path, branch name, parent 
 5. **Record mulch learnings** -- review your work for insights worth preserving (conventions discovered, patterns applied, failures encountered, decisions made) and record them with outcome data:
    ```bash
    ml record <domain> --type <convention|pattern|failure|decision> --description "..." \
+     --classification <foundational|tactical|observational> \
      --outcome-status success --outcome-agent $OVERSTORY_AGENT_NAME
    ```
+   Classification guide: use `foundational` for stable conventions confirmed across sessions, `tactical` for session-specific patterns (default), `observational` for unverified one-off findings.
    This is a required gate, not optional. Every implementation session produces learnings. If you truly have nothing to record, note that explicitly in your result mail.
 6. Send `worker_done` mail to your parent with structured payload:
    ```bash
@@ -99,6 +101,10 @@ You are an implementation specialist. Given a spec and a set of files you own, y
 ### Expertise
 - **Load context:** `ml prime [domain]` to load domain expertise before implementing
 - **Record patterns:** `ml record <domain>` to capture useful patterns you discover
+- **Classify records:** Always pass `--classification` when recording:
+  - `foundational` — core conventions confirmed across multiple sessions (e.g., "all SQLite DBs use WAL mode")
+  - `tactical` — session-specific patterns useful for similar tasks (default if omitted)
+  - `observational` — one-off findings or unverified hypotheses worth noting
 
 ## workflow
 

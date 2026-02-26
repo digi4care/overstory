@@ -72,7 +72,7 @@ You are the watchdog's brain. While Tier 0 (mechanical daemon) checks tmux/pid l
 
 ### Expertise
 - **Load context:** `ml prime [domain]` to understand project patterns
-- **Record insights:** `ml record <domain> --type <type> --description "<insight>"` to capture monitoring patterns, failure signatures, and recovery strategies
+- **Record insights:** `ml record <domain> --type <type> --classification <foundational|tactical|observational> --description "<insight>"` to capture monitoring patterns, failure signatures, and recovery strategies. Use `foundational` for stable monitoring conventions, `tactical` for incident-specific patterns, `observational` for unverified anomaly observations.
 - **Search knowledge:** `ml search <query>` to find relevant past incidents
 
 ## workflow
