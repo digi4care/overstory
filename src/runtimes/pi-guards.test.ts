@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { INTERACTIVE_TOOLS, NATIVE_TEAM_TOOLS } from "../agents/guard-rules.ts";
 import { generatePiGuardExtension } from "./pi-guards.ts";
+import { PiRuntime } from "./pi.ts";
 import type { HooksDef } from "./types.ts";
 
 const WORKTREE = "/project/.overstory/worktrees/test-agent";
@@ -37,14 +38,14 @@ describe("generatePiGuardExtension", () => {
 		test("imports Pi Extension type", () => {
 			const generated = generatePiGuardExtension(builderHooks());
 			expect(generated).toContain(
-				'import type { Extension } from "@mariozechner/pi-coding-agent";',
+				'import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";',
 			);
 		});
 
 		test("exports a default Pi Extension factory", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("export default (): Extension => ({");
-			expect(generated).toContain("tool_call: async (event) => {");
+			expect(generated).toContain("export default function (pi: ExtensionAPI) {");
+			expect(generated).toContain('pi.on("tool_call", async (event) => {');
 		});
 	});
 
@@ -67,8 +68,8 @@ describe("generatePiGuardExtension", () => {
 
 		test("TEAM_BLOCKED and INTERACTIVE_BLOCKED checks use has() for efficiency", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("TEAM_BLOCKED.has(event.name)");
-			expect(generated).toContain("INTERACTIVE_BLOCKED.has(event.name)");
+			expect(generated).toContain("TEAM_BLOCKED.has(event.toolName)");
+			expect(generated).toContain("INTERACTIVE_BLOCKED.has(event.toolName)");
 		});
 
 		test("team tools use delegation block reason", () => {
@@ -125,7 +126,7 @@ describe("generatePiGuardExtension", () => {
 
 		test("builder Bash path boundary uses + '/' and exact match", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("!p.startsWith(WORKTREE_PATH + '/')");
+			expect(generated).toContain('!p.startsWith(WORKTREE_PATH + "/")');
 			expect(generated).toContain("p !== WORKTREE_PATH");
 		});
 
@@ -208,14 +209,14 @@ describe("generatePiGuardExtension", () => {
 			for (const hooks of [builderHooks(), scoutHooks(), coordinatorHooks()]) {
 				const generated = generatePiGuardExtension(hooks);
 				expect(generated).toContain(
-					'const WRITE_SCOPE_TOOLS = new Set<string>(["Write", "Edit", "NotebookEdit"]);',
+					'const WRITE_SCOPE_TOOLS = new Set<string>(["write", "edit", "Write", "Edit", "NotebookEdit"]);',
 				);
 			}
 		});
 
 		test("path boundary check uses WORKTREE_PATH + '/' for subpath safety", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain("filePath.startsWith(WORKTREE_PATH + '/')");
+			expect(generated).toContain('filePath.startsWith(WORKTREE_PATH + "/")');
 		});
 
 		test("path boundary allows exact worktree path match", () => {
@@ -265,8 +266,8 @@ describe("generatePiGuardExtension", () => {
 
 		test("bash guard matches both Bash and bash tool names", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain('event.name === "Bash"');
-			expect(generated).toContain('event.name === "bash"');
+			expect(generated).toContain('event.toolName === "Bash"');
+			expect(generated).toContain('event.toolName === "bash"');
 		});
 	});
 
@@ -321,7 +322,9 @@ describe("generatePiGuardExtension", () => {
 
 		test("returns { type: 'allow' } as default", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain('return { type: "allow" };');
+			// Pi's ExtensionAPI uses implicit undefined return for allow (no explicit { type: "allow" } needed).
+			// The generated code uses a comment marker "// Default: allow." instead.
+			expect(generated).toContain("// Default: allow.");
 		});
 
 		test("uses String() for safe property access on event.input", () => {
@@ -335,6 +338,51 @@ describe("generatePiGuardExtension", () => {
 			const g1 = generatePiGuardExtension(hooks);
 			const g2 = generatePiGuardExtension(hooks);
 			expect(g1).toBe(g2);
+		});
+	});
+
+	describe("activity tracking events", () => {
+		test('generated code contains pi.on("tool_call", ...)', () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain('pi.on("tool_call",');
+		});
+
+		test("generated code contains pi.exec ov log tool-start in tool_call handler", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME])',
+			);
+		});
+
+		test('generated code contains pi.on("tool_execution_end", ...)', () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain('pi.on("tool_execution_end",');
+		});
+
+		test("generated code contains pi.exec ov log tool-end in tool_execution_end handler", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME])',
+			);
+		});
+
+		test('generated code contains pi.on("session_shutdown", ...)', () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain('pi.on("session_shutdown",');
+		});
+
+		test("generated code awaits pi.exec ov log session-end in session_shutdown handler", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				'await pi.exec("ov", ["log", "session-end", "--agent", AGENT_NAME])',
+			);
+		});
+	});
+
+	describe("PiRuntime integration", () => {
+		test("PiRuntime.requiresBeaconVerification() returns false", () => {
+			const runtime = new PiRuntime();
+			expect(runtime.requiresBeaconVerification()).toBe(false);
 		});
 	});
 });
