@@ -79,6 +79,7 @@ describe("worktreeCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 			...overrides,
 		};
 	}
@@ -167,6 +168,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 
@@ -214,6 +216,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 
@@ -308,6 +311,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 
@@ -363,6 +367,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 
@@ -401,6 +406,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 
@@ -455,6 +461,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: new Date().toISOString(),
+					transcriptPath: null,
 				},
 			]);
 
@@ -616,6 +623,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 				{
 					id: "session-2",
@@ -634,6 +642,7 @@ describe("worktreeCommand", () => {
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			]);
 

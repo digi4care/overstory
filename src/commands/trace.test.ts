@@ -551,6 +551,7 @@ describe("traceCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.close();
 

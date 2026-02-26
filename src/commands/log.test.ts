@@ -229,6 +229,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -284,6 +285,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const sessStore = createSessionStore(sessionsDbPath);
 		sessStore.upsert(session);
@@ -324,6 +326,7 @@ describe("logCommand", () => {
 			lastActivity: new Date(Date.now() - 60_000).toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -363,6 +366,7 @@ describe("logCommand", () => {
 			lastActivity: new Date(Date.now() - 60_000).toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -400,6 +404,7 @@ describe("logCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStoreLocal.close();
 
@@ -457,6 +462,7 @@ describe("logCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStoreLocal.close();
 
@@ -487,6 +493,7 @@ describe("logCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStoreLocal.close();
 
@@ -541,6 +548,7 @@ describe("logCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStoreLocal.close();
 
@@ -594,6 +602,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -634,6 +643,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -676,6 +686,7 @@ describe("logCommand", () => {
 			lastActivity: oldTimestamp,
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -715,6 +726,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -800,6 +812,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);
@@ -839,6 +852,7 @@ describe("logCommand", () => {
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 		const store = createSessionStore(dbPath);
 		store.upsert(session);

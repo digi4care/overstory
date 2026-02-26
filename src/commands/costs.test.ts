@@ -780,6 +780,7 @@ describe("costsCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.close();
 
@@ -836,6 +837,7 @@ describe("costsCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.close();
 
@@ -900,6 +902,7 @@ describe("costsCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.upsert({
 				id: "sess-002",
@@ -918,6 +921,7 @@ describe("costsCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.close();
 
@@ -977,6 +981,7 @@ describe("costsCommand", () => {
 				lastActivity: new Date().toISOString(),
 				escalationLevel: 0,
 				stalledSince: null,
+				transcriptPath: null,
 			});
 			sessionStore.close();
 

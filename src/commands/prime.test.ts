@@ -167,6 +167,7 @@ recentTasks:
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			];
 
@@ -204,6 +205,7 @@ recentTasks:
 					lastActivity: new Date().toISOString(),
 					escalationLevel: 0,
 					stalledSince: null,
+					transcriptPath: null,
 				},
 			];
 

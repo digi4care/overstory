@@ -182,6 +182,7 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(session);

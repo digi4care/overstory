@@ -108,6 +108,7 @@ describe("discoverAgents", () => {
 			lastActivity: "2024-01-01T00:01:00Z",
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(session);
@@ -140,6 +141,7 @@ describe("discoverAgents", () => {
 			lastActivity: "2024-01-01T00:01:00Z",
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		const scout: AgentSession = {
@@ -159,6 +161,7 @@ describe("discoverAgents", () => {
 			lastActivity: "2024-01-01T00:01:00Z",
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(builder);
@@ -191,6 +194,7 @@ describe("discoverAgents", () => {
 			lastActivity: "2024-01-01T00:01:00Z",
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		const completed: AgentSession = {
@@ -210,6 +214,7 @@ describe("discoverAgents", () => {
 			lastActivity: "2024-01-01T00:02:00Z",
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(working);

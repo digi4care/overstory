@@ -405,6 +405,7 @@ async function startCoordinator(
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(session);
