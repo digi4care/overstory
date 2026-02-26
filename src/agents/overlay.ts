@@ -369,6 +369,7 @@ export async function writeOverlay(
 	worktreePath: string,
 	config: OverlayConfig,
 	canonicalRoot: string,
+	instructionPath = ".claude/CLAUDE.md",
 ): Promise<void> {
 	// Guard: never write agent overlays to the canonical project root.
 	// The project root's .claude/CLAUDE.md belongs to the orchestrator/user.
@@ -383,13 +384,13 @@ export async function writeOverlay(
 	}
 
 	const content = await generateOverlay(config);
-	const claudeDir = join(worktreePath, ".claude");
-	const outputPath = join(claudeDir, "CLAUDE.md");
+	const outputPath = join(worktreePath, instructionPath);
+	const outputDir = dirname(outputPath);
 
 	try {
-		await mkdir(claudeDir, { recursive: true });
+		await mkdir(outputDir, { recursive: true });
 	} catch (err) {
-		throw new AgentError(`Failed to create .claude/ directory at: ${claudeDir}`, {
+		throw new AgentError(`Failed to create directory for instruction file at: ${outputDir}`, {
 			agentName: config.agentName,
 			cause: err instanceof Error ? err : undefined,
 		});
