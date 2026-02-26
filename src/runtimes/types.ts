@@ -66,6 +66,48 @@ export interface TranscriptSummary {
 	model: string;
 }
 
+// === RPC Connection ===
+
+/**
+ * Reported state of a connected agent process.
+ * Used by RuntimeConnection.getState() to poll agent activity without tmux.
+ */
+export type ConnectionState = {
+	status: "idle" | "working" | "error";
+	/** Tool currently executing, if status is "working". */
+	currentTool?: string;
+};
+
+/**
+ * Handle to spawned agent process I/O streams for RPC communication.
+ * Compatible with Bun.spawn output when configured with stdin/stdout pipe.
+ */
+export interface RpcProcessHandle {
+	readonly stdin: {
+		write(data: string | Uint8Array): number | Promise<number>;
+	};
+	readonly stdout: ReadableStream<Uint8Array>;
+}
+
+/**
+ * Lifecycle interface for runtimes supporting direct RPC.
+ * When AgentRuntime.connect() exists, the orchestrator bypasses tmux for
+ * mail delivery (followUp), shutdown (abort), and health checks (getState).
+ * Pi implements via JSON-RPC 2.0 over stdin/stdout.
+ */
+export interface RuntimeConnection {
+	/** Send initial prompt after spawn. */
+	sendPrompt(text: string): Promise<void>;
+	/** Send follow-up message — replaces tmux send-keys. */
+	followUp(text: string): Promise<void>;
+	/** Clean shutdown — replaces SIGTERM. */
+	abort(): Promise<void>;
+	/** Query current state — replaces tmux capture-pane. */
+	getState(): Promise<ConnectionState>;
+	/** Release connection resources. */
+	close(): void;
+}
+
 // === Runtime Interface ===
 
 /**
@@ -122,4 +164,11 @@ export interface AgentRuntime {
 	 * the provider's authTokenEnv directly.
 	 */
 	buildEnv(model: ResolvedModel): Record<string, string>;
+
+	/**
+	 * Establish direct RPC connection to running agent process.
+	 * Runtimes without RPC (Claude, Codex) omit this method.
+	 * Orchestrator checks `if (runtime.connect)` before calling, falls back to tmux when absent.
+	 */
+	connect?(process: RpcProcessHandle): RuntimeConnection;
 }
