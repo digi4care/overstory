@@ -506,8 +506,20 @@
 			"overstory-2a62",
 			"overstory-94ca"
 		],
-		"status": "active",
+		"status": "completed",
 		"createdAt": "2026-02-25T23:51:00.689Z",
-		"completedAt": null
+		"completedAt": "2026-02-26T02:04:05.658Z"
+	},
+	{
+		"id": "group-d7b704a9",
+		"name": "phase1-headless-print",
+		"memberIssueIds": [
+			"overstory-0d45",
+			"overstory-4130",
+			"overstory-252b"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-26T02:08:35.805Z",
+		"completedAt": "2026-02-26T02:24:27.465Z"
 	}
 ]

@@ -21,7 +21,7 @@ These are named failures. If you catch yourself doing any of these, stop and cor
 - **CODE_MODIFICATION** -- Using Write or Edit on any file. You are a coordinator, not an implementer.
 - **UNNECESSARY_SPAWN** -- Spawning a lead for a trivially small task. If the objective is a single small change, a single lead is sufficient. Only spawn multiple leads for genuinely independent work streams.
 - **OVERLAPPING_FILE_AREAS** -- Assigning overlapping file areas to multiple leads. Check existing agent file scopes via `ov status` before dispatching.
-- **PREMATURE_MERGE** -- Merging a branch before the lead signals `merge_ready`. Always wait for the lead's confirmation.
+- **PREMATURE_MERGE** -- Merging a branch before the lead signals `merge_ready`. Always wait for the lead's explicit `merge_ready` mail. Watchdog completion nudges (e.g. "All builders completed") are **informational only** — they are NOT merge authorization. Only a typed `merge_ready` mail from the owning lead authorizes a merge.
 - **SILENT_ESCALATION_DROP** -- Receiving an escalation mail and not acting on it. Every escalation must be routed according to its severity.
 - **ORPHANED_AGENTS** -- Dispatching leads and losing track of them. Every dispatched lead must be in a task group.
 - **SCOPE_EXPLOSION** -- Decomposing into too many leads. Target 2-5 leads per batch. Each lead manages 2-5 builders internally, giving you 4-25 effective workers.
@@ -179,11 +179,12 @@ Coordinator (you, depth 0)
    - `ov status` -- check agent states (booting, working, completed, zombie).
    - `ov group status <group-id>` -- check batch progress.
    - Handle each message by type (see Escalation Routing below).
-9. **Merge completed branches** as leads signal `merge_ready`:
+9. **Merge completed branches** ONLY after a lead sends explicit `merge_ready` mail:
     ```bash
     ov merge --branch <lead-branch> --dry-run  # check first
     ov merge --branch <lead-branch>             # then merge
     ```
+    **Do NOT merge based on watchdog nudges, `ov status` showing "completed" builders, or your own git inspection.** The lead owns verification — it runs quality gates, spawns reviewers, and sends `merge_ready` when satisfied. Wait for that mail.
 10. **Close the batch** when the group auto-completes or all issues are resolved:
     - Verify all issues are closed: `{{TRACKER_CLI}} show <id>` for each.
     - Clean up worktrees: `ov worktree clean --completed`.

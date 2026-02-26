@@ -148,7 +148,7 @@ export function buildCompletionMessage(
 			return `[WATCHDOG] All ${count} scout(s) in run ${runId} have completed. Ready for next phase.`;
 		}
 		if (capabilities.has("builder")) {
-			return `[WATCHDOG] All ${count} builder(s) in run ${runId} have completed. Ready for merge/cleanup.`;
+			return `[WATCHDOG] All ${count} builder(s) in run ${runId} have completed. Awaiting lead verification.`;
 		}
 		if (capabilities.has("reviewer")) {
 			return `[WATCHDOG] All ${count} reviewer(s) in run ${runId} have completed. Reviews done.`;

@@ -1389,7 +1389,7 @@ describe("run completion detection", () => {
 		expect(coordinatorNudges).toHaveLength(1);
 		// The test creates builders, so the message should be builder-specific
 		expect(coordinatorNudges[0]?.message).toContain("builder");
-		expect(coordinatorNudges[0]?.message).toContain("merge/cleanup");
+		expect(coordinatorNudges[0]?.message).toContain("Awaiting lead verification");
 	});
 
 	test("does not nudge when some workers still active", async () => {
@@ -1581,7 +1581,7 @@ describe("run completion detection", () => {
 		expect(coordinatorNudges).toHaveLength(1);
 		// The test creates builders, so the message should be builder-specific
 		expect(coordinatorNudges[0]?.message).toContain("builder");
-		expect(coordinatorNudges[0]?.message).toContain("merge/cleanup");
+		expect(coordinatorNudges[0]?.message).toContain("Awaiting lead verification");
 	});
 
 	test("does not nudge when no worker sessions in run", async () => {
@@ -1916,14 +1916,15 @@ describe("buildCompletionMessage", () => {
 		expect(msg).not.toContain("merge/cleanup");
 	});
 
-	test("all builders → contains 'builder' and 'Ready for merge/cleanup'", () => {
+	test("all builders → contains 'builder' and 'Awaiting lead verification' (not merge authorization)", () => {
 		const sessions = [
 			makeSession({ capability: "builder", agentName: "builder-1" }),
 			makeSession({ capability: "builder", agentName: "builder-2" }),
 		];
 		const msg = buildCompletionMessage(sessions, testRunId);
 		expect(msg).toContain("builder");
-		expect(msg).toContain("Ready for merge/cleanup");
+		expect(msg).toContain("Awaiting lead verification");
+		expect(msg).not.toContain("merge/cleanup");
 	});
 
 	test("all reviewers → contains 'reviewer' and 'Reviews done'", () => {
