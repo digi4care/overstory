@@ -366,6 +366,7 @@ recentTasks: []
 !hooks.json
 !groups.json
 !agent-defs/
+!README.md
 `;
 
 		test("creates .overstory/.gitignore if missing", async () => {
