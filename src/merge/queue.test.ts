@@ -1,9 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MergeError } from "../errors.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import { createMergeQueue } from "./queue.ts";
 
 describe("createMergeQueue", () => {
@@ -17,7 +18,7 @@ describe("createMergeQueue", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	function makeInput(

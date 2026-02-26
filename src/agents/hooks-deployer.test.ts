@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AgentError } from "../errors.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import {
 	buildBashFileGuardScript,
 	buildBashPathBoundaryScript,
@@ -26,7 +27,7 @@ describe("deployHooks", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("creates .claude/settings.local.json in worktree directory", async () => {
@@ -1482,7 +1483,7 @@ describe("structural enforcement integration", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("non-implementation agents have more guards than implementation agents", async () => {
@@ -2055,7 +2056,7 @@ describe("bash path boundary integration", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("builder gets Bash path boundary guard in deployed hooks", async () => {
@@ -2249,7 +2250,7 @@ describe("PATH prefix in deployed hooks", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("SessionStart hook commands include PATH prefix", async () => {

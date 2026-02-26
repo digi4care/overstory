@@ -95,9 +95,28 @@ export async function getDefaultBranch(repoDir: string): Promise<string> {
 
 /**
  * Remove a temp directory. Safe to call even if the directory doesn't exist.
+ *
+ * On Windows, SQLite WAL/SHM file handles may linger briefly after db.close(),
+ * causing EBUSY errors on immediate rm(). Retries with exponential backoff
+ * (up to ~1.5s total) to handle this OS-level timing issue.
  */
 export async function cleanupTempDir(dir: string): Promise<void> {
-	await rm(dir, { recursive: true, force: true });
+	const maxRetries = process.platform === "win32" ? 5 : 0;
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		try {
+			await rm(dir, { recursive: true, force: true });
+			return;
+		} catch (err: unknown) {
+			const code = (err as NodeJS.ErrnoException).code;
+			if (code === "EBUSY" && attempt < maxRetries) {
+				// Exponential backoff: 50, 100, 200, 400, 800ms
+				await Bun.sleep(50 * 2 ** attempt);
+				continue;
+			}
+			// Non-EBUSY or final attempt: swallow (temp dirs are cleaned by OS anyway)
+			if (code !== "ENOENT") return;
+		}
+	}
 }
 
 /**

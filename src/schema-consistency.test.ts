@@ -12,7 +12,7 @@
 
 import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createEventStore } from "./events/store.ts";
@@ -20,6 +20,8 @@ import { createMailStore } from "./mail/store.ts";
 import { createMergeQueue } from "./merge/queue.ts";
 import { createMetricsStore } from "./metrics/store.ts";
 import { createSessionStore } from "./sessions/store.ts";
+
+import { cleanupTempDir } from "./test-helpers.ts";
 
 /** Extract sorted column names from a table via PRAGMA table_info(). */
 function getTableColumns(db: Database, tableName: string): string[] {
@@ -35,7 +37,7 @@ describe("SQL schema consistency", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tmpDir, { recursive: true, force: true });
+		await cleanupTempDir(tmpDir);
 	});
 
 	describe("SessionStore", () => {

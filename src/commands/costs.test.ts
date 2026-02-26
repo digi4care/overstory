@@ -9,12 +9,13 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { createSessionStore } from "../sessions/store.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import type { SessionMetrics } from "../types.ts";
 import { costsCommand } from "./costs.ts";
 
@@ -72,7 +73,7 @@ describe("costsCommand", () => {
 	afterEach(async () => {
 		process.stdout.write = originalWrite;
 		process.chdir(originalCwd);
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	function output(): string {
@@ -1052,7 +1053,7 @@ describe("costsCommand", () => {
 
 		afterEach(async () => {
 			process.env.HOME = originalHome;
-			await rm(tempHome, { recursive: true, force: true });
+			await cleanupTempDir(tempHome);
 		});
 
 		test("--self shows orchestrator cost when transcript exists", async () => {

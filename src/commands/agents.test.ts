@@ -3,10 +3,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSessionStore } from "../sessions/store.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import type { AgentSession } from "../types.ts";
 import { agentsCommand, discoverAgents, extractFileScope } from "./agents.ts";
 
@@ -65,7 +66,7 @@ Some expertise here.
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 });
 
@@ -235,7 +236,7 @@ describe("discoverAgents", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 });
 
@@ -322,6 +323,6 @@ logging:
 	afterEach(async () => {
 		process.stdout.write = originalStdoutWrite;
 		process.chdir(originalCwd);
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 });

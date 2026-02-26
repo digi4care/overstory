@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AgentError } from "../errors.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import type { OverlayConfig, QualityGate } from "../types.ts";
 import {
 	formatQualityGatesBash,
@@ -584,7 +585,7 @@ describe("writeOverlay", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("creates .claude/CLAUDE.md in worktree directory", async () => {

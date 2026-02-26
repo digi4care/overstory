@@ -7,11 +7,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
 import { createSessionStore } from "../sessions/store.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import {
 	closeDashboardStores,
 	dashboardCommand,
@@ -40,7 +41,7 @@ describe("dashboardCommand", () => {
 
 	afterEach(async () => {
 		process.stdout.write = originalWrite;
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	function output(): string {
@@ -211,7 +212,7 @@ describe("openDashboardStores", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("sessionStore is non-null when .overstory/ has sessions.db", async () => {
@@ -281,7 +282,7 @@ describe("closeDashboardStores", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	test("closing stores does not throw", async () => {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ValidationError } from "../errors.ts";
@@ -9,6 +9,7 @@ import { createMailStore } from "../mail/store.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import type { MulchClient } from "../mulch/client.ts";
 import { createRunStore, createSessionStore } from "../sessions/store.ts";
+import { cleanupTempDir } from "../test-helpers.ts";
 import type { AgentSession, MulchLearnResult, StoredEvent } from "../types.ts";
 import { autoRecordExpertise, logCommand } from "./log.ts";
 
@@ -50,7 +51,7 @@ describe("logCommand", () => {
 	afterEach(async () => {
 		process.stdout.write = originalWrite;
 		process.chdir(originalCwd);
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	function output(): string {
@@ -1182,7 +1183,7 @@ describe("logCommand --stdin integration", () => {
 	});
 
 	afterEach(async () => {
-		await rm(tempDir, { recursive: true, force: true });
+		await cleanupTempDir(tempDir);
 	});
 
 	/**
@@ -1387,6 +1388,7 @@ try {
 		const scriptPath = join(tempDir, "_run-log-empty.ts");
 		const scriptContent = `
 import { logCommand } from "${join(import.meta.dir, "log.ts").replace(/\\/g, "/")}";
+
 try {
 	await logCommand(["tool-start", "--agent", "empty-stdin-agent", "--stdin"]);
 } catch (e) {
