@@ -241,14 +241,6 @@ function buildAgentManifest(): AgentManifest {
 			canSpawn: true,
 			constraints: ["read-only", "no-worktree"],
 		},
-		supervisor: {
-			file: "supervisor.md",
-			model: "opus",
-			tools: ["Read", "Write", "Edit", "Glob", "Grep", "Bash", "Task"],
-			capabilities: ["coordinate", "supervise"],
-			canSpawn: true,
-			constraints: [],
-		},
 		monitor: {
 			file: "monitor.md",
 			model: "sonnet",
@@ -595,6 +587,7 @@ export async function initCommand(opts: InitOptions): Promise<void> {
 	const agentDefFiles = await readdir(overstoryAgentsDir);
 	for (const fileName of agentDefFiles) {
 		if (!fileName.endsWith(".md")) continue;
+		if (fileName === "supervisor.md") continue; // Deprecated: not deployed to new projects
 		const source = Bun.file(join(overstoryAgentsDir, fileName));
 		const content = await source.text();
 		await Bun.write(join(agentDefsTarget, fileName), content);

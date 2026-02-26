@@ -446,7 +446,7 @@ async function statusSupervisor(opts: { name?: string; json: boolean }): Promise
  * Create the Commander command for `ov supervisor`.
  */
 export function createSupervisorCommand(): Command {
-	const cmd = new Command("supervisor").description("Manage per-project supervisor agents");
+	const cmd = new Command("supervisor").description("[DEPRECATED] Per-project supervisor agent");
 
 	cmd
 		.command("start")
@@ -464,6 +464,9 @@ export function createSupervisorCommand(): Command {
 				depth: string;
 				json?: boolean;
 			}) => {
+				console.error(
+					"[DEPRECATED] ov supervisor is deprecated. Use 'ov sling --capability lead' instead.",
+				);
 				await startSupervisor({
 					task: opts.task,
 					name: opts.name,

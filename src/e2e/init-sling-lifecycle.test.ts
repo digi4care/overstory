@@ -27,7 +27,6 @@ const EXPECTED_AGENT_DEFS = [
 	"monitor.md",
 	"reviewer.md",
 	"scout.md",
-	"supervisor.md",
 ];
 
 describe("E2E: init→sling lifecycle on external project", () => {
@@ -77,7 +76,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 		const gitignoreFile = Bun.file(join(overstoryDir, ".gitignore"));
 		expect(await gitignoreFile.exists()).toBe(true);
 
-		// agent-defs/ contains all 8 agent definition files
+		// agent-defs/ contains all 7 agent definition files (supervisor deprecated)
 		const agentDefsDir = join(overstoryDir, "agent-defs");
 		const agentDefFiles = (await readdir(agentDefsDir)).filter((f) => f.endsWith(".md")).sort();
 		expect(agentDefFiles).toEqual(EXPECTED_AGENT_DEFS);
@@ -109,7 +108,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 		expect(config.project.name).toBeTruthy();
 	});
 
-	test("manifest loads successfully with all 8 agents", async () => {
+	test("manifest loads successfully with all 7 agents (supervisor deprecated)", async () => {
 		await initCommand({});
 
 		const manifestPath = join(tempDir, ".overstory", "agent-manifest.json");
@@ -118,7 +117,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 
 		const manifest = await loader.load();
 
-		// All 8 agents present
+		// All 7 agents present (supervisor removed: deprecated, use lead instead)
 		const agentNames = Object.keys(manifest.agents).sort();
 		expect(agentNames).toEqual([
 			"builder",
@@ -128,7 +127,6 @@ describe("E2E: init→sling lifecycle on external project", () => {
 			"monitor",
 			"reviewer",
 			"scout",
-			"supervisor",
 		]);
 
 		// Each agent has a valid file reference

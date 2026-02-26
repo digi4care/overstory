@@ -290,7 +290,7 @@ export function checkParentAgentLimit(
  *
  * When parentAgent is null, the caller is the coordinator or a human.
  * Only "lead" capability is allowed in that case. All other capabilities
- * (builder, scout, reviewer, merger) must be spawned by a lead or supervisor
+ * (builder, scout, reviewer, merger) must be spawned by a lead
  * that passes --parent.
  *
  * @param parentAgent - The --parent flag value (null = coordinator/human)
