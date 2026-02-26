@@ -349,7 +349,9 @@ describe("generatePiGuardExtension", () => {
 
 		test("generated code contains pi.exec ov log tool-start in tool_call handler", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain('pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME])');
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME, "--tool-name", event.toolName])',
+			);
 		});
 
 		test('generated code contains pi.on("tool_execution_end", ...)', () => {
@@ -359,7 +361,9 @@ describe("generatePiGuardExtension", () => {
 
 		test("generated code contains pi.exec ov log tool-end in tool_execution_end handler", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain('pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME])');
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME, "--tool-name", event.toolName])',
+			);
 		});
 
 		test('generated code contains pi.on("session_shutdown", ...)', () => {
@@ -372,6 +376,26 @@ describe("generatePiGuardExtension", () => {
 			expect(generated).toContain(
 				'await pi.exec("ov", ["log", "session-end", "--agent", AGENT_NAME])',
 			);
+		});
+
+		test("tool_call handler passes --tool-name event.toolName to tool-start", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME, "--tool-name", event.toolName])',
+			);
+		});
+
+		test("tool_execution_end handler passes --tool-name event.toolName to tool-end", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain(
+				'pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME, "--tool-name", event.toolName])',
+			);
+		});
+
+		test("tool_execution_end handler uses named event parameter (not _event)", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain('pi.on("tool_execution_end", async (event) => {');
+			expect(generated).not.toContain('pi.on("tool_execution_end", async (_event) => {');
 		});
 	});
 
