@@ -9,6 +9,7 @@
 
 import { dirname, resolve } from "node:path";
 import { AgentError } from "../errors.ts";
+import type { ReadyState } from "../runtimes/types.ts";
 
 /**
  * Detect the directory containing the overstory binary.
@@ -435,58 +436,43 @@ export async function capturePaneContent(name: string, lines = 50): Promise<stri
 /**
  * Wait for a tmux session's TUI to become ready for input.
  *
- * Uses a two-phase readiness check:
- * 1. Phase 1 — prompt indicator: detects ❯ or 'Try "' confirming Claude Code has started
- * 2. Phase 2 — status bar: detects 'bypass permissions' or 'shift+tab' confirming full TUI render
- * Returns true only when BOTH phases have been observed.
- *
- * Additionally handles the workspace trust dialog: if 'trust this folder' is detected,
- * sends Enter to auto-confirm before continuing to wait for the real TUI. The trust
- * dialog check must precede phase checks since it replaces the normal TUI temporarily.
+ * Delegates all readiness detection to the provided `detectReady` callback,
+ * making this function runtime-agnostic. The callback inspects pane content
+ * and returns a ReadyState phase: "loading" (keep waiting), "dialog" (send
+ * Enter to dismiss, then continue), or "ready" (return true).
  *
  * @param name - Tmux session name to poll
+ * @param detectReady - Callback that inspects pane content and returns ReadyState
  * @param timeoutMs - Maximum time to wait before giving up (default 30s)
  * @param pollIntervalMs - Time between polls (default 500ms)
- * @returns true once both prompt indicator AND status bar text detected, false on timeout
+ * @returns true once detectReady returns { phase: "ready" }, false on timeout or dead session
  */
 export async function waitForTuiReady(
 	name: string,
+	detectReady: (paneContent: string) => ReadyState,
 	timeoutMs = 30_000,
 	pollIntervalMs = 500,
 ): Promise<boolean> {
 	const maxAttempts = Math.ceil(timeoutMs / pollIntervalMs);
-	let promptSeen = false;
-	let statusBarSeen = false;
-	let trustHandled = false;
+	let dialogHandled = false;
 
 	for (let i = 0; i < maxAttempts; i++) {
 		const content = await capturePaneContent(name);
 		if (content !== null) {
-			// Trust dialog detection — must come before phase checks since it replaces normal TUI
-			if (!trustHandled && content.includes("trust this folder")) {
+			const state = detectReady(content);
+
+			if (state.phase === "dialog" && !dialogHandled) {
 				await sendKeys(name, "");
-				trustHandled = true;
+				dialogHandled = true;
 				await Bun.sleep(pollIntervalMs);
 				continue;
 			}
 
-			// Phase 1: prompt indicator confirms Claude Code has started
-			if (content.includes("\u276f") || content.includes('Try "')) {
-				promptSeen = true;
-			}
-
-			// Phase 2: status bar text confirms full TUI render
-			if (content.includes("bypass permissions") || content.includes("shift+tab")) {
-				statusBarSeen = true;
-			}
-
-			// Return true only when both phases complete
-			if (promptSeen && statusBarSeen) {
+			if (state.phase === "ready") {
 				return true;
 			}
 		}
 
-		// Check if session died — no point waiting if it's gone
 		const alive = await isSessionAlive(name);
 		if (!alive) {
 			return false;
