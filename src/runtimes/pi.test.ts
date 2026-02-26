@@ -19,8 +19,49 @@ describe("PiRuntime", () => {
 		});
 	});
 
+	describe("expandModel", () => {
+		test("expands known alias to provider-qualified ID", () => {
+			expect(runtime.expandModel("sonnet")).toBe("anthropic/claude-sonnet-4-6");
+			expect(runtime.expandModel("opus")).toBe("anthropic/claude-opus-4-6");
+			expect(runtime.expandModel("haiku")).toBe("anthropic/claude-haiku-4-5");
+		});
+
+		test("passes through already-qualified model (contains /)", () => {
+			expect(runtime.expandModel("anthropic/claude-opus-4-6")).toBe("anthropic/claude-opus-4-6");
+			expect(runtime.expandModel("openrouter/gpt-5")).toBe("openrouter/gpt-5");
+		});
+
+		test("unknown alias gets provider prefix", () => {
+			expect(runtime.expandModel("gpt-4o")).toBe("anthropic/gpt-4o");
+		});
+
+		test("custom config with different provider", () => {
+			const custom = new PiRuntime({
+				provider: "amazon-bedrock",
+				modelMap: {
+					opus: "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+				},
+			});
+			expect(custom.expandModel("opus")).toBe("amazon-bedrock/us.anthropic.claude-opus-4-6-v1");
+			// Unknown alias gets the custom provider prefix
+			expect(custom.expandModel("sonnet")).toBe("amazon-bedrock/sonnet");
+		});
+
+		test("custom modelMap overrides defaults", () => {
+			const custom = new PiRuntime({
+				provider: "anthropic",
+				modelMap: {
+					sonnet: "anthropic/claude-sonnet-4-5-20250514",
+				},
+			});
+			expect(custom.expandModel("sonnet")).toBe("anthropic/claude-sonnet-4-5-20250514");
+			// Aliases not in the custom map fall back to provider prefix
+			expect(custom.expandModel("opus")).toBe("anthropic/opus");
+		});
+	});
+
 	describe("buildSpawnCommand", () => {
-		test("basic command includes model flag", () => {
+		test("expands model alias to provider-qualified ID", () => {
 			const opts: SpawnOpts = {
 				model: "sonnet",
 				permissionMode: "bypass",
@@ -28,7 +69,7 @@ describe("PiRuntime", () => {
 				env: {},
 			};
 			const cmd = runtime.buildSpawnCommand(opts);
-			expect(cmd).toBe("pi --model sonnet");
+			expect(cmd).toBe("pi --model anthropic/claude-sonnet-4-6");
 		});
 
 		test("permissionMode is NOT included in command (Pi has no permission-mode flag)", () => {
@@ -53,7 +94,7 @@ describe("PiRuntime", () => {
 			};
 			const cmd = runtime.buildSpawnCommand(opts);
 			expect(cmd).not.toContain("--permission-mode");
-			expect(cmd).toBe("pi --model haiku");
+			expect(cmd).toBe("pi --model anthropic/claude-haiku-4-5");
 		});
 
 		test("with appendSystemPrompt (no quotes in prompt)", () => {
@@ -65,7 +106,9 @@ describe("PiRuntime", () => {
 				appendSystemPrompt: "You are a builder agent.",
 			};
 			const cmd = runtime.buildSpawnCommand(opts);
-			expect(cmd).toBe("pi --model sonnet --append-system-prompt 'You are a builder agent.'");
+			expect(cmd).toBe(
+				"pi --model anthropic/claude-sonnet-4-6 --append-system-prompt 'You are a builder agent.'",
+			);
 		});
 
 		test("with appendSystemPrompt containing single quotes (POSIX escape)", () => {
@@ -79,7 +122,7 @@ describe("PiRuntime", () => {
 			const cmd = runtime.buildSpawnCommand(opts);
 			expect(cmd).toContain("--append-system-prompt");
 			expect(cmd).toBe(
-				"pi --model sonnet --append-system-prompt 'Don'\\''t touch the user'\\''s files'",
+				"pi --model anthropic/claude-sonnet-4-6 --append-system-prompt 'Don'\\''t touch the user'\\''s files'",
 			);
 		});
 
@@ -107,8 +150,8 @@ describe("PiRuntime", () => {
 			expect(cmd).not.toContain("API_KEY");
 		});
 
-		test("all model names pass through unchanged", () => {
-			for (const model of ["sonnet", "opus", "haiku", "gpt-4o", "openrouter/gpt-5"]) {
+		test("already-qualified models pass through unchanged", () => {
+			for (const model of ["openrouter/gpt-5", "amazon-bedrock/us.anthropic.claude-opus-4-6-v1"]) {
 				const opts: SpawnOpts = {
 					model,
 					permissionMode: "bypass",
@@ -119,6 +162,23 @@ describe("PiRuntime", () => {
 				expect(cmd).toContain(`--model ${model}`);
 			}
 		});
+
+		test("aliases are expanded in spawn command", () => {
+			for (const [alias, expected] of [
+				["sonnet", "anthropic/claude-sonnet-4-6"],
+				["opus", "anthropic/claude-opus-4-6"],
+				["haiku", "anthropic/claude-haiku-4-5"],
+			] as const) {
+				const opts: SpawnOpts = {
+					model: alias,
+					permissionMode: "bypass",
+					cwd: "/tmp",
+					env: {},
+				};
+				const cmd = runtime.buildSpawnCommand(opts);
+				expect(cmd).toContain(`--model ${expected}`);
+			}
+		});
 	});
 
 	describe("buildPrintCommand", () => {
@@ -127,9 +187,20 @@ describe("PiRuntime", () => {
 			expect(argv).toEqual(["pi", "--print", "Summarize this diff"]);
 		});
 
-		test("command with model override — model before prompt", () => {
+		test("command with model alias — expands to qualified ID", () => {
 			const argv = runtime.buildPrintCommand("Classify this error", "haiku");
-			expect(argv).toEqual(["pi", "--print", "--model", "haiku", "Classify this error"]);
+			expect(argv).toEqual([
+				"pi",
+				"--print",
+				"--model",
+				"anthropic/claude-haiku-4-5",
+				"Classify this error",
+			]);
+		});
+
+		test("command with already-qualified model — passes through", () => {
+			const argv = runtime.buildPrintCommand("Classify this error", "openrouter/gpt-5");
+			expect(argv).toEqual(["pi", "--print", "--model", "openrouter/gpt-5", "Classify this error"]);
 		});
 
 		test("model undefined omits --model flag", () => {

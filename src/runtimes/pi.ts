@@ -3,7 +3,7 @@
 
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import type { ResolvedModel } from "../types.ts";
+import type { PiRuntimeConfig, ResolvedModel } from "../types.ts";
 import { generatePiGuardExtension } from "./pi-guards.ts";
 import type {
 	AgentRuntime,
@@ -13,6 +13,16 @@ import type {
 	SpawnOpts,
 	TranscriptSummary,
 } from "./types.ts";
+
+/** Default Pi runtime config used when no config is provided. */
+const DEFAULT_PI_CONFIG: PiRuntimeConfig = {
+	provider: "anthropic",
+	modelMap: {
+		opus: "anthropic/claude-opus-4-6",
+		sonnet: "anthropic/claude-sonnet-4-6",
+		haiku: "anthropic/claude-haiku-4-5",
+	},
+};
 
 /**
  * Pi runtime adapter.
@@ -27,6 +37,26 @@ export class PiRuntime implements AgentRuntime {
 
 	/** Relative path to the instruction file within a worktree. Pi reads .claude/CLAUDE.md natively. */
 	readonly instructionPath = ".claude/CLAUDE.md";
+
+	private readonly config: PiRuntimeConfig;
+
+	constructor(config?: PiRuntimeConfig) {
+		this.config = config ?? DEFAULT_PI_CONFIG;
+	}
+
+	/**
+	 * Expand a model alias to a provider-qualified model ID.
+	 *
+	 * 1. If model contains "/" → already qualified, pass through
+	 * 2. If model is in modelMap → return the mapped value
+	 * 3. Otherwise → return `${provider}/${model}`
+	 */
+	expandModel(model: string): string {
+		if (model.includes("/")) return model;
+		const mapped = this.config.modelMap[model];
+		if (mapped) return mapped;
+		return `${this.config.provider}/${model}`;
+	}
 
 	/**
 	 * Build the shell command string to spawn an interactive Pi agent.
@@ -43,7 +73,7 @@ export class PiRuntime implements AgentRuntime {
 	 * @returns Shell command string suitable for tmux new-session -c
 	 */
 	buildSpawnCommand(opts: SpawnOpts): string {
-		let cmd = `pi --model ${opts.model}`;
+		let cmd = `pi --model ${this.expandModel(opts.model)}`;
 
 		if (opts.appendSystemPrompt) {
 			// POSIX single-quote escape: end quote, backslash-quote, start quote.
@@ -68,7 +98,7 @@ export class PiRuntime implements AgentRuntime {
 	buildPrintCommand(prompt: string, model?: string): string[] {
 		const cmd = ["pi", "--print"];
 		if (model !== undefined) {
-			cmd.push("--model", model);
+			cmd.push("--model", this.expandModel(model));
 		}
 		cmd.push(prompt);
 		return cmd;
@@ -212,6 +242,3 @@ export class PiRuntime implements AgentRuntime {
 		return model.env ?? {};
 	}
 }
-
-/** Singleton instance for use in callers that do not need DI. */
-export const piRuntime = new PiRuntime();

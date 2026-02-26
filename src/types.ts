@@ -22,6 +22,14 @@ export interface ResolvedModel {
 	env?: Record<string, string>;
 }
 
+/** Configuration for the Pi runtime's model alias expansion. */
+export interface PiRuntimeConfig {
+	/** Provider prefix for unqualified model aliases (e.g., "anthropic", "amazon-bedrock"). */
+	provider: string;
+	/** Maps short aliases (e.g., "opus") to provider-qualified model IDs. */
+	modelMap: Record<string, string>;
+}
+
 // === Task Tracker ===
 
 /** Backend for the task tracker. Defined here for use in OverstoryConfig. */
@@ -95,6 +103,8 @@ export interface OverstoryConfig {
 		 * Falls back to runtime.default when omitted.
 		 */
 		printCommand?: string;
+		/** Pi runtime configuration for model alias expansion. */
+		pi?: PiRuntimeConfig;
 	};
 }
 

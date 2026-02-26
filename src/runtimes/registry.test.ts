@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { OverstoryConfig } from "../types.ts";
 import { ClaudeRuntime } from "./claude.ts";
+import { PiRuntime } from "./pi.ts";
 import { getRuntime } from "./registry.ts";
 
 describe("getRuntime", () => {
@@ -49,5 +50,37 @@ describe("getRuntime", () => {
 		const a = getRuntime();
 		const b = getRuntime();
 		expect(a).not.toBe(b);
+	});
+
+	it("returns PiRuntime when name is 'pi'", () => {
+		const runtime = getRuntime("pi");
+		expect(runtime).toBeInstanceOf(PiRuntime);
+		expect(runtime.id).toBe("pi");
+	});
+
+	it("passes Pi config from OverstoryConfig to PiRuntime", () => {
+		const config = {
+			runtime: {
+				default: "pi",
+				pi: {
+					provider: "amazon-bedrock",
+					modelMap: {
+						opus: "amazon-bedrock/us.anthropic.claude-opus-4-6-v1",
+					},
+				},
+			},
+		} as unknown as OverstoryConfig;
+		const runtime = getRuntime(undefined, config) as PiRuntime;
+		expect(runtime).toBeInstanceOf(PiRuntime);
+		// Verify the config was applied by testing model expansion
+		expect(runtime.expandModel("opus")).toBe("amazon-bedrock/us.anthropic.claude-opus-4-6-v1");
+	});
+
+	it("Pi runtime uses defaults when no Pi config in OverstoryConfig", () => {
+		const config = { runtime: { default: "pi" } } as OverstoryConfig;
+		const runtime = getRuntime(undefined, config) as PiRuntime;
+		expect(runtime).toBeInstanceOf(PiRuntime);
+		// Should use default anthropic mappings
+		expect(runtime.expandModel("sonnet")).toBe("anthropic/claude-sonnet-4-6");
 	});
 });

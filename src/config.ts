@@ -64,6 +64,14 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 	},
 	runtime: {
 		default: "claude",
+		pi: {
+			provider: "anthropic",
+			modelMap: {
+				opus: "anthropic/claude-opus-4-6",
+				sonnet: "anthropic/claude-sonnet-4-6",
+				haiku: "anthropic/claude-haiku-4-5",
+			},
+		},
 	},
 };
 
@@ -633,6 +641,27 @@ function validateConfig(config: OverstoryConfig): void {
 		process.stderr.write(
 			`[overstory] WARNING: runtime.default must be a string. Got: ${typeof config.runtime.default}. Ignoring.\n`,
 		);
+	}
+
+	// runtime.pi: validate provider and modelMap if present
+	if (config.runtime?.pi) {
+		const pi = config.runtime.pi;
+		if (!pi.provider || typeof pi.provider !== "string") {
+			throw new ValidationError("runtime.pi.provider must be a non-empty string", {
+				field: "runtime.pi.provider",
+				value: pi.provider,
+			});
+		}
+		if (pi.modelMap && typeof pi.modelMap === "object") {
+			for (const [alias, qualified] of Object.entries(pi.modelMap)) {
+				if (!qualified || typeof qualified !== "string") {
+					throw new ValidationError(`runtime.pi.modelMap.${alias} must be a non-empty string`, {
+						field: `runtime.pi.modelMap.${alias}`,
+						value: qualified,
+					});
+				}
+			}
+		}
 	}
 
 	// models: validate each value — accepts aliases and provider-prefixed refs
