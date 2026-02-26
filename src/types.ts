@@ -89,6 +89,12 @@ export interface OverstoryConfig {
 	runtime?: {
 		/** Default runtime adapter name (default: "claude"). */
 		default: string;
+		/**
+		 * Runtime adapter for headless one-shot AI calls (--print mode).
+		 * Used by merge/resolver.ts and watchdog/triage.ts.
+		 * Falls back to runtime.default when omitted.
+		 */
+		printCommand?: string;
 	};
 }
 
