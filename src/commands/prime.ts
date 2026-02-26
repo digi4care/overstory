@@ -18,22 +18,7 @@ import { createMulchClient } from "../mulch/client.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { AgentIdentity, AgentManifest, SessionCheckpoint, SessionMetrics } from "../types.ts";
 import { getCurrentSessionName } from "../worktree/tmux.ts";
-
-/**
- * Gitignore content for .overstory/.gitignore.
- * TODO: Import from init.ts once it's exported (parallel branch change).
- * Wildcard+whitelist pattern: ignore everything except tracked config files.
- */
-const OVERSTORY_GITIGNORE = `# Wildcard+whitelist: ignore everything, whitelist tracked files
-# Auto-healed by ov prime on each session start
-*
-!.gitignore
-!config.yaml
-!agent-manifest.json
-!hooks.json
-!groups.json
-!agent-defs/
-`;
+import { OVERSTORY_GITIGNORE } from "./init.ts";
 
 export interface PrimeOptions {
 	agent?: string;
