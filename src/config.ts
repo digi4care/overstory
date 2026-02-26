@@ -62,6 +62,9 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 		verbose: false,
 		redactSecrets: true,
 	},
+	runtime: {
+		default: "claude",
+	},
 };
 
 const CONFIG_FILENAME = "config.yaml";
@@ -623,6 +626,13 @@ function validateConfig(config: OverstoryConfig): void {
 				);
 			}
 		}
+	}
+
+	// runtime.default must be a string if present
+	if (config.runtime !== undefined && typeof config.runtime.default !== "string") {
+		process.stderr.write(
+			`[overstory] WARNING: runtime.default must be a string. Got: ${typeof config.runtime.default}. Ignoring.\n`,
+		);
 	}
 
 	// models: validate each value — accepts aliases and provider-prefixed refs

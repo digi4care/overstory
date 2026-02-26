@@ -86,6 +86,10 @@ export interface OverstoryConfig {
 		verbose: boolean;
 		redactSecrets: boolean;
 	};
+	runtime?: {
+		/** Default runtime adapter name (default: "claude"). */
+		default: string;
+	};
 }
 
 // === Agent Manifest ===
