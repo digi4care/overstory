@@ -76,11 +76,7 @@ describe("createSeedsTracker — ready()", () => {
 
 	test("verifies CLI args: [sd, ready, --json]", async () => {
 		spawnSpy.mockImplementation(() =>
-			mockSpawnResult(
-				JSON.stringify({ success: true, command: "ready", issues: [] }),
-				"",
-				0,
-			),
+			mockSpawnResult(JSON.stringify({ success: true, command: "ready", issues: [] }), "", 0),
 		);
 
 		const tracker = createSeedsTracker(TEST_CWD);
@@ -342,11 +338,7 @@ describe("createSeedsTracker — list()", () => {
 
 	test("verifies CLI args: [sd, list, --json]", async () => {
 		spawnSpy.mockImplementation(() =>
-			mockSpawnResult(
-				JSON.stringify({ success: true, command: "list", issues: [] }),
-				"",
-				0,
-			),
+			mockSpawnResult(JSON.stringify({ success: true, command: "list", issues: [] }), "", 0),
 		);
 
 		const tracker = createSeedsTracker(TEST_CWD);
