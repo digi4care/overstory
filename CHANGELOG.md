@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-02-26
+
+### Added
+
+#### Runtime-Agnostic Pricing Module
+- **`src/metrics/pricing.ts`** — extracted pricing logic from `transcript.ts` into a standalone module with `TokenUsage`, `ModelPricing`, `getPricingForModel()`, and `estimateCost()` exports, enabling any runtime (not just Claude Code) to use cost estimation without pulling in JSONL-specific parsing logic
+
+#### Multi-Runtime Instruction File Discovery
+- **`KNOWN_INSTRUCTION_PATHS`** in `agents.ts` — `extractFileScope()` now tries `.claude/CLAUDE.md` then `AGENTS.md` (future Codex support) instead of hardcoding Claude Code's overlay path
+
+#### Mulch Classification Guidance
+- **`--classification` guidance in all 8 agent definitions** — builder, coordinator, lead, merger, monitor, reviewer, and scout definitions updated with `--classification <foundational|tactical|observational>` guidance for `ml record` commands, with inline descriptions of when to use each classification level
+
+#### Pi Runtime Improvements
+- **`agent_end` handler in Pi guard extensions** — Pi agents now log `session-end` when the agentic loop completes (via `agent_end` event), preventing watchdog false-positive zombie escalation; `session_shutdown` handler kept as a safety net for crashes and force-kills
+- **`--tool-name` forwarding** in Pi guard extensions — `ov log tool-start` and `ov log tool-end` calls now correctly forward the tool name
+
+#### Testing
+- **Tracker adapter test suites** — comprehensive tests for beads (`src/tracker/beads.test.ts`, 454 lines) and seeds (`src/tracker/seeds.test.ts`, 469 lines) backends covering CLI invocation, JSON parsing, error handling, and edge cases
+- Test suite grew from 2550 to 2607 tests across 86 files (6269 expect() calls)
+
+### Fixed
+- **`OVERSTORY_GITIGNORE` import in `prime.ts`** — removed duplicate constant definition, now imports from `init.ts` where the canonical constant lives
+- **Pi agent zombie-state bug** — without the `agent_end` handler, completed Pi agents were never marked "completed" in the SessionStore, causing the watchdog to escalate them through stalled → nudge → triage → terminate
+- **Shell completions for `sling`** — added missing `--runtime` flag to shell completion definitions (PR #39, thanks [@lucabarak](https://github.com/lucabarak))
+- **`cleanupTempDir` ENOENT/EBUSY handling** — tightened catch block for ENOENT errors and added retry logic for EBUSY from SQLite WAL handles on Windows (#41)
+
 ## [0.7.3] - 2026-02-26
 
 ### Added
@@ -1095,7 +1122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/jayminwest/overstory/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/jayminwest/overstory/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/jayminwest/overstory/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jayminwest/overstory/compare/v0.7.0...v0.7.1

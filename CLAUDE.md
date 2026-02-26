@@ -143,7 +143,8 @@ overstory/                        # This repo (the overstory tool itself)
     metrics/
       store.ts                    # SQLite metrics storage
       summary.ts                  # Metrics reporting
-      transcript.ts               # Claude Code transcript JSONL parser + cost estimation
+      pricing.ts                  # Runtime-agnostic pricing + cost estimation
+      transcript.ts               # Claude Code transcript JSONL parser
     doctor/                       # Modular health check system
       *.ts                        # 10 check categories (see `ov doctor --help`)
   agents/                         # Base agent definitions (the HOW)

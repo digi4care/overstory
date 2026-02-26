@@ -252,7 +252,7 @@ overstory/
     merge/                        FIFO queue + conflict resolution
     watchdog/                     Tiered health monitoring (daemon, triage, health)
     logging/                      Multi-format logger + sanitizer + reporter + color control + shared theme/format
-    metrics/                      SQLite metrics + transcript parsing
+    metrics/                      SQLite metrics + pricing + transcript parsing
     doctor/                       Health check modules (10 checks)
     insights/                     Session insight analyzer for auto-expertise
     runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi)
