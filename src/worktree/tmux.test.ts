@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { AgentError } from "../errors.ts";
+import type { ReadyState } from "../runtimes/types.ts";
 import {
 	capturePaneContent,
 	createSession,
@@ -940,6 +941,20 @@ describe("capturePaneContent", () => {
 	});
 });
 
+/** Claude-like detectReady for tests — matches the existing hardcoded behavior. */
+function claudeDetectReady(paneContent: string): ReadyState {
+	if (paneContent.includes("trust this folder")) {
+		return { phase: "dialog", action: "Enter" };
+	}
+	const hasPrompt = paneContent.includes("\u276f") || paneContent.includes('Try "');
+	const hasStatusBar =
+		paneContent.includes("bypass permissions") || paneContent.includes("shift+tab");
+	if (hasPrompt && hasStatusBar) {
+		return { phase: "ready" };
+	}
+	return { phase: "loading" };
+}
+
 describe("waitForTuiReady", () => {
 	let spawnSpy: ReturnType<typeof spyOn>;
 	let sleepSpy: ReturnType<typeof spyOn>;
@@ -961,7 +976,7 @@ describe("waitForTuiReady", () => {
 			mockSpawnResult('Try "help" to get started\nbypass permissions', "", 0),
 		);
 
-		const ready = await waitForTuiReady("overstory-agent", 5_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 5_000, 500);
 
 		expect(ready).toBe(true);
 		// Should not have needed to sleep (content found on first poll)
@@ -985,7 +1000,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 10_000, 500);
 
 		expect(ready).toBe(true);
 		// Should have slept 3 times (3 empty capture-pane polls before content appeared)
@@ -996,7 +1011,7 @@ describe("waitForTuiReady", () => {
 		// Pane always empty
 		spawnSpy.mockImplementation(() => mockSpawnResult("", "", 0));
 
-		const ready = await waitForTuiReady("overstory-agent", 2_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 2_000, 500);
 
 		expect(ready).toBe(false);
 		// 2000ms / 500ms = 4 polls, 4 sleeps
@@ -1006,7 +1021,7 @@ describe("waitForTuiReady", () => {
 	test("returns false when capture-pane always fails", async () => {
 		spawnSpy.mockImplementation(() => mockSpawnResult("", "session not found", 1));
 
-		const ready = await waitForTuiReady("dead-session", 1_000, 500);
+		const ready = await waitForTuiReady("dead-session", claudeDetectReady, 1_000, 500);
 
 		expect(ready).toBe(false);
 	});
@@ -1015,7 +1030,7 @@ describe("waitForTuiReady", () => {
 		// Return content immediately with both indicators
 		spawnSpy.mockImplementation(() => mockSpawnResult('Try "help"\nshift+tab', "", 0));
 
-		const ready = await waitForTuiReady("overstory-agent");
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady);
 
 		expect(ready).toBe(true);
 	});
@@ -1031,7 +1046,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "can't find session", 1);
 		});
 
-		const ready = await waitForTuiReady("dead-session", 15_000, 500);
+		const ready = await waitForTuiReady("dead-session", claudeDetectReady, 15_000, 500);
 
 		expect(ready).toBe(false);
 		// Should NOT have polled the full timeout (no sleeps — returned immediately)
@@ -1052,7 +1067,7 @@ describe("waitForTuiReady", () => {
 		});
 
 		// Use a short timeout so the test doesn't take long
-		const ready = await waitForTuiReady("loading-session", 1_000, 500);
+		const ready = await waitForTuiReady("loading-session", claudeDetectReady, 1_000, 500);
 
 		expect(ready).toBe(false);
 		// Should have polled multiple times (not returned early)
@@ -1071,7 +1086,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 1_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 1_000, 500);
 
 		expect(ready).toBe(false);
 	});
@@ -1087,7 +1102,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 1_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 1_000, 500);
 
 		expect(ready).toBe(false);
 	});
@@ -1109,7 +1124,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 10_000, 500);
 
 		expect(ready).toBe(true);
 		// Should have slept at least twice (2 polls with only prompt before both appeared)
@@ -1138,7 +1153,7 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 10_000, 500);
 
 		expect(ready).toBe(true);
 		// sendKeys should have been called once to confirm the trust dialog
@@ -1169,10 +1184,10 @@ describe("waitForTuiReady", () => {
 			return mockSpawnResult("", "", 0);
 		});
 
-		const ready = await waitForTuiReady("overstory-agent", 10_000, 500);
+		const ready = await waitForTuiReady("overstory-agent", claudeDetectReady, 10_000, 500);
 
 		expect(ready).toBe(true);
-		// sendKeys must be called exactly once — trustHandled prevents duplicate Enter sends
+		// sendKeys must be called exactly once — dialogHandled prevents duplicate Enter sends
 		expect(sendKeysCalls).toHaveLength(1);
 	});
 });
