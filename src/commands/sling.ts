@@ -630,8 +630,11 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			trackerName: resolvedBackend,
 		};
 
+		// Resolve runtime before writeOverlay so we can pass runtime.instructionPath
+		const runtime = getRuntime(opts.runtime, config);
+
 		try {
-			await writeOverlay(worktreePath, overlayConfig, config.project.root);
+			await writeOverlay(worktreePath, overlayConfig, config.project.root, runtime.instructionPath);
 		} catch (err) {
 			// Clean up the orphaned worktree created in step 7 (overstory-p4st)
 			try {
@@ -649,7 +652,6 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 
 		// 9. Resolve runtime + model (needed for deployConfig, spawn, and beacon)
 		const resolvedModel = resolveModel(config, manifest, capability, agentDef.model);
-		const runtime = getRuntime(opts.runtime, config);
 
 		// 9a. Deploy hooks config (capability-specific guards)
 		await runtime.deployConfig(worktreePath, undefined, {
