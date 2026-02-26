@@ -32,6 +32,7 @@ import { printSuccess } from "../logging/color.ts";
 import { createMailClient } from "../mail/client.ts";
 import { createMailStore } from "../mail/store.ts";
 import { createMulchClient } from "../mulch/client.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
 import type { TrackerIssue } from "../tracker/factory.ts";
@@ -122,6 +123,7 @@ export interface SlingOptions {
 	maxAgents?: string;
 	skipReview?: boolean;
 	dispatchMaxAgents?: string;
+	runtime?: string;
 }
 
 export interface AutoDispatchOptions {
@@ -699,10 +701,20 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 
 		// 12. Create tmux session running claude in interactive mode
 		const tmuxSessionName = `overstory-${config.project.name}-${name}`;
-		const { model, env } = resolveModel(config, manifest, capability, agentDef.model);
-		const claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
-		const pid = await createSession(tmuxSessionName, worktreePath, claudeCmd, {
-			...env,
+		const resolvedModel = resolveModel(config, manifest, capability, agentDef.model);
+		const runtime = getRuntime(opts.runtime, config);
+		const spawnCmd = runtime.buildSpawnCommand({
+			model: resolvedModel.model,
+			permissionMode: "bypass",
+			cwd: worktreePath,
+			env: {
+				...runtime.buildEnv(resolvedModel),
+				OVERSTORY_AGENT_NAME: name,
+				OVERSTORY_WORKTREE_PATH: worktreePath,
+			},
+		});
+		const pid = await createSession(tmuxSessionName, worktreePath, spawnCmd, {
+			...runtime.buildEnv(resolvedModel),
 			OVERSTORY_AGENT_NAME: name,
 			OVERSTORY_WORKTREE_PATH: worktreePath,
 		});
@@ -765,17 +777,20 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		}
 
 		// 13d. Verify beacon was received — if pane still shows the welcome
-		// screen ("Try "), resend the beacon. Claude Code's TUI sometimes
-		// consumes the Enter keystroke during late initialization, swallowing
+		// screen (detectReady returns "ready"), resend the beacon. Claude Code's TUI
+		// sometimes consumes the Enter keystroke during late initialization, swallowing
 		// the beacon text entirely (overstory-3271).
 		const verifyAttempts = 5;
 		for (let v = 0; v < verifyAttempts; v++) {
 			await Bun.sleep(2_000);
 			const paneContent = await capturePaneContent(tmuxSessionName);
-			if (paneContent && !paneContent.includes('Try "')) {
-				break; // Agent is processing — beacon was received
+			if (paneContent) {
+				const readyState = runtime.detectReady(paneContent);
+				if (readyState.phase !== "ready") {
+					break; // Agent is processing — beacon was received
+				}
 			}
-			// Still at welcome screen — resend beacon
+			// Still at welcome/idle screen — resend beacon
 			await sendKeys(tmuxSessionName, beacon);
 			await Bun.sleep(1_000);
 			await sendKeys(tmuxSessionName, ""); // Follow-up Enter

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { resolveModel, resolveProviderEnv } from "../agents/manifest.ts";
 import { HierarchyError } from "../errors.ts";
+import { ClaudeRuntime } from "../runtimes/claude.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import type { AgentManifest, OverstoryConfig } from "../types.ts";
 import {
 	type AutoDispatchOptions,
@@ -1080,3 +1082,54 @@ describe("buildAutoDispatch", () => {
  * Integration coverage: The beacon loop has been validated through production
  * agent spawns. Failure mode is agents stuck at welcome screen (overstory-3271).
  */
+
+describe("sling runtime integration", () => {
+	test("runtime.buildSpawnCommand produces identical command to old hardcoded string", () => {
+		const runtime = getRuntime("claude");
+		const cmd = runtime.buildSpawnCommand({
+			model: "sonnet",
+			permissionMode: "bypass",
+			cwd: "/tmp/worktree",
+			env: {},
+		});
+		expect(cmd).toBe("claude --model sonnet --permission-mode bypassPermissions");
+	});
+
+	test("runtime.buildSpawnCommand with opus model", () => {
+		const runtime = getRuntime("claude");
+		const cmd = runtime.buildSpawnCommand({
+			model: "opus",
+			permissionMode: "bypass",
+			cwd: "/tmp/worktree",
+			env: {},
+		});
+		expect(cmd).toBe("claude --model opus --permission-mode bypassPermissions");
+	});
+
+	test("runtime.buildEnv returns empty object for native model", () => {
+		const runtime = new ClaudeRuntime();
+		const env = runtime.buildEnv({ model: "sonnet" });
+		expect(env).toEqual({});
+	});
+
+	test("runtime.buildEnv passes through provider env vars", () => {
+		const runtime = new ClaudeRuntime();
+		const env = runtime.buildEnv({
+			model: "sonnet",
+			env: { ANTHROPIC_BASE_URL: "https://example.com" },
+		});
+		expect(env).toEqual({ ANTHROPIC_BASE_URL: "https://example.com" });
+	});
+
+	test("runtime.detectReady returns ready for idle Claude prompt", () => {
+		const runtime = new ClaudeRuntime();
+		const state = runtime.detectReady('Try "hello world"\n\nbypass permissions');
+		expect(state.phase).toBe("ready");
+	});
+
+	test("runtime.detectReady returns loading when agent is processing", () => {
+		const runtime = new ClaudeRuntime();
+		const state = runtime.detectReady("Running tool: Read\nbypass permissions");
+		expect(state.phase).toBe("loading");
+	});
+});
