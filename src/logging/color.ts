@@ -10,7 +10,7 @@ import chalk from "chalk";
 // --- Brand palette (os-eco brand colors) ---
 
 /** Forest green — Overstory primary brand color. */
-export const brand = chalk.rgb(27, 94, 32);
+export const brand = chalk.rgb(46, 125, 50);
 
 /** Amber — highlights, warnings. */
 export const accent = chalk.rgb(255, 183, 77);

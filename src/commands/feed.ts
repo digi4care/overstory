@@ -13,14 +13,7 @@ import { ValidationError } from "../errors.ts";
 import { createEventStore } from "../events/store.ts";
 import { jsonOutput } from "../json.ts";
 import type { ColorFn } from "../logging/color.ts";
-import { color } from "../logging/color.ts";
-import {
-	buildAgentColorMap,
-	buildEventDetail,
-	extendAgentColorMap,
-	formatAbsoluteTime,
-} from "../logging/format.ts";
-import { eventLabel } from "../logging/theme.ts";
+import { buildAgentColorMap, extendAgentColorMap, formatEventLine } from "../logging/format.ts";
 import type { StoredEvent } from "../types.ts";
 
 /**
@@ -28,27 +21,7 @@ import type { StoredEvent } from "../types.ts";
  * HH:MM:SS LABEL agentname    detail
  */
 function printEvent(event: StoredEvent, colorMap: Map<string, ColorFn>): void {
-	const w = process.stdout.write.bind(process.stdout);
-
-	const timeStr = formatAbsoluteTime(event.createdAt);
-
-	const label = eventLabel(event.eventType);
-
-	const levelColorFn =
-		event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
-	const applyLevel = (text: string) => (levelColorFn ? levelColorFn(text) : text);
-
-	const detail = buildEventDetail(event, 60);
-	const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
-
-	const agentColorFn = colorMap.get(event.agentName) ?? color.gray;
-	const agentLabel = ` ${agentColorFn(event.agentName.padEnd(15))}`;
-
-	w(
-		`${color.dim(timeStr)} ` +
-			`${applyLevel(label.color(color.bold(label.compact)))}` +
-			`${agentLabel}${detailSuffix}\n`,
-	);
+	process.stdout.write(`${formatEventLine(event, colorMap)}\n`);
 }
 
 interface FeedOpts {

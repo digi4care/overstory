@@ -8,7 +8,7 @@
 import type { StoredEvent } from "../types.ts";
 import type { ColorFn } from "./color.ts";
 import { color, noColor } from "./color.ts";
-import { AGENT_COLORS } from "./theme.ts";
+import { AGENT_COLORS, eventLabel } from "./theme.ts";
 
 // === Duration ===
 
@@ -176,6 +176,25 @@ export function priorityColor(priority: string): ColorFn {
 }
 
 /**
+ * Returns a color function for a numeric tracker priority.
+ * 1=urgent (red), 2=high (yellow), 3=normal (identity), 4=low (dim)
+ */
+export function numericPriorityColor(priority: number): ColorFn {
+	switch (priority) {
+		case 1:
+			return color.red;
+		case 2:
+			return color.yellow;
+		case 3:
+			return (text: string) => text;
+		case 4:
+			return color.dim;
+		default:
+			return (text: string) => text;
+	}
+}
+
+/**
  * Returns a color function for a log level string.
  * debug=gray, info=blue, warn=yellow, error=red
  */
@@ -211,4 +230,26 @@ export function logLevelLabel(level: string): string {
 		default:
 			return level.slice(0, 3).toUpperCase();
 	}
+}
+
+/**
+ * Format a single event as a compact feed line.
+ * Returns the formatted string WITHOUT a trailing newline.
+ * Used by both ov feed and the dashboard Feed panel.
+ */
+export function formatEventLine(event: StoredEvent, colorMap: Map<string, ColorFn>): string {
+	const timeStr = formatAbsoluteTime(event.createdAt);
+	const label = eventLabel(event.eventType);
+	const levelColorFn =
+		event.level === "error" ? color.red : event.level === "warn" ? color.yellow : null;
+	const applyLevel = (text: string) => (levelColorFn ? levelColorFn(text) : text);
+	const detail = buildEventDetail(event, 60);
+	const detailSuffix = detail ? ` ${color.dim(detail)}` : "";
+	const agentColorFn = colorMap.get(event.agentName) ?? color.gray;
+	const agentLabel = ` ${agentColorFn(event.agentName.padEnd(15))}`;
+	return (
+		`${color.dim(timeStr)} ` +
+		`${applyLevel(label.color(color.bold(label.compact)))}` +
+		`${agentLabel}${detailSuffix}`
+	);
 }
