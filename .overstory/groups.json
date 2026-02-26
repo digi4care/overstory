@@ -442,5 +442,72 @@
 		"status": "completed",
 		"createdAt": "2026-02-25T19:07:39.078Z",
 		"completedAt": "2026-02-25T19:31:05.277Z"
+	},
+	{
+		"id": "group-e8d7d83d",
+		"name": "cli-standards-completion",
+		"memberIssueIds": [
+			"overstory-e4d9",
+			"overstory-d09c",
+			"overstory-0272",
+			"overstory-5005",
+			"overstory-0ec4",
+			"overstory-8a29",
+			"overstory-49f0",
+			"overstory-eeb9"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-25T19:42:59.477Z",
+		"completedAt": "2026-02-25T20:13:47.966Z"
+	},
+	{
+		"id": "group-391842cc",
+		"name": "spawn-control-batch",
+		"memberIssueIds": [
+			"overstory-gktc",
+			"overstory-c59b",
+			"overstory-pb1p",
+			"overstory-e9my",
+			"overstory-2381"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-25T22:02:50.853Z",
+		"completedAt": "2026-02-25T22:42:09.332Z"
+	},
+	{
+		"id": "group-542e14af",
+		"name": "branding-infra-batch",
+		"memberIssueIds": [
+			"overstory-6d64",
+			"overstory-nd62",
+			"overstory-5652",
+			"overstory-6322"
+		],
+		"status": "completed",
+		"createdAt": "2026-02-25T23:07:55.105Z",
+		"completedAt": "2026-02-25T23:48:25.634Z"
+	},
+	{
+		"id": "group-72e8096a",
+		"name": "phase0-runtime-abstraction",
+		"memberIssueIds": [
+			"overstory-42ab",
+			"overstory-3a6b",
+			"overstory-3bd4",
+			"overstory-fd86",
+			"overstory-a977",
+			"overstory-6d4a",
+			"overstory-4f9c",
+			"overstory-4f22",
+			"overstory-7448",
+			"overstory-6ab5",
+			"overstory-8c39",
+			"overstory-5298",
+			"overstory-2a62",
+			"overstory-94ca"
+		],
+		"status": "active",
+		"createdAt": "2026-02-25T23:51:00.689Z",
+		"completedAt": null
 	}
 ]

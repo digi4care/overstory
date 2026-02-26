@@ -755,7 +755,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// 13b. Wait for Claude Code TUI to render before sending input.
 		// Polling capture-pane is more reliable than a fixed sleep because
 		// TUI init time varies by machine load and model state.
-		await waitForTuiReady(tmuxSessionName);
+		await waitForTuiReady(tmuxSessionName, (content) => runtime.detectReady(content));
 		// Buffer for the input handler to attach after initial render
 		await Bun.sleep(1_000);
 

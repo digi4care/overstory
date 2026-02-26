@@ -265,12 +265,9 @@ overstory/
 
 Overstory is part of the [os-eco](https://github.com/jayminwest/os-eco) AI agent tooling ecosystem.
 
-```
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  overstory   orchestration
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  canopy      prompts
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  seeds       issues
-▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  mulch       expertise
-```
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jayminwest/os-eco/main/branding/logo.png" alt="os-eco" width="444" />
+</p>
 
 ## Contributing
 

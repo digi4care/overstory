@@ -749,8 +749,15 @@ describe("writeOverlay", () => {
 	test("custom instruction path creates necessary subdirectories", async () => {
 		const worktreePath = join(tempDir, "worktree");
 		const config = makeConfig();
-		await writeOverlay(worktreePath, config, "/nonexistent-canonical-root", ".pi/instructions/AGENT.md");
-		expect(await Bun.file(join(worktreePath, ".pi", "instructions", "AGENT.md")).exists()).toBe(true);
+		await writeOverlay(
+			worktreePath,
+			config,
+			"/nonexistent-canonical-root",
+			".pi/instructions/AGENT.md",
+		);
+		expect(await Bun.file(join(worktreePath, ".pi", "instructions", "AGENT.md")).exists()).toBe(
+			true,
+		);
 	});
 });
 
