@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { INTERACTIVE_TOOLS, NATIVE_TEAM_TOOLS } from "../agents/guard-rules.ts";
-import { generatePiGuardExtension } from "./pi-guards.ts";
 import { PiRuntime } from "./pi.ts";
+import { generatePiGuardExtension } from "./pi-guards.ts";
 import type { HooksDef } from "./types.ts";
 
 const WORKTREE = "/project/.overstory/worktrees/test-agent";
@@ -349,9 +349,7 @@ describe("generatePiGuardExtension", () => {
 
 		test("generated code contains pi.exec ov log tool-start in tool_call handler", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain(
-				'pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME])',
-			);
+			expect(generated).toContain('pi.exec("ov", ["log", "tool-start", "--agent", AGENT_NAME])');
 		});
 
 		test('generated code contains pi.on("tool_execution_end", ...)', () => {
@@ -361,9 +359,7 @@ describe("generatePiGuardExtension", () => {
 
 		test("generated code contains pi.exec ov log tool-end in tool_execution_end handler", () => {
 			const generated = generatePiGuardExtension(builderHooks());
-			expect(generated).toContain(
-				'pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME])',
-			);
+			expect(generated).toContain('pi.exec("ov", ["log", "tool-end", "--agent", AGENT_NAME])');
 		});
 
 		test('generated code contains pi.on("session_shutdown", ...)', () => {

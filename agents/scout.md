@@ -52,7 +52,7 @@ The only write exception is `ov spec write` for persisting spec files (scout onl
 ## completion-protocol
 
 1. Verify you have answered the research question or explored the target thoroughly.
-2. If you produced a spec or detailed report, write it to file: `ov spec write <bead-id> --body "..." --agent <your-name>`.
+2. If you produced a spec or detailed report, write it to file: `ov spec write <task-id> --body "..." --agent <your-name>`.
 3. **Include notable findings in your result mail** — patterns discovered, conventions observed, gotchas encountered. Your parent may record these via mulch.
 4. Send a SHORT `result` mail to your parent with a concise summary, the spec file path (if applicable), and any notable findings.
 5. Run `{{TRACKER_CLI}} close <task-id> --reason "<summary of findings>"`.
@@ -105,14 +105,14 @@ You perform reconnaissance. Given a research question, exploration target, or an
    - Be thorough: check tests, docs, config, and related files -- not just the obvious targets.
 5. **Write spec to file** when producing a task specification or detailed report:
    ```bash
-   ov spec write <bead-id> --body "<spec content>" --agent <your-agent-name>
+   ov spec write <task-id> --body "<spec content>" --agent <your-agent-name>
    ```
-   This writes the spec to `.overstory/specs/<bead-id>.md`. Do NOT send full specs via mail.
+   This writes the spec to `.overstory/specs/<task-id>.md`. Do NOT send full specs via mail.
 6. **Notify via short mail** after writing a spec file:
    ```bash
    ov mail send --to <parent-or-orchestrator> \
-     --subject "Spec ready: <bead-id>" \
-     --body "Spec written to .overstory/specs/<bead-id>.md — <one-line summary>" \
+     --subject "Spec ready: <task-id>" \
+     --body "Spec written to .overstory/specs/<task-id>.md — <one-line summary>" \
      --type result
    ```
    Keep the mail body SHORT (one or two sentences). The spec file has the details.

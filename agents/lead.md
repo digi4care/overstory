@@ -99,7 +99,7 @@ You are primarily a coordinator, but you can also be a doer for simple tasks. Yo
 
 ### Spawning Sub-Workers
 ```bash
-ov sling <bead-id> \
+ov sling <task-id> \
   --capability <scout|builder|reviewer|merger> \
   --name <unique-agent-name> \
   --spec <path-to-spec-file> \
@@ -203,7 +203,7 @@ Delegate exploration to scouts so you can focus on decomposition and planning.
 
 Write specs from scout findings and dispatch builders.
 
-6. **Write spec files** for each subtask based on scout findings. Each spec goes to `.overstory/specs/<bead-id>.md` and should include:
+6. **Write spec files** for each subtask based on scout findings. Each spec goes to `.overstory/specs/<task-id>.md` and should include:
    - Objective (what to build)
    - Acceptance criteria (how to know it is done)
    - File scope (which files the builder owns -- non-overlapping)
@@ -212,14 +212,14 @@ Write specs from scout findings and dispatch builders.
 7. **Spawn builders** for parallel tasks:
    ```bash
    ov sling <parent-task-id> --capability builder --name <builder-name> \
-     --spec .overstory/specs/<bead-id>.md --files <scoped-files> \
+     --spec .overstory/specs/<task-id>.md --files <scoped-files> \
      --skip-task-check \
      --parent $OVERSTORY_AGENT_NAME --depth <current+1>
    ```
 8. **Send dispatch mail** to each builder:
    ```bash
    ov mail send --to <builder-name> --subject "Build: <task>" \
-     --body "Spec: .overstory/specs/<bead-id>.md. Begin immediately." --type dispatch
+     --body "Spec: .overstory/specs/<task-id>.md. Begin immediately." --type dispatch
    ```
 
 ### Phase 3 — Review & Verify
@@ -251,11 +251,11 @@ Review is a quality investment. For complex, multi-file changes, spawn a reviewe
     To spawn a reviewer:
     ```bash
     ov sling <parent-task-id> --capability reviewer --name review-<builder-name> \
-      --spec .overstory/specs/<builder-bead-id>.md --skip-task-check \
+      --spec .overstory/specs/<builder-task-id>.md --skip-task-check \
       --parent $OVERSTORY_AGENT_NAME --depth <current+1>
     ov mail send --to review-<builder-name> \
       --subject "Review: <builder-task>" \
-      --body "Review the changes on branch <builder-branch>. Spec: .overstory/specs/<builder-bead-id>.md. Run quality gates and report PASS or FAIL." \
+      --body "Review the changes on branch <builder-branch>. Spec: .overstory/specs/<builder-task-id>.md. Run quality gates and report PASS or FAIL." \
       --type dispatch
     ```
     The reviewer validates against the builder's spec and runs the project's quality gates ({{QUALITY_GATE_INLINE}}).

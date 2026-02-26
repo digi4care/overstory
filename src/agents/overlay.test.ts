@@ -265,7 +265,7 @@ describe("generateOverlay", () => {
 		expect(output).not.toContain("bun run lint");
 	});
 
-	test("scout completion section includes bd close and mail send", async () => {
+	test("scout completion section includes sd close and mail send", async () => {
 		const config = makeConfig({
 			capability: "scout",
 			agentName: "recon-1",
@@ -274,7 +274,7 @@ describe("generateOverlay", () => {
 		});
 		const output = await generateOverlay(config);
 
-		expect(output).toContain("bd close overstory-task1");
+		expect(output).toContain("sd close overstory-task1");
 		expect(output).toContain("ov mail send --to lead-alpha");
 	});
 
@@ -426,14 +426,14 @@ describe("generateOverlay", () => {
 		expect(output).not.toContain("Quality Gates");
 	});
 
-	test("default trackerCli renders as bd in quality gates", async () => {
+	test("default trackerCli renders as sd in quality gates", async () => {
 		const config = makeConfig({ capability: "builder", taskId: "overstory-task1" });
 		const output = await generateOverlay(config);
 
-		expect(output).toContain("bd close overstory-task1");
+		expect(output).toContain("sd close overstory-task1");
 	});
 
-	test("custom trackerCli replaces bd in quality gates", async () => {
+	test("custom trackerCli replaces sd in quality gates", async () => {
 		const config = makeConfig({
 			capability: "builder",
 			trackerCli: "sd",
@@ -489,11 +489,11 @@ describe("generateOverlay", () => {
 		expect(output).not.toContain("{{TRACKER_NAME}}");
 	});
 
-	test("defaults backward-compatible: no trackerCli/trackerName produces bd/beads", async () => {
+	test("defaults: no trackerCli/trackerName produces sd/seeds", async () => {
 		const config = makeConfig({ capability: "builder", taskId: "overstory-back" });
 		const output = await generateOverlay(config);
 
-		expect(output).toContain("bd close overstory-back");
+		expect(output).toContain("sd close overstory-back");
 	});
 
 	test("dispatch overrides: skipReview injects SKIP REVIEW directive for leads", async () => {

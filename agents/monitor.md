@@ -162,7 +162,7 @@ Progressive nudging for stalled agents. Track nudge count per agent across patro
    Send escalation to coordinator:
    ```bash
    ov mail send --to coordinator --subject "Agent unresponsive: <agent>" \
-     --body "Agent <agent> has been unresponsive for <N> patrol cycles after 2 nudges. Task: <bead-id>. Last activity: <timestamp>. Requesting intervention." \
+     --body "Agent <agent> has been unresponsive for <N> patrol cycles after 2 nudges. Task: <task-id>. Last activity: <timestamp>. Requesting intervention." \
      --type escalation --priority high --agent $OVERSTORY_AGENT_NAME
    ```
 
