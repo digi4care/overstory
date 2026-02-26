@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-02-26
+
+### Fixed
+
+- **tmux "command too long" error** — coordinator, monitor, and supervisor commands now pass agent definition file paths instead of inlining content via `--append-system-prompt`; the shell inside the tmux pane reads the file via `$(cat ...)` at runtime, keeping the tmux IPC message small regardless of agent definition size (fixes #45)
+- **Biome formatting** in seeds tracker test (`src/tracker/seeds.test.ts`)
+
+### Changed
+
+- **`SpawnOpts.appendSystemPromptFile`** — new option in `AgentRuntime` interface (`src/runtimes/types.ts`) for file-based system prompt injection; both Claude and Pi runtime adapters support it with fallback to inline `appendSystemPrompt`
+- **README and package description** updated to be runtime-agnostic, reflecting the `AgentRuntime` abstraction
+
+#### Testing
+- 2612 tests across 86 files (6277 `expect()` calls)
+
 ## [0.7.4] - 2026-02-26
 
 ### Added
@@ -1122,7 +1137,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/jayminwest/overstory/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/jayminwest/overstory/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/jayminwest/overstory/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/jayminwest/overstory/compare/v0.7.1...v0.7.2
