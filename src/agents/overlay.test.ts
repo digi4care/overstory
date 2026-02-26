@@ -736,6 +736,22 @@ describe("writeOverlay", () => {
 		const exists = await Bun.file(outputPath).exists();
 		expect(exists).toBe(true);
 	});
+
+	test("writes to custom instruction path when provided", async () => {
+		const worktreePath = join(tempDir, "worktree");
+		const config = makeConfig();
+		await writeOverlay(worktreePath, config, "/nonexistent-canonical-root", "AGENTS.md");
+		const outputPath = join(worktreePath, "AGENTS.md");
+		expect(await Bun.file(outputPath).exists()).toBe(true);
+		expect(await Bun.file(join(worktreePath, ".claude", "CLAUDE.md")).exists()).toBe(false);
+	});
+
+	test("custom instruction path creates necessary subdirectories", async () => {
+		const worktreePath = join(tempDir, "worktree");
+		const config = makeConfig();
+		await writeOverlay(worktreePath, config, "/nonexistent-canonical-root", ".pi/instructions/AGENT.md");
+		expect(await Bun.file(join(worktreePath, ".pi", "instructions", "AGENT.md")).exists()).toBe(true);
+	});
 });
 
 describe("isCanonicalRoot", () => {
