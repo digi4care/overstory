@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-02-26
+
+### Added
+
+#### Pi Runtime Enhancements
+- **Configurable model alias expansion** — `PiRuntimeConfig` type with `provider` + `modelMap` fields so bare aliases like "opus" are correctly expanded to provider-qualified model IDs (e.g., "anthropic/claude-opus-4-6"), configurable via `config.yaml` runtime.pi section
+- **`requiresBeaconVerification?()`** — optional method on `AgentRuntime` interface; Pi returns `false` to skip the beacon resend loop that spams duplicate startup messages (Pi's idle/processing states are indistinguishable via pane content)
+- Config validation for `runtime.pi.provider` and `runtime.pi.modelMap` entries
+
+### Fixed
+
+#### Pi Runtime
+- **Zombie-state bug** — Pi agents were stuck in zombie state because pi-guards.ts used the old `() => Extension` object-style API instead of the correct `(pi: ExtensionAPI) => void` factory style; guards were never firing. Rewritten to ExtensionAPI factory format with proper `event.toolName` and `{ block, reason }` returns
+- **Activity tracking** — Added `pi.on(tool_call/tool_execution_end/session_shutdown)` handlers so `lastActivity` updates and the watchdog no longer misclassifies active Pi agents as zombies
+- **Beacon verification loop** — `sling.ts` now skips the beacon resend loop when `runtime.requiresBeaconVerification()` returns `false`, preventing duplicate startup messages for Pi agents
+- **`detectReady()`** — Fixed to check for Pi TUI header (`pi v`) + token-usage status bar regex instead of `model:` which Pi never emits
+- Pi guard extension tests updated for ExtensionAPI format (8 fixes + 7 new tests)
+
+#### Agent Definitions
+- Replaced 54 hardcoded "bead" references in agent base definitions with tracker-agnostic terminology (task/issue); `{{TRACKER_CLI}}` and `{{TRACKER_NAME}}` placeholders remain for CLI commands
+- Fixed overlay fallback default from "bd" to "sd" (seeds is the preferred tracker)
+
+### Changed
+
+- **Supervisor agent soft-deprecated** — `ov supervisor` commands marked `[DEPRECATED]` with stderr warning on `start`; supervisor removed from default agent manifest and `ov init` agent-defs copy; `supervisor.md` retains deprecation notice but code is preserved for backward compatibility
+- `biome.json` excludes `.pi/` directory from linting (generated extension files)
+
+### Testing
+
+- 2476 tests across 83 files (6044 `expect()` calls)
+
 ## [0.7.1] - 2026-02-26
 
 ### Added
@@ -1006,7 +1037,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/jayminwest/overstory/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jayminwest/overstory/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jayminwest/overstory/compare/v0.6.12...v0.7.0
 [0.6.12]: https://github.com/jayminwest/overstory/compare/v0.6.11...v0.6.12
