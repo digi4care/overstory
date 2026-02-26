@@ -533,8 +533,18 @@
 			"overstory-bd4b",
 			"overstory-50ee"
 		],
-		"status": "active",
+		"status": "completed",
 		"createdAt": "2026-02-26T04:06:14.337Z",
+		"completedAt": "2026-02-26T05:04:33.465Z"
+	},
+	{
+		"id": "group-a39cc73e",
+		"name": "provider-checks",
+		"memberIssueIds": [
+			"overstory-xxu7"
+		],
+		"status": "active",
+		"createdAt": "2026-02-26T14:15:59.908Z",
 		"completedAt": null
 	}
 ]
