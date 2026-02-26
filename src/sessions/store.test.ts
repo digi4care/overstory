@@ -46,6 +46,7 @@ function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
 		lastActivity: "2026-01-15T10:00:00.000Z",
 		escalationLevel: 0,
 		stalledSince: null,
+		transcriptPath: null,
 		...overrides,
 	};
 }
@@ -136,6 +137,36 @@ describe("upsert", () => {
 		// Force an invalid state to test the CHECK constraint
 		const badSession = { ...session, state: "invalid" as AgentState };
 		expect(() => store.upsert(badSession)).toThrow();
+	});
+
+	test("handles null transcriptPath", () => {
+		const session = makeSession({ transcriptPath: null });
+		store.upsert(session);
+		const result = store.getByName("test-agent");
+		expect(result?.transcriptPath).toBeNull();
+	});
+
+	test("transcriptPath roundtrips correctly", () => {
+		const session = makeSession({ transcriptPath: "/home/user/.pi/sessions/abc.jsonl" });
+		store.upsert(session);
+		const result = store.getByName("test-agent");
+		expect(result?.transcriptPath).toBe("/home/user/.pi/sessions/abc.jsonl");
+	});
+});
+
+// === updateTranscriptPath ===
+
+describe("updateTranscriptPath", () => {
+	test("sets transcript path for an existing session", () => {
+		store.upsert(makeSession({ transcriptPath: null }));
+		store.updateTranscriptPath("test-agent", "/tmp/transcript.jsonl");
+		const result = store.getByName("test-agent");
+		expect(result?.transcriptPath).toBe("/tmp/transcript.jsonl");
+	});
+
+	test("is a no-op for nonexistent agent", () => {
+		// Should not throw
+		store.updateTranscriptPath("nonexistent", "/tmp/transcript.jsonl");
 	});
 });
 

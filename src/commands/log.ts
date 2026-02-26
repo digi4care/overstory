@@ -176,6 +176,23 @@ async function resolveTranscriptPath(
 	logsBase: string,
 	agentName: string,
 ): Promise<string | null> {
+	// Check SessionStore for a runtime-provided transcript path
+	try {
+		const { store } = openSessionStore(join(projectRoot, ".overstory"));
+		try {
+			const session = store.getByName(agentName);
+			if (session?.transcriptPath) {
+				if (await Bun.file(session.transcriptPath).exists()) {
+					return session.transcriptPath;
+				}
+			}
+		} finally {
+			store.close();
+		}
+	} catch {
+		// Non-fatal: fall through to legacy resolution
+	}
+
 	// Check cached path first
 	const cachePath = join(logsBase, agentName, ".transcript-path");
 	const cacheFile = Bun.file(cachePath);
@@ -194,6 +211,17 @@ async function resolveTranscriptPath(
 	const directPath = join(claudeProjectsDir, projectKey, `${sessionId}.jsonl`);
 	if (await Bun.file(directPath).exists()) {
 		await Bun.write(cachePath, directPath);
+		// Save discovered path to SessionStore for future lookups
+		try {
+			const { store: writeStore } = openSessionStore(join(projectRoot, ".overstory"));
+			try {
+				writeStore.updateTranscriptPath(agentName, directPath);
+			} finally {
+				writeStore.close();
+			}
+		} catch {
+			// Non-fatal: cache write failure should not break transcript resolution
+		}
 		return directPath;
 	}
 
@@ -205,6 +233,17 @@ async function resolveTranscriptPath(
 			const candidate = join(claudeProjectsDir, project, `${sessionId}.jsonl`);
 			if (await Bun.file(candidate).exists()) {
 				await Bun.write(cachePath, candidate);
+				// Save discovered path to SessionStore for future lookups
+				try {
+					const { store: writeStore } = openSessionStore(join(projectRoot, ".overstory"));
+					try {
+						writeStore.updateTranscriptPath(agentName, candidate);
+					} finally {
+						writeStore.close();
+					}
+				} catch {
+					// Non-fatal: cache write failure should not break transcript resolution
+				}
 				return candidate;
 			}
 		}

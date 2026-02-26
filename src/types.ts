@@ -151,6 +151,7 @@ export interface AgentSession {
 	lastActivity: string;
 	escalationLevel: number; // Progressive nudge stage: 0=warn, 1=nudge, 2=escalate, 3=terminate
 	stalledSince: string | null; // ISO timestamp when agent first entered stalled state
+	transcriptPath: string | null; // Runtime-provided transcript JSONL path (decoupled from ~/.claude/)
 }
 
 // === Agent Identity ===

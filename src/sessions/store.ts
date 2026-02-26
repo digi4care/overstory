@@ -28,6 +28,8 @@ export interface SessionStore {
 	updateLastActivity(agentName: string): void;
 	/** Update escalation level and stalled timestamp. */
 	updateEscalation(agentName: string, level: number, stalledSince: string | null): void;
+	/** Update the transcript path for a session. */
+	updateTranscriptPath(agentName: string, path: string): void;
 	/** Remove a session by agent name. */
 	remove(agentName: string): void;
 	/** Purge sessions matching criteria. Returns count of deleted rows. */
@@ -54,6 +56,7 @@ interface SessionRow {
 	last_activity: string;
 	escalation_level: number;
 	stalled_since: string | null;
+	transcript_path: string | null;
 }
 
 /** Row shape for runs table as stored in SQLite (snake_case columns). */
@@ -84,7 +87,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   started_at TEXT NOT NULL,
   last_activity TEXT NOT NULL,
   escalation_level INTEGER NOT NULL DEFAULT 0,
-  stalled_since TEXT
+  stalled_since TEXT,
+  transcript_path TEXT
 )`;
 
 const CREATE_INDEXES = `
@@ -124,6 +128,7 @@ function rowToSession(row: SessionRow): AgentSession {
 		lastActivity: row.last_activity,
 		escalationLevel: row.escalation_level,
 		stalledSince: row.stalled_since,
+		transcriptPath: row.transcript_path,
 	};
 }
 
@@ -137,6 +142,18 @@ function rowToRun(row: RunRow): Run {
 		coordinatorSessionId: row.coordinator_session_id,
 		status: row.status as RunStatus,
 	};
+}
+
+/**
+ * Migrate an existing sessions table to add the transcript_path column.
+ * Safe to call multiple times — only adds the column if it does not exist.
+ */
+function migrateAddTranscriptPath(db: Database): void {
+	const rows = db.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+	const existingColumns = new Set(rows.map((r) => r.name));
+	if (!existingColumns.has("transcript_path")) {
+		db.exec("ALTER TABLE sessions ADD COLUMN transcript_path TEXT");
+	}
 }
 
 /**
@@ -173,6 +190,8 @@ export function createSessionStore(dbPath: string): SessionStore {
 
 	// Migrate: rename bead_id → task_id on existing tables
 	migrateBeadIdToTaskId(db);
+	// Migrate: add transcript_path column to existing tables
+	migrateAddTranscriptPath(db);
 
 	// Prepare statements for frequent operations
 	const upsertStmt = db.prepare<
@@ -194,16 +213,17 @@ export function createSessionStore(dbPath: string): SessionStore {
 			$last_activity: string;
 			$escalation_level: number;
 			$stalled_since: string | null;
+			$transcript_path: string | null;
 		}
 	>(`
 		INSERT INTO sessions
 			(id, agent_name, capability, worktree_path, branch_name, task_id,
 			 tmux_session, state, pid, parent_agent, depth, run_id,
-			 started_at, last_activity, escalation_level, stalled_since)
+			 started_at, last_activity, escalation_level, stalled_since, transcript_path)
 		VALUES
 			($id, $agent_name, $capability, $worktree_path, $branch_name, $task_id,
 			 $tmux_session, $state, $pid, $parent_agent, $depth, $run_id,
-			 $started_at, $last_activity, $escalation_level, $stalled_since)
+			 $started_at, $last_activity, $escalation_level, $stalled_since, $transcript_path)
 		ON CONFLICT(agent_name) DO UPDATE SET
 			id = excluded.id,
 			capability = excluded.capability,
@@ -219,7 +239,8 @@ export function createSessionStore(dbPath: string): SessionStore {
 			started_at = excluded.started_at,
 			last_activity = excluded.last_activity,
 			escalation_level = excluded.escalation_level,
-			stalled_since = excluded.stalled_since
+			stalled_since = excluded.stalled_since,
+			transcript_path = excluded.transcript_path
 	`);
 
 	const getByNameStmt = db.prepare<SessionRow, { $agent_name: string }>(`
@@ -268,6 +289,13 @@ export function createSessionStore(dbPath: string): SessionStore {
 		DELETE FROM sessions WHERE agent_name = $agent_name
 	`);
 
+	const updateTranscriptPathStmt = db.prepare<
+		void,
+		{ $agent_name: string; $transcript_path: string }
+	>(`
+		UPDATE sessions SET transcript_path = $transcript_path WHERE agent_name = $agent_name
+	`);
+
 	return {
 		upsert(session: AgentSession): void {
 			upsertStmt.run({
@@ -287,6 +315,7 @@ export function createSessionStore(dbPath: string): SessionStore {
 				$last_activity: session.lastActivity,
 				$escalation_level: session.escalationLevel,
 				$stalled_since: session.stalledSince,
+				$transcript_path: session.transcriptPath,
 			});
 		},
 
@@ -332,6 +361,10 @@ export function createSessionStore(dbPath: string): SessionStore {
 				$escalation_level: level,
 				$stalled_since: stalledSince,
 			});
+		},
+
+		updateTranscriptPath(agentName: string, path: string): void {
+			updateTranscriptPathStmt.run({ $agent_name: agentName, $transcript_path: path });
 		},
 
 		remove(agentName: string): void {

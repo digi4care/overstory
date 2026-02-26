@@ -751,6 +751,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			lastActivity: new Date().toISOString(),
 			escalationLevel: 0,
 			stalledSince: null,
+			transcriptPath: null,
 		};
 
 		store.upsert(session);
