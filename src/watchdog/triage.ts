@@ -9,6 +9,8 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AgentError } from "../errors.ts";
+import { getRuntime } from "../runtimes/registry.ts";
+import type { OverstoryConfig } from "../types.ts";
 
 /**
  * Triage a stalled agent by analyzing its recent log output with Claude.
@@ -30,8 +32,10 @@ export async function triageAgent(options: {
 	lastActivity: string;
 	/** Timeout in ms for the Claude subprocess. Defaults to 30_000 (30s). */
 	timeoutMs?: number;
+	/** Overstory config for runtime resolution. */
+	config?: OverstoryConfig;
 }): Promise<"retry" | "terminate" | "extend"> {
-	const { agentName, root, lastActivity, timeoutMs } = options;
+	const { agentName, root, lastActivity, timeoutMs, config } = options;
 	const logsDir = join(root, ".overstory", "logs", agentName);
 
 	let logContent: string;
@@ -45,7 +49,7 @@ export async function triageAgent(options: {
 	const prompt = buildTriagePrompt(agentName, lastActivity, logContent);
 
 	try {
-		const response = await spawnClaude(prompt, timeoutMs);
+		const response = await spawnClaude(prompt, timeoutMs, config);
 		return classifyResponse(response);
 	} catch {
 		// Claude not available — default to extend (safe fallback)
@@ -130,10 +134,16 @@ const DEFAULT_TRIAGE_TIMEOUT_MS = 30_000;
  * @returns Claude's response text
  * @throws Error if claude is not installed, the process fails, or the timeout is reached
  */
-async function spawnClaude(prompt: string, timeoutMs?: number): Promise<string> {
+async function spawnClaude(
+	prompt: string,
+	timeoutMs?: number,
+	config?: OverstoryConfig,
+): Promise<string> {
 	const timeout = timeoutMs ?? DEFAULT_TRIAGE_TIMEOUT_MS;
 
-	const proc = Bun.spawn(["claude", "--print", "-p", prompt], {
+	const runtime = getRuntime(config?.runtime?.printCommand ?? config?.runtime?.default, config);
+	const argv = runtime.buildPrintCommand(prompt);
+	const proc = Bun.spawn(argv, {
 		stdout: "pipe",
 		stderr: "pipe",
 	});
