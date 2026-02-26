@@ -20,7 +20,6 @@
 
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { writeOverlay } from "../agents/overlay.ts";
@@ -132,6 +131,7 @@ export interface AutoDispatchOptions {
 	capability: string;
 	specPath: string | null;
 	parentAgent: string | null;
+	instructionPath: string;
 }
 
 /**
@@ -154,7 +154,7 @@ export function buildAutoDispatch(opts: AutoDispatchOptions): {
 	const body = [
 		`You have been assigned task ${opts.taskId} as a ${opts.capability} agent.`,
 		specLine,
-		`Read your overlay at .claude/CLAUDE.md and begin immediately.`,
+		`Read your overlay at ${opts.instructionPath} and begin immediately.`,
 	].join(" ");
 
 	return {
@@ -174,6 +174,7 @@ export interface BeaconOptions {
 	taskId: string;
 	parentAgent: string | null;
 	depth: number;
+	instructionPath: string;
 }
 
 /**
@@ -198,7 +199,7 @@ export function buildBeacon(opts: BeaconOptions): string {
 	const parts = [
 		`[OVERSTORY] ${opts.agentName} (${opts.capability}) ${timestamp} task:${opts.taskId}`,
 		`Depth: ${opts.depth} | Parent: ${parent}`,
-		`Startup: read .claude/CLAUDE.md, run mulch prime, check mail (ov mail check --agent ${opts.agentName}), then begin task ${opts.taskId}`,
+		`Startup: read ${opts.instructionPath}, run mulch prime, check mail (ov mail check --agent ${opts.agentName}), then begin task ${opts.taskId}`,
 	];
 	return parts.join(" — ");
 }
@@ -646,8 +647,17 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			throw err;
 		}
 
-		// 9. Deploy hooks config (capability-specific guards)
-		await deployHooks(worktreePath, name, capability, config.project.qualityGates);
+		// 9. Resolve runtime + model (needed for deployConfig, spawn, and beacon)
+		const resolvedModel = resolveModel(config, manifest, capability, agentDef.model);
+		const runtime = getRuntime(opts.runtime, config);
+
+		// 9a. Deploy hooks config (capability-specific guards)
+		await runtime.deployConfig(worktreePath, undefined, {
+			agentName: name,
+			capability,
+			worktreePath,
+			qualityGates: config.project.qualityGates,
+		});
 
 		// 9b. Send auto-dispatch mail so it exists when SessionStart hook fires.
 		// This eliminates the race where coordinator sends dispatch AFTER agent boots.
@@ -657,6 +667,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			capability,
 			specPath: absoluteSpecPath,
 			parentAgent,
+			instructionPath: runtime.instructionPath,
 		});
 		const mailStore = createMailStore(join(overstoryDir, "mail.db"));
 		try {
@@ -701,8 +712,6 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 
 		// 12. Create tmux session running claude in interactive mode
 		const tmuxSessionName = `overstory-${config.project.name}-${name}`;
-		const resolvedModel = resolveModel(config, manifest, capability, agentDef.model);
-		const runtime = getRuntime(opts.runtime, config);
 		const spawnCmd = runtime.buildSpawnCommand({
 			model: resolvedModel.model,
 			permissionMode: "bypass",
@@ -765,6 +774,7 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 			taskId,
 			parentAgent,
 			depth,
+			instructionPath: runtime.instructionPath,
 		});
 		await sendKeys(tmuxSessionName, beacon);
 

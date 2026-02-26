@@ -15,7 +15,6 @@
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
-import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
@@ -320,13 +319,26 @@ async function startCoordinator(
 			store.updateState(COORDINATOR_NAME, "completed");
 		}
 
+		// Resolve model and runtime early (needed for deployConfig and spawn)
+		const manifestLoader = createManifestLoader(
+			join(projectRoot, config.agents.manifestPath),
+			join(projectRoot, config.agents.baseDir),
+		);
+		const manifest = await manifestLoader.load();
+		const resolvedModel = resolveModel(config, manifest, "coordinator", "opus");
+		const runtime = getRuntime(undefined, config);
+
 		// Deploy hooks to the project root so the coordinator gets event logging,
 		// mail check --inject, and activity tracking via the standard hook pipeline.
 		// The ENV_GUARD prefix on all hooks (both template and generated guards)
 		// ensures they only activate when OVERSTORY_AGENT_NAME is set (i.e. for
 		// the coordinator's tmux session), so the user's own Claude Code session
 		// at the project root is unaffected.
-		await deployHooks(projectRoot, COORDINATOR_NAME, "coordinator");
+		await runtime.deployConfig(projectRoot, undefined, {
+			agentName: COORDINATOR_NAME,
+			capability: "coordinator",
+			worktreePath: projectRoot,
+		});
 
 		// Create coordinator identity if first run
 		const identityBaseDir = join(projectRoot, ".overstory", "agents");
@@ -342,15 +354,6 @@ async function startCoordinator(
 				recentTasks: [],
 			});
 		}
-
-		// Resolve model from config > manifest > fallback
-		const manifestLoader = createManifestLoader(
-			join(projectRoot, config.agents.manifestPath),
-			join(projectRoot, config.agents.baseDir),
-		);
-		const manifest = await manifestLoader.load();
-		const resolvedModel = resolveModel(config, manifest, "coordinator", "opus");
-		const runtime = getRuntime(undefined, config);
 
 		// Preflight: verify tmux is installed before attempting to spawn.
 		// Without this check, a missing tmux leads to cryptic errors later.

@@ -521,5 +521,20 @@
 		"status": "completed",
 		"createdAt": "2026-02-26T02:08:35.805Z",
 		"completedAt": "2026-02-26T02:24:27.465Z"
+	},
+	{
+		"id": "group-f91eab97",
+		"name": "pi-runtime-adapter",
+		"memberIssueIds": [
+			"overstory-6f2e",
+			"overstory-46ca",
+			"overstory-8163",
+			"overstory-62d2",
+			"overstory-bd4b",
+			"overstory-50ee"
+		],
+		"status": "active",
+		"createdAt": "2026-02-26T04:06:14.337Z",
+		"completedAt": null
 	}
 ]

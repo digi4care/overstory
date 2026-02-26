@@ -15,7 +15,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
-import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
@@ -137,8 +136,21 @@ async function startSupervisor(opts: {
 			store.updateState(opts.name, "completed");
 		}
 
+		// Resolve model and runtime early (needed for deployConfig and spawn)
+		const manifestLoader = createManifestLoader(
+			join(projectRoot, config.agents.manifestPath),
+			join(projectRoot, config.agents.baseDir),
+		);
+		const manifest = await manifestLoader.load();
+		const resolvedModel = resolveModel(config, manifest, "supervisor", "opus");
+		const runtime = getRuntime(undefined, config);
+
 		// Deploy supervisor-specific hooks to the project root's .claude/ directory.
-		await deployHooks(projectRoot, opts.name, "supervisor");
+		await runtime.deployConfig(projectRoot, undefined, {
+			agentName: opts.name,
+			capability: "supervisor",
+			worktreePath: projectRoot,
+		});
 
 		// Create supervisor identity if first run
 		const identityBaseDir = join(projectRoot, ".overstory", "agents");
@@ -154,15 +166,6 @@ async function startSupervisor(opts: {
 				recentTasks: [],
 			});
 		}
-
-		// Resolve model from config > manifest > fallback
-		const manifestLoader = createManifestLoader(
-			join(projectRoot, config.agents.manifestPath),
-			join(projectRoot, config.agents.baseDir),
-		);
-		const manifest = await manifestLoader.load();
-		const resolvedModel = resolveModel(config, manifest, "supervisor", "opus");
-		const runtime = getRuntime(undefined, config);
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
 		// Inject the supervisor base definition via --append-system-prompt.

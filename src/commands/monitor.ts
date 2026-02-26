@@ -16,7 +16,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
-import { deployHooks } from "../agents/hooks-deployer.ts";
 import { createIdentity, loadIdentity } from "../agents/identity.ts";
 import { createManifestLoader, resolveModel } from "../agents/manifest.ts";
 import { loadConfig } from "../config.ts";
@@ -111,8 +110,21 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 			store.updateState(MONITOR_NAME, "completed");
 		}
 
+		// Resolve model and runtime early (needed for deployConfig and spawn)
+		const manifestLoader = createManifestLoader(
+			join(projectRoot, config.agents.manifestPath),
+			join(projectRoot, config.agents.baseDir),
+		);
+		const manifest = await manifestLoader.load();
+		const resolvedModel = resolveModel(config, manifest, "monitor", "sonnet");
+		const runtime = getRuntime(undefined, config);
+
 		// Deploy monitor-specific hooks to the project root's .claude/ directory.
-		await deployHooks(projectRoot, MONITOR_NAME, "monitor");
+		await runtime.deployConfig(projectRoot, undefined, {
+			agentName: MONITOR_NAME,
+			capability: "monitor",
+			worktreePath: projectRoot,
+		});
 
 		// Create monitor identity if first run
 		const identityBaseDir = join(projectRoot, ".overstory", "agents");
@@ -128,15 +140,6 @@ async function startMonitor(opts: { json: boolean; attach: boolean }): Promise<v
 				recentTasks: [],
 			});
 		}
-
-		// Resolve model from config > manifest > fallback
-		const manifestLoader = createManifestLoader(
-			join(projectRoot, config.agents.manifestPath),
-			join(projectRoot, config.agents.baseDir),
-		);
-		const manifest = await manifestLoader.load();
-		const resolvedModel = resolveModel(config, manifest, "monitor", "sonnet");
-		const runtime = getRuntime(undefined, config);
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "monitor.md");

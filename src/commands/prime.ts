@@ -38,6 +38,8 @@ const OVERSTORY_GITIGNORE = `# Wildcard+whitelist: ignore everything, whitelist 
 export interface PrimeOptions {
 	agent?: string;
 	compact?: boolean;
+	/** Override the instruction path referenced in agent activation context. Defaults to ".claude/CLAUDE.md". */
+	instructionPath?: string;
 }
 
 /**
@@ -138,6 +140,7 @@ async function healGitignore(overstoryDir: string): Promise<void> {
 export async function primeCommand(opts: PrimeOptions): Promise<void> {
 	const agentName = opts.agent ?? null;
 	const compact = opts.compact ?? false;
+	const instructionPath = opts.instructionPath ?? ".claude/CLAUDE.md";
 
 	// 1. Load config
 	const config = await loadConfig(process.cwd());
@@ -161,7 +164,7 @@ export async function primeCommand(opts: PrimeOptions): Promise<void> {
 	// 4. Output context (orchestrator or agent)
 	if (agentName !== null) {
 		// === Agent priming ===
-		await outputAgentContext(config, agentName, compact, expertiseOutput);
+		await outputAgentContext(config, agentName, compact, expertiseOutput, instructionPath);
 	} else {
 		// === Orchestrator priming ===
 		await outputOrchestratorContext(config, compact, expertiseOutput);
@@ -176,6 +179,7 @@ async function outputAgentContext(
 	agentName: string,
 	compact: boolean,
 	expertiseOutput: string | null,
+	instructionPath: string,
 ): Promise<void> {
 	const sections: string[] = [];
 
@@ -226,7 +230,7 @@ async function outputAgentContext(
 	if (boundSession) {
 		sections.push("\n## Activation");
 		sections.push(`You have a bound task: **${boundSession.taskId}**`);
-		sections.push("Read your overlay at `.claude/CLAUDE.md` and begin working immediately.");
+		sections.push(`Read your overlay at \`${instructionPath}\` and begin working immediately.`);
 		sections.push("Do not wait for dispatch mail. Your assignment was bound at spawn time.");
 	}
 

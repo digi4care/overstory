@@ -369,6 +369,7 @@ function makeBeaconOpts(overrides?: Partial<BeaconOptions>): BeaconOptions {
 		taskId: "overstory-abc",
 		parentAgent: null,
 		depth: 0,
+		instructionPath: ".claude/CLAUDE.md",
 		...overrides,
 	};
 }
@@ -409,10 +410,18 @@ describe("buildBeacon", () => {
 		const opts = makeBeaconOpts({ agentName: "scout-1", taskId: "overstory-xyz" });
 		const beacon = buildBeacon(opts);
 
-		expect(beacon).toContain("read .claude/CLAUDE.md");
+		expect(beacon).toContain(`read ${opts.instructionPath}`);
 		expect(beacon).toContain("mulch prime");
 		expect(beacon).toContain("ov mail check --agent scout-1");
 		expect(beacon).toContain("begin task overstory-xyz");
+	});
+
+	test("uses custom instructionPath in startup instructions", () => {
+		const opts = makeBeaconOpts({ instructionPath: "AGENTS.md" });
+		const beacon = buildBeacon(opts);
+
+		expect(beacon).toContain("read AGENTS.md");
+		expect(beacon).not.toContain(".claude/CLAUDE.md");
 	});
 
 	test("uses agent name in mail check command", () => {
@@ -1001,6 +1010,7 @@ function makeAutoDispatchOpts(overrides?: Partial<AutoDispatchOptions>): AutoDis
 		capability: "builder",
 		specPath: "/path/to/spec.md",
 		parentAgent: "lead-alpha",
+		instructionPath: ".claude/CLAUDE.md",
 		...overrides,
 	};
 }
@@ -1013,6 +1023,7 @@ describe("buildAutoDispatch", () => {
 			capability: "builder",
 			specPath: "/path/to/spec.md",
 			parentAgent: "lead-alpha",
+			instructionPath: ".claude/CLAUDE.md",
 		});
 		expect(dispatch.from).toBe("lead-alpha");
 		expect(dispatch.to).toBe("builder-1");
@@ -1027,6 +1038,7 @@ describe("buildAutoDispatch", () => {
 			capability: "lead",
 			specPath: null,
 			parentAgent: null,
+			instructionPath: ".claude/CLAUDE.md",
 		});
 		expect(dispatch.from).toBe("orchestrator");
 		expect(dispatch.body).toContain("No spec file");
@@ -1039,6 +1051,7 @@ describe("buildAutoDispatch", () => {
 			capability: "scout",
 			specPath: null,
 			parentAgent: "lead-alpha",
+			instructionPath: ".claude/CLAUDE.md",
 		});
 		expect(dispatch.body).toContain("scout");
 	});
@@ -1050,6 +1063,7 @@ describe("buildAutoDispatch", () => {
 			capability: "builder",
 			specPath: "/abs/path/to/spec.md",
 			parentAgent: "lead-alpha",
+			instructionPath: ".claude/CLAUDE.md",
 		});
 		expect(dispatch.body).toContain("/abs/path/to/spec.md");
 	});
