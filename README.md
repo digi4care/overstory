@@ -87,9 +87,9 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | `ov coordinator start` | Start persistent coordinator agent (`--attach`/`--no-attach`, `--watchdog`, `--monitor`) |
 | `ov coordinator stop` | Stop coordinator |
 | `ov coordinator status` | Show coordinator state |
-| `ov supervisor start` | Start per-project supervisor agent (`--attach`/`--no-attach`) |
-| `ov supervisor stop` | Stop supervisor |
-| `ov supervisor status` | Show supervisor state |
+| `ov supervisor start` | **[DEPRECATED]** Start per-project supervisor agent |
+| `ov supervisor stop` | **[DEPRECATED]** Stop supervisor |
+| `ov supervisor status` | **[DEPRECATED]** Show supervisor state |
 
 ### Messaging
 
@@ -208,7 +208,7 @@ overstory/
     commands/                     One file per CLI subcommand (32 commands)
       agents.ts                   Agent discovery and querying
       coordinator.ts              Persistent orchestrator lifecycle
-      supervisor.ts               Team lead management
+      supervisor.ts               Team lead management [DEPRECATED]
       dashboard.ts                Live TUI dashboard (ANSI via Chalk)
       hooks.ts                    Orchestrator hooks management
       sling.ts                    Agent spawning

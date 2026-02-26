@@ -65,7 +65,7 @@ overstory/                        # This repo (the overstory tool itself)
       dashboard.ts                # ov dashboard (live TUI)
       inspect.ts                  # ov inspect (deep agent view)
       coordinator.ts              # ov coordinator start/stop/status
-      supervisor.ts               # ov supervisor start/stop/status
+      supervisor.ts               # ov supervisor start/stop/status [DEPRECATED]
       hooks.ts                    # ov hooks install/uninstall/status
       mail.ts                     # ov mail send/check/list/read/reply/purge
       nudge.ts                    # ov nudge (tmux text nudge)
@@ -152,7 +152,7 @@ overstory/                        # This repo (the overstory tool itself)
     reviewer.md                   # Read-only validation (leaf, depth 2)
     merger.md                     # Branch merge specialist (leaf, depth 2)
     lead.md                       # Team lead (can spawn sub-workers, depth 1)
-    supervisor.md                 # Per-project supervisor (can spawn, depth 1)
+    supervisor.md                 # Per-project supervisor (can spawn, depth 1) [DEPRECATED]
     coordinator.md                # Top-level orchestrator (spawns leads only, depth 0)
     monitor.md                    # Tier 2 continuous fleet patrol (no worktree)
   templates/
@@ -297,7 +297,7 @@ ov coordinator <sub>            Persistent coordinator agent
   status                                 Show coordinator state
   --json                                 JSON output
 
-ov supervisor <sub>             Per-project supervisor agent
+ov supervisor <sub>             [DEPRECATED] Per-project supervisor agent
   start                                  Start supervisor
     --task <task-id>                     Task ID (required)
     --name <name>                        Unique name (required)

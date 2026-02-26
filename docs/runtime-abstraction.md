@@ -32,7 +32,7 @@ The 35 identified coupling points collapse into 4 abstraction surfaces:
 
 | Surface | What it covers | Files affected |
 |---------|---------------|----------------|
-| **Spawn** | Binary name, CLI flags, env vars, permission mode | sling.ts, coordinator.ts, supervisor.ts, monitor.ts, manifest.ts |
+| **Spawn** | Binary name, CLI flags, env vars, permission mode | sling.ts, coordinator.ts, supervisor.ts (deprecated), monitor.ts, manifest.ts |
 | **Readiness** | TUI detection strings, trust dialog handling | worktree/tmux.ts, sling.ts |
 | **Hooks** | Event names, config file path, stdin payload schema, block protocol, tool blocklists | hooks-deployer.ts, hooks.ts, hooks.json.tmpl, log.ts |
 | **Overlay + Transcripts** | Instruction file path (`.claude/CLAUDE.md`), transcript JSONL format, pricing tables | agents/overlay.ts, metrics/transcript.ts, costs.ts, log.ts |
@@ -767,7 +767,7 @@ change.
 1. Create `src/runtimes/types.ts` with the `AgentRuntime` interface
 2. Create `src/runtimes/claude.ts` wrapping all current Claude Code behavior
 3. Create `src/runtimes/registry.ts` to resolve runtime by name from config
-4. Update `sling.ts`, `coordinator.ts`, `supervisor.ts`, `monitor.ts` to call
+4. Update `sling.ts`, `coordinator.ts`, `supervisor.ts` (deprecated), `monitor.ts` to call
    `runtime.buildSpawnCommand()` instead of hardcoding `claude ...`
 5. Update `hooks-deployer.ts` to be called via `runtime.deployConfig()`
 6. Update `worktree/tmux.ts` to call `runtime.detectReady()` instead of
@@ -822,7 +822,7 @@ today. The abstraction exists but only one implementation does.
 |---|------|------|------|-----------|
 | 1.1 | `src/commands/sling.ts` | 619 | `claude --model ${model} --permission-mode bypassPermissions` | Hard |
 | 1.2 | `src/commands/coordinator.ts` | 362 | Same + `--append-system-prompt` | Hard |
-| 1.3 | `src/commands/supervisor.ts` | 170 | Same as 1.2 | Hard |
+| 1.3 | `src/commands/supervisor.ts` (deprecated) | 170 | Same as 1.2 | Hard |
 | 1.4 | `src/commands/monitor.ts` | 142 | Same as 1.2 | Hard |
 | 1.5 | `src/merge/resolver.ts` | 268 | `claude --print -p <prompt>` (Tier 3 resolve) | Medium |
 | 1.6 | `src/merge/resolver.ts` | 351 | `claude --print -p <prompt>` (Tier 4 re-imagine) | Medium |
@@ -886,7 +886,7 @@ today. The abstraction exists but only one implementation does.
 
 | # | File | Line | What | Difficulty |
 |---|------|------|------|-----------|
-| 8.1 | `sling.ts`, `coordinator.ts`, `supervisor.ts`, `monitor.ts` | various | Root UID check for `--permission-mode bypassPermissions` | Trivial |
+| 8.1 | `sling.ts`, `coordinator.ts`, `supervisor.ts` (deprecated), `monitor.ts` | various | Root UID check for `--permission-mode bypassPermissions` | Trivial |
 
 ### Category 9: Hook Execution Environment
 

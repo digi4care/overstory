@@ -356,7 +356,7 @@ export const COMMANDS: readonly CommandDef[] = [
 	},
 	{
 		name: "supervisor",
-		desc: "Per-project supervisor agent",
+		desc: "[DEPRECATED] Per-project supervisor agent",
 		flags: [
 			{ name: "--json", desc: "JSON output" },
 			{ name: "--help", desc: "Show help" },
