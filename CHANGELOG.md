@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-25
+
+### Added
+
+#### AgentRuntime Abstraction Layer
+- **`src/runtimes/types.ts`** — `AgentRuntime` interface defining the contract for multi-provider agent support: `buildSpawnCommand()`, `buildPrintCommand()`, `deployConfig()`, `detectReady()`, `parseTranscript()`, `buildEnv()`, plus supporting types (`SpawnOpts`, `ReadyState`, `OverlayContent`, `HooksDef`, `TranscriptSummary`)
+- **`src/runtimes/claude.ts`** — `ClaudeRuntime` adapter implementing `AgentRuntime` for Claude Code CLI — delegates to existing subsystems (hooks-deployer, transcript parser) without new behavior
+- **`src/runtimes/registry.ts`** — Runtime registry with `getRuntime()` factory — lookup by name, config default, or hardcoded "claude" fallback
+- **`docs/runtime-abstraction.md`** — Design document covering coupling inventory, phased migration plan, and adapter contract rationale
+- **`--runtime <name>` flag** on `ov sling` — allows per-agent runtime override (defaults to config or "claude")
+- **`runtime.default` config field** — new optional `OverstoryConfig.runtime.default` property for setting the default runtime adapter
+
+#### Testing
+- **`src/runtimes/claude.test.ts`** — 616-line test suite for ClaudeRuntime adapter covering all 7 interface methods
+- **`src/runtimes/registry.test.ts`** — Registry tests for name lookup, config default fallback, and unknown runtime errors
+- **`src/commands/sling.test.ts`** — Additional sling tests for runtime integration
+- **`src/agents/overlay.test.ts`** — Tests for parameterized `instructionPath` in `writeOverlay()`
+- 2357 tests across 81 files (5857 `expect()` calls)
+
+### Changed
+
+#### Runtime Rewiring (Phase 2)
+- **`src/commands/sling.ts`** — Rewired to use `AgentRuntime.buildSpawnCommand()` and `detectReady()` instead of hardcoded `claude` CLI construction and TUI heuristics
+- **`src/commands/coordinator.ts`** — Rewired to use `AgentRuntime` for spawn command building, env construction, and TUI readiness detection
+- **`src/commands/supervisor.ts`** — Rewired to use `AgentRuntime` for spawn command building and TUI readiness detection
+- **`src/commands/monitor.ts`** — Rewired to use `AgentRuntime` for spawn command building and env construction
+- **`src/worktree/tmux.ts`** — `waitForTuiReady()` now accepts a `detectReady` callback instead of hardcoded Claude Code TUI heuristics, making it runtime-agnostic
+- **`src/agents/overlay.ts`** — `writeOverlay()` now accepts an optional `instructionPath` parameter (default: `.claude/CLAUDE.md`), enabling runtime-specific instruction file paths
+
+#### Branding
+- README.md: replaced ASCII ecosystem diagram with os-eco logo image
+
 ## [0.6.12] - 2026-02-25
 
 ### Added
@@ -934,7 +966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.6.12...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/jayminwest/overstory/compare/v0.6.12...v0.7.0
 [0.6.12]: https://github.com/jayminwest/overstory/compare/v0.6.11...v0.6.12
 [0.6.11]: https://github.com/jayminwest/overstory/compare/v0.6.10...v0.6.11
 [0.6.10]: https://github.com/jayminwest/overstory/compare/v0.6.9...v0.6.10

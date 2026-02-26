@@ -75,7 +75,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | Command | Description |
 |---------|-------------|
 | `ov init` | Initialize `.overstory/` in current project (`--yes`, `--name`) |
-| `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-review`, `--max-agents`, `--dispatch-max-agents`, `--skip-task-check`, `--json`) |
+| `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-review`, `--max-agents`, `--dispatch-max-agents`, `--skip-task-check`, `--runtime`, `--json`) |
 | `ov stop <agent-name>` | Terminate a running agent (`--clean-worktree`, `--json`) |
 | `ov prime` | Load context for orchestrator/agent (`--agent`, `--compact`) |
 | `ov spec write <task-id>` | Write a task specification (`--body`) |
@@ -254,6 +254,7 @@ overstory/
     metrics/                      SQLite metrics + transcript parsing
     doctor/                       Health check modules (10 checks)
     insights/                     Session insight analyzer for auto-expertise
+    runtimes/                     AgentRuntime abstraction (registry + adapters)
     tracker/                      Pluggable task tracker (beads + seeds backends)
     mulch/                        mulch client (programmatic API + CLI wrapper)
     e2e/                          End-to-end lifecycle tests

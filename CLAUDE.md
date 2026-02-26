@@ -117,6 +117,10 @@ overstory/                        # This repo (the overstory tool itself)
       store.ts                    # SQLite mail storage (bun:sqlite, WAL mode)
       client.ts                   # Mail operations (send/check/list/read/reply)
       broadcast.ts                # Group address resolution (@all, @builders, etc.)
+    runtimes/
+      types.ts                    # AgentRuntime interface + supporting types
+      registry.ts                 # Runtime registry (getRuntime() factory)
+      claude.ts                   # Claude Code runtime adapter
     mulch/
       client.ts                   # mulch client (programmatic API for record/search/query, CLI wrapper for rest)
     merge/
@@ -262,6 +266,7 @@ ov sling <task-id>              Spawn a worker agent
   --dispatch-max-agents <n>              Per-lead max agents ceiling (injected into overlay)
   --skip-task-check                      Skip task existence validation
   --force-hierarchy                      Bypass hierarchy validation (debugging only)
+  --runtime <name>                       Runtime adapter (default: config or claude)
   --json                                 JSON output
 
 ov stop <agent-name>            Terminate a running agent
