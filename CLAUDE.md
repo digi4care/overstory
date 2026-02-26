@@ -268,6 +268,7 @@ ov sling <task-id>              Spawn a worker agent
   --max-agents <n>                       Max children per lead (overrides config)
   --dispatch-max-agents <n>              Per-lead max agents ceiling (injected into overlay)
   --skip-task-check                      Skip task existence validation
+  --no-scout-check                       Suppress scout-before-build warning
   --force-hierarchy                      Bypass hierarchy validation (debugging only)
   --runtime <name>                       Runtime adapter (default: config or claude)
   --json                                 JSON output

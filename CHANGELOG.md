@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-02-26
+
+### Added
+
+#### Outcome Feedback Loop
+- **Mulch outcome tracking** — sling now captures applied mulch record IDs at spawn time (saved to `.overstory/agents/{name}/applied-records.json`) and `ov log session-end` appends "success" outcomes back to those records, closing the expertise feedback loop
+- `MulchClient.appendOutcome()` method for programmatic outcome recording with status, duration, agent, notes, and test results fields
+
+#### Mulch Search/Prime Enrichment
+- `--classification` filter for mulch search (foundational, tactical, observational)
+- `--outcome-status` filter for mulch search (success, failure)
+- `--sort-by-score` support in mulch prime for relevance-ranked expertise injection
+
+#### Dashboard Redesign
+- **Tasks panel** — upper-right quadrant displays tracker issues with priority colors
+- **Feed panel** — lower-right quadrant shows recent events from the last 5 minutes
+- `dimBox` — dimmed box-drawing characters for less aggressive panel borders
+- `computeAgentPanelHeight()` — dynamic agent panel sizing (min 8, max 50% screen, scales with agent count)
+- Tracker caching with 10s TTL to reduce repeated CLI calls
+- Layout restructured to 60/40 split (agents left, tasks+feed right) with 50/50 mail/merge at bottom
+
+#### Formatting
+- `formatEventLine()` — centralized compact event formatting with agent colors and event labels (used by both feed and dashboard)
+- `numericPriorityColor()` — maps numeric priorities (1–4) to semantic colors
+- `buildAgentColorMap()` and `extendAgentColorMap()` — stable color assignment for agents by appearance order
+
+#### Sling
+- `--no-scout-check` flag to suppress scout-before-build warning
+- `shouldShowScoutWarning()` — testable logic for when to warn about missing scouts
+
+#### Testing
+- 2550 tests across 84 files (6167 `expect()` calls), up from 2476/83/6044
+- New `src/logging/format.test.ts` — coverage for event line formatting and color utilities
+
+### Fixed
+
+#### Pi Runtime
+- **EventStore visibility** — removed stdin-only gate on EventStore writes so Pi agents get full event tracking without stdin payload (`ov log tool-start`/`tool-end`)
+- **Tool name forwarding** — Pi guard extensions now pass `--tool-name` to `ov log` calls, fixing missing tool names in event timelines
+
+#### Shell Completions
+- Added missing `--runtime` flag to sling completions
+- Synced all shell completion scripts (bash/zsh/fish) with current CLI commands and flags
+- Added `--no-scout-check` and `--all` (dashboard) to completions
+
+#### Feed
+- Restored `formatEventLine()` usage lost during dashboard-builder merge conflict
+
+#### Testing Infrastructure
+- Retry temp dir cleanup on EBUSY from SQLite WAL handles (exponential backoff, 5 retries) — fixes flaky cleanup on Windows
+- Tightened `cleanupTempDir()` ENOENT handling
+
+### Changed
+
+- Dashboard layout restructured from single-column to multi-panel grid with dynamic sizing
+- Feed and dashboard now share centralized event formatting via `formatEventLine()`
+- Brand color lightened for better terminal contrast
+
 ## [0.7.2] - 2026-02-26
 
 ### Added
@@ -1037,7 +1095,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/jayminwest/overstory/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/jayminwest/overstory/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/jayminwest/overstory/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/jayminwest/overstory/compare/v0.6.12...v0.7.0
