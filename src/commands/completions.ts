@@ -85,6 +85,7 @@ export const COMMANDS: readonly CommandDef[] = [
 			{ name: "--force-hierarchy", desc: "Bypass hierarchy validation" },
 			{ name: "--max-agents", desc: "Max children per lead", takesValue: true },
 			{ name: "--dispatch-max-agents", desc: "Per-lead max agents ceiling", takesValue: true },
+			{ name: "--runtime", desc: "Runtime adapter", takesValue: true },
 			{ name: "--json", desc: "JSON output" },
 			{ name: "--help", desc: "Show help" },
 		],
