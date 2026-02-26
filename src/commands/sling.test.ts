@@ -17,6 +17,7 @@ import {
 	inferDomainsFromFiles,
 	isRunningAsRoot,
 	parentHasScouts,
+	shouldShowScoutWarning,
 	validateHierarchy,
 } from "./sling.ts";
 
@@ -272,6 +273,65 @@ describe("parentHasScouts", () => {
 		];
 
 		expect(parentHasScouts(sessions, "lead-alpha")).toBe(false);
+	});
+});
+
+/**
+ * Tests for shouldShowScoutWarning (overstory-6eyw).
+ *
+ * shouldShowScoutWarning determines whether the "spawning builder without scouts"
+ * warning should be emitted. It is a pure function extracted from slingCommand
+ * so it can be suppressed via --no-scout-check or --skip-scout.
+ */
+
+describe("shouldShowScoutWarning", () => {
+	function makeSession(
+		parentAgent: string | null,
+		capability: string,
+	): { parentAgent: string | null; capability: string } {
+		return { parentAgent, capability };
+	}
+
+	const withScout = [makeSession("lead-alpha", "scout"), makeSession("lead-alpha", "builder")];
+	const withoutScout = [makeSession("lead-alpha", "builder")];
+	const empty: { parentAgent: string | null; capability: string }[] = [];
+
+	test("returns true when builder has parent but no scouts", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", withoutScout, false, false)).toBe(true);
+	});
+
+	test("returns false when builder has parent and scouts exist", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", withScout, false, false)).toBe(false);
+	});
+
+	test("returns false when capability is not builder", () => {
+		expect(shouldShowScoutWarning("scout", "lead-alpha", empty, false, false)).toBe(false);
+		expect(shouldShowScoutWarning("reviewer", "lead-alpha", empty, false, false)).toBe(false);
+		expect(shouldShowScoutWarning("lead", "lead-alpha", empty, false, false)).toBe(false);
+	});
+
+	test("returns false when parentAgent is null (coordinator spawn)", () => {
+		expect(shouldShowScoutWarning("builder", null, withoutScout, false, false)).toBe(false);
+	});
+
+	test("returns false when noScoutCheck is true (flag suppresses warning)", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", withoutScout, true, false)).toBe(false);
+	});
+
+	test("returns false when skipScout is true (lead opted out of scouting)", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", withoutScout, false, true)).toBe(false);
+	});
+
+	test("returns false when both noScoutCheck and skipScout are true", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", withoutScout, true, true)).toBe(false);
+	});
+
+	test("returns false with empty sessions and no parent", () => {
+		expect(shouldShowScoutWarning("builder", null, empty, false, false)).toBe(false);
+	});
+
+	test("returns true with empty sessions and a parent (no scouts ever spawned)", () => {
+		expect(shouldShowScoutWarning("builder", "lead-alpha", empty, false, false)).toBe(true);
 	});
 });
 

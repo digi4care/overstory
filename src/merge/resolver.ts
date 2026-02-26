@@ -514,7 +514,7 @@ async function queryConflictHistory(
 	entry: MergeEntry,
 ): Promise<ConflictHistory> {
 	try {
-		const searchOutput = await mulchClient.search("merge-conflict");
+		const searchOutput = await mulchClient.search("merge-conflict", { sortByScore: true });
 		const patterns = parseConflictPatterns(searchOutput);
 		return buildConflictHistory(patterns, entry.filesModified);
 	} catch {

@@ -123,6 +123,7 @@ export interface SlingOptions {
 	skipReview?: boolean;
 	dispatchMaxAgents?: string;
 	runtime?: string;
+	noScoutCheck?: boolean;
 }
 
 export interface AutoDispatchOptions {
@@ -213,6 +214,38 @@ export function parentHasScouts(
 	parentAgent: string,
 ): boolean {
 	return sessions.some((s) => s.parentAgent === parentAgent && s.capability === "scout");
+}
+
+/**
+ * Determine whether to emit the scout-before-build warning.
+ *
+ * Returns true when all of the following hold:
+ *  - The incoming capability is "builder" (only builders trigger the check)
+ *  - A parent agent is set (orphaned builders don't trigger it)
+ *  - The parent has not yet spawned any scouts
+ *  - noScoutCheck is false (caller has not suppressed the warning)
+ *  - skipScout is false (the lead is not intentionally running without scouts)
+ *
+ * Extracted from slingCommand for testability (overstory-6eyw).
+ *
+ * @param capability - The requested agent capability
+ * @param parentAgent - The --parent flag value (null = coordinator/human)
+ * @param sessions - All sessions (not just active) for parentHasScouts query
+ * @param noScoutCheck - True when --no-scout-check flag is set
+ * @param skipScout - True when --skip-scout flag is set (lead opted out of scouting)
+ */
+export function shouldShowScoutWarning(
+	capability: string,
+	parentAgent: string | null,
+	sessions: ReadonlyArray<{ parentAgent: string | null; capability: string }>,
+	noScoutCheck: boolean,
+	skipScout: boolean,
+): boolean {
+	if (capability !== "builder") return false;
+	if (parentAgent === null) return false;
+	if (noScoutCheck) return false;
+	if (skipScout) return false;
+	return !parentHasScouts(sessions, parentAgent);
 }
 
 /**
@@ -544,7 +577,16 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		// 5c. Structural enforcement: warn when a lead spawns a builder without prior scouts.
 		// This is a non-blocking warning — it does not prevent the spawn, but surfaces
 		// the scout-skip pattern so agents and operators can see it happening.
-		if (capability === "builder" && parentAgent && !parentHasScouts(store.getAll(), parentAgent)) {
+		// Use --no-scout-check to suppress this warning when intentionally skipping scouts.
+		if (
+			shouldShowScoutWarning(
+				capability,
+				parentAgent,
+				store.getAll(),
+				opts.noScoutCheck ?? false,
+				skipScout,
+			)
+		) {
 			process.stderr.write(
 				`Warning: "${parentAgent}" is spawning builder "${name}" without having spawned any scouts.\n`,
 			);
@@ -596,7 +638,10 @@ export async function slingCommand(taskId: string, opts: SlingOptions): Promise<
 		if (config.mulch.enabled && fileScope.length > 0) {
 			try {
 				const mulch = createMulchClient(config.project.root);
-				mulchExpertise = await mulch.prime(undefined, undefined, { files: fileScope });
+				mulchExpertise = await mulch.prime(undefined, undefined, {
+					files: fileScope,
+					sortByScore: true,
+				});
 			} catch {
 				// Non-fatal: mulch expertise is supplementary context
 				mulchExpertise = undefined;

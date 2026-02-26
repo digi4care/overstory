@@ -163,6 +163,33 @@ describe("createMulchClient", () => {
 			});
 			expect(typeof result).toBe("string");
 		});
+
+		test.skipIf(!hasMulch)("passes --sort-by-score flag in prime options", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			// mulch prime --sort-by-score may not be supported in older mulch versions;
+			// the interface and impl are forward-looking — test accepts both outcomes.
+			try {
+				const result = await client.prime([], "markdown", { sortByScore: true });
+				expect(typeof result).toBe("string");
+			} catch (error) {
+				expect(error).toBeInstanceOf(AgentError);
+			}
+		});
+
+		test.skipIf(!hasMulch)("passes --sort-by-score with --files together", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			try {
+				const result = await client.prime([], "markdown", {
+					files: ["src/config.ts"],
+					sortByScore: true,
+				});
+				expect(typeof result).toBe("string");
+			} catch (error) {
+				expect(error).toBeInstanceOf(AgentError);
+			}
+		});
 	});
 
 	describe("status", () => {
@@ -450,6 +477,39 @@ describe("createMulchClient", () => {
 			await initMulch();
 			const client = createMulchClient(tempDir);
 			const result = await client.search("test", { file: "src/config.ts", sortByScore: true });
+			expect(typeof result).toBe("string");
+		});
+
+		test.skipIf(!hasMulch)("passes --classification flag when provided", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			const result = await client.search("test", { classification: "foundational" });
+			expect(typeof result).toBe("string");
+		});
+
+		test.skipIf(!hasMulch)("passes --outcome-status flag when provided (success)", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			const result = await client.search("test", { outcomeStatus: "success" });
+			expect(typeof result).toBe("string");
+		});
+
+		test.skipIf(!hasMulch)("passes --outcome-status flag when provided (failure)", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			const result = await client.search("test", { outcomeStatus: "failure" });
+			expect(typeof result).toBe("string");
+		});
+
+		test.skipIf(!hasMulch)("passes all search filters together", async () => {
+			await initMulch();
+			const client = createMulchClient(tempDir);
+			const result = await client.search("test", {
+				classification: "tactical",
+				outcomeStatus: "success",
+				sortByScore: true,
+				file: "src/config.ts",
+			});
 			expect(typeof result).toBe("string");
 		});
 

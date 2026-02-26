@@ -1440,6 +1440,42 @@ describe("createMergeResolver", () => {
 		});
 	});
 
+	describe("queryConflictHistory uses sortByScore", () => {
+		test("passes sortByScore: true to mulch search when querying conflict history", async () => {
+			const repoDir = await createTempGitRepo();
+			try {
+				const defaultBranch = await getDefaultBranch(repoDir);
+				await setupContentConflict(repoDir, defaultBranch);
+
+				const entry = makeTestEntry({
+					branchName: "feature-branch",
+					filesModified: ["src/test.ts"],
+				});
+
+				// Capture search call options
+				let capturedSearchOptions: unknown;
+				const mockMulchClient = createMockMulchClient();
+				mockMulchClient.search = async (_query, options) => {
+					capturedSearchOptions = options;
+					return "";
+				};
+
+				const resolver = createMergeResolver({
+					aiResolveEnabled: false,
+					reimagineEnabled: false,
+					mulchClient: mockMulchClient,
+				});
+
+				await resolver.resolve(entry, defaultBranch, repoDir);
+
+				// Verify sortByScore was passed to search
+				expect(capturedSearchOptions).toMatchObject({ sortByScore: true });
+			} finally {
+				await cleanupTempDir(repoDir);
+			}
+		});
+	});
+
 	describe("AI-resolve with history context", () => {
 		test("includes historical context in AI prompt when available", async () => {
 			const repoDir = await createTempGitRepo();

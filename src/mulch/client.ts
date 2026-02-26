@@ -28,6 +28,7 @@ export interface MulchClient {
 		options?: {
 			files?: string[];
 			excludeDomain?: string[];
+			sortByScore?: boolean;
 		},
 	): Promise<string>;
 
@@ -58,7 +59,15 @@ export interface MulchClient {
 	query(domain?: string): Promise<string>;
 
 	/** Search records across all domains. */
-	search(query: string, options?: { file?: string; sortByScore?: boolean }): Promise<string>;
+	search(
+		query: string,
+		options?: {
+			file?: string;
+			sortByScore?: boolean;
+			classification?: string;
+			outcomeStatus?: "success" | "failure";
+		},
+	): Promise<string>;
 
 	/** Show expertise record changes since a git ref. */
 	diff(options?: { since?: string }): Promise<MulchDiffResult>;
@@ -214,6 +223,8 @@ interface MulchProgrammaticApi {
 			type?: string;
 			tag?: string;
 			classification?: string;
+			outcomeStatus?: "success" | "failure";
+			sortByScore?: boolean;
 			file?: string;
 			cwd?: string;
 		},
@@ -406,6 +417,9 @@ export function createMulchClient(cwd: string): MulchClient {
 			if (options?.excludeDomain && options.excludeDomain.length > 0) {
 				args.push("--exclude-domain", ...options.excludeDomain);
 			}
+			if (options?.sortByScore) {
+				args.push("--sort-by-score");
+			}
 			const { stdout } = await runMulch(args, "prime");
 			return stdout;
 		},
@@ -472,6 +486,9 @@ export function createMulchClient(cwd: string): MulchClient {
 				const api = await loadMulchApi();
 				const results = await api.searchExpertise(query, {
 					file: options?.file,
+					classification: options?.classification,
+					outcomeStatus: options?.outcomeStatus,
+					sortByScore: options?.sortByScore,
 					cwd,
 				});
 				return formatSearchResults(results);
