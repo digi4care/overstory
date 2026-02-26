@@ -22,6 +22,7 @@ import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess } from "../logging/color.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createTrackerClient, resolveBackend, trackerCliName } from "../tracker/factory.ts";
 import type { AgentSession } from "../types.ts";
@@ -160,26 +161,35 @@ async function startSupervisor(opts: {
 			join(projectRoot, config.agents.baseDir),
 		);
 		const manifest = await manifestLoader.load();
-		const { model, env } = resolveModel(config, manifest, "supervisor", "opus");
+		const resolvedModel = resolveModel(config, manifest, "supervisor", "opus");
+		const runtime = getRuntime(undefined, config);
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
 		// Inject the supervisor base definition via --append-system-prompt.
 		const tmuxSession = `overstory-${config.project.name}-supervisor-${opts.name}`;
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "supervisor.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
+		let appendSystemPrompt: string | undefined;
 		if (await agentDefFile.exists()) {
-			const agentDef = await agentDefFile.text();
-			const escaped = agentDef.replace(/'/g, "'\\''");
-			claudeCmd += ` --append-system-prompt '${escaped}'`;
+			appendSystemPrompt = await agentDefFile.text();
 		}
-		const pid = await createSession(tmuxSession, projectRoot, claudeCmd, {
-			...env,
+		const spawnCmd = runtime.buildSpawnCommand({
+			model: resolvedModel.model,
+			permissionMode: "bypass",
+			cwd: projectRoot,
+			appendSystemPrompt,
+			env: {
+				...runtime.buildEnv(resolvedModel),
+				OVERSTORY_AGENT_NAME: opts.name,
+			},
+		});
+		const pid = await createSession(tmuxSession, projectRoot, spawnCmd, {
+			...runtime.buildEnv(resolvedModel),
 			OVERSTORY_AGENT_NAME: opts.name,
 		});
 
 		// Wait for Claude Code TUI to render before sending input
-		await waitForTuiReady(tmuxSession);
+		await waitForTuiReady(tmuxSession, (content) => runtime.detectReady(content));
 		await Bun.sleep(1_000);
 
 		const beacon = buildSupervisorBeacon({

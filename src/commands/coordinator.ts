@@ -22,6 +22,7 @@ import { loadConfig } from "../config.ts";
 import { AgentError, ValidationError } from "../errors.ts";
 import { jsonOutput } from "../json.ts";
 import { printHint, printSuccess, printWarning } from "../logging/color.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import { createRunStore } from "../sessions/store.ts";
 import { resolveBackend, trackerCliName } from "../tracker/factory.ts";
@@ -62,6 +63,7 @@ export interface CoordinatorDeps {
 		sendKeys: (name: string, keys: string) => Promise<void>;
 		waitForTuiReady: (
 			name: string,
+			detectReady: (paneContent: string) => import("../runtimes/types.ts").ReadyState,
 			timeoutMs?: number,
 			pollIntervalMs?: number,
 		) => Promise<boolean>;
@@ -347,7 +349,8 @@ async function startCoordinator(
 			join(projectRoot, config.agents.baseDir),
 		);
 		const manifest = await manifestLoader.load();
-		const { model, env } = resolveModel(config, manifest, "coordinator", "opus");
+		const resolvedModel = resolveModel(config, manifest, "coordinator", "opus");
+		const runtime = getRuntime(undefined, config);
 
 		// Preflight: verify tmux is installed before attempting to spawn.
 		// Without this check, a missing tmux leads to cryptic errors later.
@@ -359,15 +362,22 @@ async function startCoordinator(
 		// (overstory-gaio, overstory-0kwf).
 		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "coordinator.md");
 		const agentDefFile = Bun.file(agentDefPath);
-		let claudeCmd = `claude --model ${model} --permission-mode bypassPermissions`;
+		let appendSystemPrompt: string | undefined;
 		if (await agentDefFile.exists()) {
-			const agentDef = await agentDefFile.text();
-			// Single-quote the content for safe shell expansion (only escape single quotes)
-			const escaped = agentDef.replace(/'/g, "'\\''");
-			claudeCmd += ` --append-system-prompt '${escaped}'`;
+			appendSystemPrompt = await agentDefFile.text();
 		}
-		const pid = await tmux.createSession(tmuxSession, projectRoot, claudeCmd, {
-			...env,
+		const spawnCmd = runtime.buildSpawnCommand({
+			model: resolvedModel.model,
+			permissionMode: "bypass",
+			cwd: projectRoot,
+			appendSystemPrompt,
+			env: {
+				...runtime.buildEnv(resolvedModel),
+				OVERSTORY_AGENT_NAME: COORDINATOR_NAME,
+			},
+		});
+		const pid = await tmux.createSession(tmuxSession, projectRoot, spawnCmd, {
+			...runtime.buildEnv(resolvedModel),
 			OVERSTORY_AGENT_NAME: COORDINATOR_NAME,
 		});
 
@@ -397,7 +407,9 @@ async function startCoordinator(
 		store.upsert(session);
 
 		// Wait for Claude Code TUI to render before sending input
-		const tuiReady = await tmux.waitForTuiReady(tmuxSession);
+		const tuiReady = await tmux.waitForTuiReady(tmuxSession, (content) =>
+			runtime.detectReady(content),
+		);
 		if (!tuiReady) {
 			// Session may have died — check liveness before proceeding
 			const alive = await tmux.isSessionAlive(tmuxSession);
