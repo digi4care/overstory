@@ -79,6 +79,9 @@ export interface AgentRuntime {
 	/** Unique runtime identifier (e.g. "claude", "codex", "pi"). */
 	id: string;
 
+	/** Relative path to the instruction file within a worktree (e.g. ".claude/CLAUDE.md"). */
+	readonly instructionPath: string;
+
 	/** Build the shell command string to spawn an interactive agent in a tmux pane. */
 	buildSpawnCommand(opts: SpawnOpts): string;
 
@@ -93,8 +96,13 @@ export interface AgentRuntime {
 	 * Claude Code writes .claude/CLAUDE.md + settings.local.json hooks.
 	 * Codex writes AGENTS.md (no hook deployment needed).
 	 * Pi writes .claude/CLAUDE.md + a guard extension in .pi/extensions/.
+	 * When overlay is undefined, only hooks are deployed (no instruction file written).
 	 */
-	deployConfig(worktreePath: string, overlay: OverlayContent, hooks: HooksDef): Promise<void>;
+	deployConfig(
+		worktreePath: string,
+		overlay: OverlayContent | undefined,
+		hooks: HooksDef,
+	): Promise<void>;
 
 	/**
 	 * Detect agent readiness from tmux pane content.
