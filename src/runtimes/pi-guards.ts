@@ -8,7 +8,7 @@
 // to prevent tool execution — equivalent to Claude Code's PreToolUse hooks.
 //
 // Activity tracking fires via pi.exec("ov log ...") on tool_call,
-// tool_execution_end, and session_shutdown events so the SessionStore
+// tool_execution_end, agent_end, and session_shutdown events so the SessionStore
 // lastActivity stays fresh and the watchdog does not zombie-classify agents.
 
 import {
@@ -113,7 +113,11 @@ function toRegExpArrayLiteral(patterns: string[]): string {
  * Activity tracking:
  * - tool_call handler: fire-and-forget "ov log tool-start" to update lastActivity.
  * - tool_execution_end handler: fire-and-forget "ov log tool-end".
- * - session_shutdown handler: awaited "ov log session-end" to mark agent completed.
+ * - agent_end handler: awaited "ov log session-end" — fires when the agentic loop
+ *   completes (task done). Without this, completed Pi agents get watchdog-escalated
+ *   through stalled → nudge → triage → terminate.
+ * - session_shutdown handler: awaited "ov log session-end" — fires on Ctrl+C/SIGTERM.
+ *   Kept as a safety net in case agent_end does not fire (e.g., crash, force-kill).
  *
  * These tracking calls prevent the watchdog from zombie-classifying Pi agents due
  * to stale lastActivity timestamps (the root cause of the zombie state bug).
@@ -190,7 +194,7 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		`//`,
 		`// Uses Pi's ExtensionAPI factory style: export default function(pi: ExtensionAPI) { ... }`,
 		`// pi.on("tool_call", ...) returns { block: true, reason } to prevent tool execution.`,
-		`// pi.exec("ov", [...]) calls the overstory CLI for activity tracking.`,
+		`// pi.exec("ov", [...]) calls the overstory CLI for activity tracking and lifecycle.`,
 		`import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";`,
 		``,
 		`const AGENT_NAME = "${agentName}";`,
@@ -331,10 +335,23 @@ export function generatePiGuardExtension(hooks: HooksDef): string {
 		`\t});`,
 		``,
 		`\t/**`,
-		`\t * Session shutdown: log session-end so the agent transitions to "completed" state.`,
+		`\t * Agent end: log session-end when the agentic loop completes (task done).`,
 		`\t *`,
-		`\t * Awaited so it completes before Pi exits. Without this call, the agent stays in`,
-		`\t * "booting" or "working" state forever, requiring manual cleanup or watchdog termination.`,
+		`\t * Awaited so it completes before Pi moves on. Without this handler, completed`,
+		`\t * Pi agents never transition to "completed" state in the SessionStore, causing`,
+		`\t * the watchdog to escalate them through stalled → nudge → triage → terminate.`,
+		`\t *`,
+		`\t * Fires when the agent finishes its work — before session_shutdown.`,
+		`\t */`,
+		`\tpi.on("agent_end", async (_event) => {`,
+		`\t\tawait pi.exec("ov", ["log", "session-end", "--agent", AGENT_NAME]).catch(() => {});`,
+		`\t});`,
+		``,
+		`\t/**`,
+		`\t * Session shutdown: safety-net session-end log for non-graceful exits.`,
+		`\t *`,
+		`\t * Awaited so it completes before Pi exits. Kept as a fallback in case`,
+		`\t * agent_end does not fire (e.g., crash, force-kill, Ctrl+C before task completes).`,
 		`\t *`,
 		`\t * Fires on Ctrl+C, Ctrl+D, or SIGTERM.`,
 		`\t */`,

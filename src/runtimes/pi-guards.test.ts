@@ -397,6 +397,35 @@ describe("generatePiGuardExtension", () => {
 			expect(generated).toContain('pi.on("tool_execution_end", async (event) => {');
 			expect(generated).not.toContain('pi.on("tool_execution_end", async (_event) => {');
 		});
+
+		test('generated code contains pi.on("agent_end", ...)', () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			expect(generated).toContain('pi.on("agent_end",');
+		});
+
+		test("generated code awaits pi.exec ov log session-end in agent_end handler", () => {
+			const generated = generatePiGuardExtension(builderHooks());
+			// agent_end handler must await (not fire-and-forget) so it completes
+			// before Pi moves on, ensuring the SessionStore is updated.
+			const agentEndIdx = generated.indexOf('pi.on("agent_end"');
+			const sessionShutdownIdx = generated.indexOf('pi.on("session_shutdown"');
+			expect(agentEndIdx).toBeGreaterThan(-1);
+			expect(sessionShutdownIdx).toBeGreaterThan(-1);
+			// agent_end must come before session_shutdown
+			expect(agentEndIdx).toBeLessThan(sessionShutdownIdx);
+			// Extract the agent_end handler body
+			const handlerBody = generated.slice(agentEndIdx, sessionShutdownIdx);
+			expect(handlerBody).toContain(
+				'await pi.exec("ov", ["log", "session-end", "--agent", AGENT_NAME])',
+			);
+		});
+
+		test("agent_end handler is present for all capabilities", () => {
+			for (const hooks of [builderHooks(), scoutHooks(), coordinatorHooks()]) {
+				const generated = generatePiGuardExtension(hooks);
+				expect(generated).toContain('pi.on("agent_end",');
+			}
+		});
 	});
 
 	describe("PiRuntime integration", () => {
