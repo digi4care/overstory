@@ -29,9 +29,15 @@ export interface DiscoveredAgent {
 	lastActivity: string;
 }
 
+/** Known instruction file paths, tried in order until one exists. */
+const KNOWN_INSTRUCTION_PATHS = [
+	join(".claude", "CLAUDE.md"), // Claude Code, Pi
+	"AGENTS.md", // Codex (future)
+];
+
 /**
- * Extract file scope from an agent's overlay CLAUDE.md.
- * Returns empty array if overlay doesn't exist, has no file scope restrictions,
+ * Extract file scope from an agent's overlay instruction file.
+ * Returns empty array if no overlay exists, has no file scope restrictions,
  * or can't be read.
  *
  * @param worktreePath - Absolute path to the agent's worktree
@@ -39,14 +45,18 @@ export interface DiscoveredAgent {
  */
 export async function extractFileScope(worktreePath: string): Promise<string[]> {
 	try {
-		const overlayPath = join(worktreePath, ".claude", "CLAUDE.md");
-		const overlayFile = Bun.file(overlayPath);
-
-		if (!(await overlayFile.exists())) {
+		let content: string | null = null;
+		for (const relPath of KNOWN_INSTRUCTION_PATHS) {
+			const overlayPath = join(worktreePath, relPath);
+			const overlayFile = Bun.file(overlayPath);
+			if (await overlayFile.exists()) {
+				content = await overlayFile.text();
+				break;
+			}
+		}
+		if (content === null) {
 			return [];
 		}
-
-		const content = await overlayFile.text();
 
 		// Find the section between "## File Scope (exclusive ownership)" and "## Expertise"
 		const startMarker = "## File Scope (exclusive ownership)";
