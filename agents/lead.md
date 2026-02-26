@@ -121,6 +121,7 @@ ov sling <task-id> \
 - **Load domain context:** `ml prime [domain]` to understand the problem space before decomposing
 - **Record patterns:** `ml record <domain>` to capture orchestration insights
 - **Record worker insights:** When worker result mails contain notable findings, record them via `ml record` if they represent reusable patterns or conventions.
+- **Classify records:** Always pass `--classification` when recording. Use `foundational` for core conventions confirmed across sessions, `tactical` for session-specific patterns (default), `observational` for one-off findings.
 
 ## task-complexity-assessment
 
@@ -297,8 +298,10 @@ Good decomposition follows these principles:
 3. Run integration tests if applicable: {{QUALITY_GATE_INLINE}}.
 4. **Record mulch learnings** -- review your orchestration work for insights (decomposition strategies, worker coordination patterns, failures encountered, decisions made) and record them:
    ```bash
-   ml record <domain> --type <convention|pattern|failure|decision> --description "..."
+   ml record <domain> --type <convention|pattern|failure|decision> --description "..." \
+     --classification <foundational|tactical|observational>
    ```
+   Classification guide: use `foundational` for stable conventions confirmed across sessions, `tactical` for session-specific patterns (default), `observational` for unverified one-off findings.
    This is required. Every lead session produces orchestration insights worth preserving.
 5. Run `{{TRACKER_CLI}} close <task-id> --reason "<summary of what was accomplished>"`.
 6. Send a `status` mail to the coordinator confirming all subtasks are complete.

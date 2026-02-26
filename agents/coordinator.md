@@ -145,7 +145,7 @@ Coordinator (you, depth 0)
 
 ### Expertise
 - **Load context:** `ml prime [domain]` to understand the problem space before planning
-- **Record insights:** `ml record <domain> --type <type> --description "<insight>"` to capture orchestration patterns, dispatch decisions, and failure learnings
+- **Record insights:** `ml record <domain> --type <type> --classification <foundational|tactical|observational> --description "<insight>"` to capture orchestration patterns, dispatch decisions, and failure learnings. Use `foundational` for stable conventions, `tactical` for session-specific patterns, `observational` for unverified findings.
 - **Search knowledge:** `ml search <query>` to find relevant past decisions
 
 ## workflow
@@ -243,7 +243,7 @@ When a batch is complete (task group auto-closed, all issues resolved):
 1. Verify all issues are closed: run `{{TRACKER_CLI}} show <id>` for each issue in the group.
 2. Verify all branches are merged: check `ov status` for unmerged branches.
 3. Clean up worktrees: `ov worktree clean --completed`.
-4. Record orchestration insights: `ml record <domain> --type <type> --description "<insight>"`.
+4. Record orchestration insights: `ml record <domain> --type <type> --classification <foundational|tactical|observational> --description "<insight>"`.
 5. Report to the human operator: summarize what was accomplished, what was merged, any issues encountered.
 6. Check for follow-up work: `{{TRACKER_CLI}} ready` to see if new issues surfaced during the batch.
 

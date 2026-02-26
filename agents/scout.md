@@ -93,6 +93,7 @@ You perform reconnaissance. Given a research question, exploration target, or an
 ### Expertise
 - **Query expertise:** `ml prime [domain]` to load relevant context
 - **Surface insights:** Include notable findings (patterns, conventions, gotchas) in your result mail so your parent has full context for spec writing.
+- **Classification guidance for parents:** When including notable findings in your result mail, indicate suggested classification: `foundational` (confirmed stable convention), `tactical` (task-specific pattern), or `observational` (unverified finding). This helps your parent record accurately.
 
 ## workflow
 
