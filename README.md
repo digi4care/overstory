@@ -1,18 +1,21 @@
 # Overstory
 
-Multi-agent orchestration for Claude Code.
+Multi-agent orchestration for AI coding agents.
 
 [![npm](https://img.shields.io/npm/v/@os-eco/overstory-cli)](https://www.npmjs.com/package/@os-eco/overstory-cli)
 [![CI](https://github.com/jayminwest/overstory/actions/workflows/ci.yml/badge.svg)](https://github.com/jayminwest/overstory/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Overstory turns a single Claude Code session into a multi-agent team by spawning worker agents in git worktrees via tmux, coordinating them through a custom SQLite mail system, and merging their work back with tiered conflict resolution.
+Overstory turns a single coding session into a multi-agent team by spawning worker agents in git worktrees via tmux, coordinating them through a custom SQLite mail system, and merging their work back with tiered conflict resolution. A pluggable `AgentRuntime` interface lets you swap between runtimes — Claude Code, [Pi](https://github.com/nichochar/pi-coding-agent), or your own adapter.
 
 > **Warning: Agent swarms are not a universal solution.** Do not deploy Overstory without understanding the risks of multi-agent orchestration — compounding error rates, cost amplification, debugging complexity, and merge conflicts are the normal case, not edge cases. Read [STEELMAN.md](STEELMAN.md) for a full risk analysis and the [Agentic Engineering Book](https://github.com/jayminwest/agentic-engineering-book) ([web version](https://jayminwest.com/agentic-engineering-book)) before using this tool in production.
 
 ## Install
 
-Requires [Bun](https://bun.sh) v1.0+, [Claude Code](https://docs.anthropic.com/en/docs/claude-code), git, and tmux.
+Requires [Bun](https://bun.sh) v1.0+, git, and tmux. At least one supported agent runtime must be installed:
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` CLI)
+- [Pi](https://github.com/nichochar/pi-coding-agent) (`pi` CLI)
 
 ```bash
 bun install -g @os-eco/overstory-cli
@@ -158,11 +161,20 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 
 ## Architecture
 
-Overstory uses CLAUDE.md overlays and PreToolUse hooks to turn Claude Code sessions into orchestrated agents. Each agent runs in an isolated git worktree via tmux. Inter-agent messaging is handled by a custom SQLite mail system (WAL mode, ~1-5ms per query) with typed protocol messages and broadcast support. A FIFO merge queue with 4-tier conflict resolution merges agent branches back to canonical. A tiered watchdog system (Tier 0 mechanical daemon, Tier 1 AI-assisted triage, Tier 2 monitor agent) ensures fleet health. See [CLAUDE.md](CLAUDE.md) for full technical details.
+Overstory uses instruction overlays and tool-call guards to turn agent sessions into orchestrated workers. Each agent runs in an isolated git worktree via tmux. Inter-agent messaging is handled by a custom SQLite mail system (WAL mode, ~1-5ms per query) with typed protocol messages and broadcast support. A FIFO merge queue with 4-tier conflict resolution merges agent branches back to canonical. A tiered watchdog system (Tier 0 mechanical daemon, Tier 1 AI-assisted triage, Tier 2 monitor agent) ensures fleet health. See [CLAUDE.md](CLAUDE.md) for full technical details.
+
+### Runtime Adapters
+
+Overstory is runtime-agnostic. The `AgentRuntime` interface (`src/runtimes/types.ts`) defines the contract — each adapter handles spawning, config deployment, guard enforcement, readiness detection, and transcript parsing for its runtime. Set the default in `config.yaml` or override per-agent with `ov sling --runtime <name>`.
+
+| Runtime | CLI | Guard Mechanism | Status |
+|---------|-----|-----------------|--------|
+| Claude Code | `claude` | `settings.local.json` hooks | Stable |
+| Pi | `pi` | `.pi/extensions/` guard extension | Active development |
 
 ## How It Works
 
-CLAUDE.md + hooks + the `ov` CLI turn your Claude Code session into a multi-agent orchestrator. A persistent coordinator agent manages task decomposition and dispatch, while a mechanical watchdog daemon monitors agent health in the background.
+Instruction overlays + tool-call guards + the `ov` CLI turn your coding session into a multi-agent orchestrator. A persistent coordinator agent manages task decomposition and dispatch, while a mechanical watchdog daemon monitors agent health in the background.
 
 ```
 Coordinator (persistent orchestrator at project root)
@@ -190,10 +202,10 @@ Coordinator (persistent orchestrator at project root)
 - **Worktrees**: Each agent gets an isolated git worktree — no file conflicts between agents
 - **Merge**: FIFO merge queue (SQLite-backed) with 4-tier conflict resolution
 - **Watchdog**: Tiered health monitoring — Tier 0 mechanical daemon (tmux/pid liveness), Tier 1 AI-assisted failure triage, Tier 2 monitor agent for continuous fleet patrol
-- **Tool Enforcement**: PreToolUse hooks mechanically block file modifications for non-implementation agents and dangerous git operations for all agents
+- **Tool Enforcement**: Runtime-specific guards (hooks for Claude Code, extensions for Pi) mechanically block file modifications for non-implementation agents and dangerous git operations for all agents
 - **Task Groups**: Batch coordination with auto-close when all member issues complete
 - **Session Lifecycle**: Checkpoint save/restore for compaction survivability, handoff orchestration for crash recovery
-- **Token Instrumentation**: Session metrics extracted from Claude Code transcript JSONL files
+- **Token Instrumentation**: Session metrics extracted from runtime transcript files (JSONL)
 
 ## Project Structure
 
