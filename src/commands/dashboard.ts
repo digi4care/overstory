@@ -3,7 +3,13 @@
  *
  * Rich terminal dashboard using raw ANSI escape codes (zero runtime deps).
  * Polls existing data sources and renders multi-panel layout with agent status,
- * mail activity, merge queue, and metrics.
+ * mail activity, merge queue, metrics, tasks, and recent event feed.
+ *
+ * Layout:
+ *   Row 1-2:   Header
+ *   Row 3-N:   Agents (60% width, dynamic height) | Tasks (upper-right 40%) + Feed (lower-right 40%)
+ *   Row N+1:   Mail (50%) | Merge Queue (50%)
+ *   Row M:     Metrics
  *
  * By default, all panels are scoped to the current run (current-run.txt).
  * Use --all to show data across all runs.
@@ -14,11 +20,15 @@ import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { loadConfig } from "../config.ts";
 import { ValidationError } from "../errors.ts";
+import { createEventStore } from "../events/store.ts";
 import { accent, brand, color, visibleLength } from "../logging/color.ts";
 import {
+	buildAgentColorMap,
 	formatDuration,
+	formatEventLine,
 	formatRelativeTime,
 	mergeStatusColor,
+	numericPriorityColor,
 	priorityColor,
 } from "../logging/format.ts";
 import { stateColor, stateIcon } from "../logging/theme.ts";
@@ -27,7 +37,9 @@ import { createMergeQueue, type MergeQueue } from "../merge/queue.ts";
 import { createMetricsStore, type MetricsStore } from "../metrics/store.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { SessionStore } from "../sessions/store.ts";
-import type { MailMessage } from "../types.ts";
+import { createTrackerClient, resolveBackend } from "../tracker/factory.ts";
+import type { TrackerIssue } from "../tracker/types.ts";
+import type { EventStore, MailMessage, StoredEvent } from "../types.ts";
 import { evaluateHealth } from "../watchdog/health.ts";
 import { getCachedTmuxSessions, getCachedWorktrees, type StatusData } from "./status.ts";
 
@@ -46,7 +58,8 @@ const CURSOR = {
 } as const;
 
 /**
- * Box drawing characters for panel borders.
+ * Box drawing characters for panel borders (plain — not used for rendering,
+ * kept for backward compat with tests and horizontalLine helper).
  */
 const BOX = {
 	topLeft: "┌",
@@ -59,6 +72,22 @@ const BOX = {
 	teeRight: "┤",
 	cross: "┼",
 };
+
+/**
+ * Dimmed version of BOX characters — for subdued borders that do not
+ * compete visually with panel content.
+ */
+export const dimBox = {
+	topLeft: color.dim("┌"),
+	topRight: color.dim("┐"),
+	bottomLeft: color.dim("└"),
+	bottomRight: color.dim("┘"),
+	horizontal: color.dim("─"),
+	vertical: color.dim("│"),
+	tee: color.dim("├"),
+	teeRight: color.dim("┤"),
+	cross: color.dim("┼"),
+} as const;
 
 /**
  * Truncate a string to fit within maxLen characters, adding ellipsis if needed.
@@ -79,13 +108,31 @@ function pad(str: string, width: number): string {
 }
 
 /**
- * Draw a horizontal line with left/right/middle connectors.
+ * Draw a horizontal line with left/right connectors using plain BOX chars.
+ * Exported for backward compat in tests.
  */
 function horizontalLine(width: number, left: string, _middle: string, right: string): string {
 	return left + BOX.horizontal.repeat(Math.max(0, width - 2)) + right;
 }
 
+/**
+ * Draw a horizontal line using dimmed border characters.
+ * ANSI-aware: uses visibleLength() for padding calculations.
+ */
+function dimHorizontalLine(width: number, left: string, right: string): string {
+	const fillCount = Math.max(0, width - visibleLength(left) - visibleLength(right));
+	return left + dimBox.horizontal.repeat(fillCount) + right;
+}
+
 export { pad, truncate, horizontalLine };
+
+/**
+ * Compute agent panel height from screen height and agent count.
+ * min 8 rows, max floor(height * 0.5), grows with agent count (+4 for chrome).
+ */
+export function computeAgentPanelHeight(height: number, agentCount: number): number {
+	return Math.max(8, Math.min(Math.floor(height * 0.5), agentCount + 4));
+}
 
 /**
  * Filter agents by run ID. When run-scoped, also includes sessions with null
@@ -109,6 +156,7 @@ export interface DashboardStores {
 	mailStore: MailStore | null;
 	mergeQueue: MergeQueue | null;
 	metricsStore: MetricsStore | null;
+	eventStore: EventStore | null;
 }
 
 /**
@@ -149,7 +197,17 @@ export function openDashboardStores(root: string): DashboardStores {
 		// metrics db might not be openable
 	}
 
-	return { sessionStore, mailStore, mergeQueue, metricsStore };
+	let eventStore: EventStore | null = null;
+	try {
+		const eventsDbPath = join(overstoryDir, "events.db");
+		if (existsSync(eventsDbPath)) {
+			eventStore = createEventStore(eventsDbPath);
+		}
+	} catch {
+		// events db might not be openable
+	}
+
+	return { sessionStore, mailStore, mergeQueue, metricsStore, eventStore };
 }
 
 /**
@@ -176,7 +234,22 @@ export function closeDashboardStores(stores: DashboardStores): void {
 	} catch {
 		/* best effort */
 	}
+	try {
+		stores.eventStore?.close();
+	} catch {
+		/* best effort */
+	}
 }
+
+/** Tracker data cached between dashboard ticks (10s TTL). */
+interface TrackerCache {
+	tasks: TrackerIssue[];
+	fetchedAt: number; // Date.now() ms
+}
+
+/** Module-level tracker cache (persists across poll ticks). */
+let trackerCache: TrackerCache | null = null;
+const TRACKER_CACHE_TTL_MS = 10_000; // 10 seconds
 
 interface DashboardData {
 	currentRunId?: string | null;
@@ -188,6 +261,8 @@ interface DashboardData {
 		avgDuration: number;
 		byCapability: Record<string, number>;
 	};
+	tasks: TrackerIssue[];
+	recentEvents: StoredEvent[];
 }
 
 /**
@@ -223,9 +298,6 @@ async function loadDashboardData(
 	const tmuxSessions = await getCachedTmuxSessions();
 
 	// Evaluate health for active agents using the same logic as the watchdog.
-	// This handles two key cases:
-	//   1. tmux dead -> zombie (previously the only reconciliation)
-	//   2. persistent capabilities (coordinator, monitor) booting -> working when tmux alive
 	const tmuxSessionNames = new Set(tmuxSessions.map((s) => s.name));
 	const healthThresholds = thresholds ?? { staleMs: 300_000, zombieMs: 600_000 };
 	for (const session of allSessions) {
@@ -243,7 +315,6 @@ async function loadDashboardData(
 	}
 
 	// If run-scoped, filter agents to only those belonging to the current run.
-	// Also includes null-runId sessions (e.g. coordinator) per filterAgentsByRun logic.
 	const filteredAgents = filterAgentsByRun(allSessions, runId);
 
 	// Count unread mail
@@ -293,7 +364,6 @@ async function loadDashboardData(
 		try {
 			if (runId && filteredAgents.length > 0) {
 				const agentNames = new Set(filteredAgents.map((a) => a.agentName));
-				// Fetch a small batch to filter from; can't push agent-set filter into SQL
 				const allMail = stores.mailStore.getAll({ limit: 50 });
 				recentMail = allMail
 					.filter((m) => agentNames.has(m.from) || agentNames.has(m.to))
@@ -332,7 +402,6 @@ async function loadDashboardData(
 	if (stores.metricsStore) {
 		try {
 			if (runId && filteredAgents.length > 0) {
-				// Run-scoped: filter sessions by agent names, compute all values from the filtered set
 				const agentNames = new Set(filteredAgents.map((a) => a.agentName));
 				const sessions = stores.metricsStore.getRecentSessions(100);
 				const filtered = sessions.filter((s) => agentNames.has(s.agentName));
@@ -350,7 +419,6 @@ async function loadDashboardData(
 					byCapability[cap] = (byCapability[cap] ?? 0) + 1;
 				}
 			} else {
-				// All-runs view: use countSessions() to get accurate total (not capped at 100)
 				totalSessions = stores.metricsStore.countSessions();
 				avgDuration = stores.metricsStore.getAverageDuration();
 
@@ -365,12 +433,43 @@ async function loadDashboardData(
 		}
 	}
 
+	// Load tasks from tracker with cache
+	let tasks: TrackerIssue[] = [];
+	const now2 = Date.now();
+	if (!trackerCache || now2 - trackerCache.fetchedAt > TRACKER_CACHE_TTL_MS) {
+		try {
+			const backend = await resolveBackend("auto", root);
+			const tracker = createTrackerClient(backend, root);
+			tasks = await tracker.list({ limit: 10 });
+			trackerCache = { tasks, fetchedAt: now2 };
+		} catch {
+			// tracker unavailable — graceful degradation
+			tasks = trackerCache?.tasks ?? [];
+		}
+	} else {
+		tasks = trackerCache.tasks;
+	}
+
+	// Load recent events from event store
+	let recentEvents: StoredEvent[] = [];
+	if (stores.eventStore) {
+		try {
+			const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+			const events = stores.eventStore.getTimeline({ since: fiveMinAgo, limit: 20 });
+			recentEvents = [...events].reverse(); // most recent first
+		} catch {
+			/* best effort */
+		}
+	}
+
 	return {
 		currentRunId: runId,
 		status,
 		recentMail,
 		mergeQueue: mergeQueueEntries,
 		metrics: { totalSessions, avgDuration, byCapability },
+		tasks,
+		recentEvents,
 	};
 }
 
@@ -389,31 +488,36 @@ function renderHeader(width: number, interval: number, currentRunId?: string | n
 }
 
 /**
- * Render the agent panel (top ~40% of screen).
+ * Render the agent panel (left 60%, dynamic height).
  */
-function renderAgentPanel(
+export function renderAgentPanel(
 	data: DashboardData,
-	width: number,
-	height: number,
+	fullWidth: number,
+	panelHeight: number,
 	startRow: number,
 ): string {
-	const panelHeight = Math.floor(height * 0.4);
+	const leftWidth = Math.floor(fullWidth * 0.6);
 	let output = "";
 
 	// Panel header
-	const headerLine = `${BOX.vertical} ${brand.bold("Agents")} (${data.status.agents.length})`;
-	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
-	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
+	const headerLine = `${dimBox.vertical} ${brand.bold("Agents")} (${data.status.agents.length})`;
+	const headerPadding = " ".repeat(
+		Math.max(0, leftWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
 
 	// Column headers
-	const colHeaders = `${BOX.vertical} St Name            Capability    State      Task ID          Duration  Tmux ${BOX.vertical}`;
-	output += `${CURSOR.cursorTo(startRow + 1, 1)}${colHeaders}\n`;
+	const colStr = `${dimBox.vertical} St Name            Capability    State      Task ID          Duration  Tmux `;
+	const colPadding = " ".repeat(
+		Math.max(0, leftWidth - visibleLength(colStr) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow + 1, 1)}${colStr}${colPadding}${dimBox.vertical}\n`;
 
 	// Separator
-	const separator = horizontalLine(width, BOX.tee, BOX.horizontal, BOX.teeRight);
+	const separator = dimHorizontalLine(leftWidth, dimBox.tee, dimBox.teeRight);
 	output += `${CURSOR.cursorTo(startRow + 2, 1)}${separator}\n`;
 
-	// Sort agents: active first (working, booting, stalled), then completed, then zombie
+	// Sort agents: active first, then completed, then zombie
 	const agents = [...data.status.agents].sort((a, b) => {
 		const activeStates = ["working", "booting", "stalled"];
 		const aActive = activeStates.includes(a.state);
@@ -446,25 +550,186 @@ function renderAgentPanel(
 		const tmuxAlive = data.status.tmuxSessions.some((s) => s.name === agent.tmuxSession);
 		const tmuxDot = tmuxAlive ? color.green(">") : color.red("x");
 
-		const line = `${BOX.vertical} ${stateColorFn(icon)}  ${name} ${capability} ${stateColorFn(state)} ${taskId} ${durationPadded} ${tmuxDot}    ${BOX.vertical}`;
-		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${line}\n`;
+		const lineContent = `${dimBox.vertical} ${stateColorFn(icon)}  ${name} ${capability} ${stateColorFn(state)} ${taskId} ${durationPadded} ${tmuxDot}    `;
+		const linePadding = " ".repeat(
+			Math.max(0, leftWidth - visibleLength(lineContent) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${lineContent}${linePadding}${dimBox.vertical}\n`;
 	}
 
 	// Fill remaining rows with empty lines
 	for (let i = visibleAgents.length; i < maxRows; i++) {
-		const emptyLine = `${BOX.vertical}${" ".repeat(Math.max(0, width - 2))}${BOX.vertical}`;
+		const emptyLine = `${dimBox.vertical}${" ".repeat(Math.max(0, leftWidth - 2))}${dimBox.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 3 + i, 1)}${emptyLine}\n`;
 	}
 
-	// Bottom border
-	const bottomBorder = horizontalLine(width, BOX.tee, BOX.horizontal, BOX.teeRight);
+	// Bottom border (joins the right column)
+	const bottomBorder = dimHorizontalLine(leftWidth, dimBox.tee, dimBox.teeRight);
 	output += `${CURSOR.cursorTo(startRow + 3 + maxRows, 1)}${bottomBorder}\n`;
 
 	return output;
 }
 
 /**
- * Render the mail panel (middle-left ~30% height, ~60% width).
+ * Render the tasks panel (upper-right quadrant).
+ */
+export function renderTasksPanel(
+	data: DashboardData,
+	startCol: number,
+	panelWidth: number,
+	panelHeight: number,
+	startRow: number,
+): string {
+	let output = "";
+
+	// Header
+	const headerLine = `${dimBox.vertical} ${brand.bold("Tasks")} (${data.tasks.length})`;
+	const headerPadding = " ".repeat(
+		Math.max(0, panelWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
+
+	// Separator
+	const separator = dimHorizontalLine(panelWidth, dimBox.tee, dimBox.teeRight);
+	output += `${CURSOR.cursorTo(startRow + 1, startCol)}${separator}\n`;
+
+	const maxRows = panelHeight - 2; // header + separator
+	const visibleTasks = data.tasks.slice(0, maxRows);
+
+	if (visibleTasks.length === 0) {
+		const emptyMsg = color.dim("No tracker data");
+		const emptyLine = `${dimBox.vertical} ${emptyMsg}`;
+		const emptyPadding = " ".repeat(
+			Math.max(0, panelWidth - visibleLength(emptyLine) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 2, startCol)}${emptyLine}${emptyPadding}${dimBox.vertical}\n`;
+		// Fill remaining rows
+		for (let i = 1; i < maxRows; i++) {
+			const blankLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
+			output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${blankLine}\n`;
+		}
+		return output;
+	}
+
+	for (let i = 0; i < visibleTasks.length; i++) {
+		const task = visibleTasks[i];
+		if (!task) continue;
+
+		const idStr = accent(pad(truncate(task.id, 14), 14));
+		const priorityStr = numericPriorityColor(task.priority)(`P${task.priority}`);
+		const statusStr = pad(task.status, 12);
+		const titleMaxLen = Math.max(4, panelWidth - 44);
+		const titleStr = truncate(task.title, titleMaxLen);
+
+		const lineContent = `${dimBox.vertical} ${idStr} ${titleStr} ${priorityStr} ${statusStr}`;
+		const linePadding = " ".repeat(
+			Math.max(0, panelWidth - visibleLength(lineContent) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${lineContent}${linePadding}${dimBox.vertical}\n`;
+	}
+
+	// Fill remaining rows
+	for (let i = visibleTasks.length; i < maxRows; i++) {
+		const blankLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
+		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${blankLine}\n`;
+	}
+
+	return output;
+}
+
+/**
+ * Render the feed panel (lower-right quadrant).
+ */
+export function renderFeedPanel(
+	data: DashboardData,
+	startCol: number,
+	panelWidth: number,
+	panelHeight: number,
+	startRow: number,
+): string {
+	let output = "";
+
+	// Header
+	const headerLine = `${dimBox.vertical} ${brand.bold("Feed")} (last 5 min)`;
+	const headerPadding = " ".repeat(
+		Math.max(0, panelWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
+
+	// Separator
+	const separator = dimHorizontalLine(panelWidth, dimBox.tee, dimBox.teeRight);
+	output += `${CURSOR.cursorTo(startRow + 1, startCol)}${separator}\n`;
+
+	const maxRows = panelHeight - 2; // header + separator
+
+	if (data.recentEvents.length === 0) {
+		const emptyMsg = color.dim("No recent events");
+		const emptyLine = `${dimBox.vertical} ${emptyMsg}`;
+		const emptyPadding = " ".repeat(
+			Math.max(0, panelWidth - visibleLength(emptyLine) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 2, startCol)}${emptyLine}${emptyPadding}${dimBox.vertical}\n`;
+		for (let i = 1; i < maxRows; i++) {
+			const blankLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
+			output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${blankLine}\n`;
+		}
+		return output;
+	}
+
+	const colorMap = buildAgentColorMap(data.recentEvents);
+	const visibleEvents = data.recentEvents.slice(0, maxRows);
+
+	for (let i = 0; i < visibleEvents.length; i++) {
+		const event = visibleEvents[i];
+		if (!event) continue;
+
+		const formatted = formatEventLine(event, colorMap);
+		// ANSI-safe truncation: trim to panelWidth - 4 (border + space each side)
+		const maxLineLen = panelWidth - 4;
+		let displayLine = formatted;
+		if (visibleLength(displayLine) > maxLineLen) {
+			// Truncate by stripping to visible characters
+			let count = 0;
+			let end = 0;
+			// biome-ignore lint/suspicious/noControlCharactersInRegex: needed for ANSI
+			const ANSI = /\x1b\[[0-9;]*m/g;
+			let lastIndex = 0;
+			let match = ANSI.exec(displayLine);
+			while (match !== null) {
+				const plainSegLen = match.index - lastIndex;
+				if (count + plainSegLen >= maxLineLen - 1) {
+					end = lastIndex + (maxLineLen - 1 - count);
+					count = maxLineLen - 1;
+					break;
+				}
+				count += plainSegLen;
+				lastIndex = match.index + match[0].length;
+				end = lastIndex;
+				match = ANSI.exec(displayLine);
+			}
+			if (count < maxLineLen - 1) {
+				end = displayLine.length;
+			}
+			displayLine = `${displayLine.slice(0, end)}…`;
+		}
+
+		const lineContent = `${dimBox.vertical} ${displayLine}`;
+		const contentLen = visibleLength(lineContent) + visibleLength(dimBox.vertical);
+		const linePadding = " ".repeat(Math.max(0, panelWidth - contentLen));
+		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${lineContent}${linePadding}${dimBox.vertical}\n`;
+	}
+
+	// Fill remaining rows
+	for (let i = visibleEvents.length; i < maxRows; i++) {
+		const blankLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
+		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${blankLine}\n`;
+	}
+
+	return output;
+}
+
+/**
+ * Render the mail panel (bottom-left 50%).
  */
 function renderMailPanel(
 	data: DashboardData,
@@ -473,15 +738,17 @@ function renderMailPanel(
 	startRow: number,
 ): string {
 	const panelHeight = Math.floor(height * 0.3);
-	const panelWidth = Math.floor(width * 0.6);
+	const panelWidth = Math.floor(width * 0.5);
 	let output = "";
 
 	const unreadCount = data.status.unreadMailCount;
-	const headerLine = `${BOX.vertical} ${brand.bold("Mail")} (${unreadCount} unread)`;
-	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
-	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
+	const headerLine = `${dimBox.vertical} ${brand.bold("Mail")} (${unreadCount} unread)`;
+	const headerPadding = " ".repeat(
+		Math.max(0, panelWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow, 1)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
 
-	const separator = horizontalLine(panelWidth, BOX.tee, BOX.horizontal, BOX.cross);
+	const separator = dimHorizontalLine(panelWidth, dimBox.tee, dimBox.cross);
 	output += `${CURSOR.cursorTo(startRow + 1, 1)}${separator}\n`;
 
 	const maxRows = panelHeight - 3; // header + separator + border
@@ -499,14 +766,16 @@ function renderMailPanel(
 		const time = formatRelativeTime(msg.createdAt);
 
 		const coloredPriority = priority ? priorityColorFn(priority) : "";
-		const line = `${BOX.vertical} ${coloredPriority}${from} → ${to}: ${subject} (${time})`;
-		const padding = " ".repeat(Math.max(0, panelWidth - visibleLength(line) - 1));
-		output += `${CURSOR.cursorTo(startRow + 2 + i, 1)}${line}${padding}${BOX.vertical}\n`;
+		const lineContent = `${dimBox.vertical} ${coloredPriority}${from} → ${to}: ${subject} (${time})`;
+		const padding = " ".repeat(
+			Math.max(0, panelWidth - visibleLength(lineContent) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 2 + i, 1)}${lineContent}${padding}${dimBox.vertical}\n`;
 	}
 
 	// Fill remaining rows with empty lines
 	for (let i = messages.length; i < maxRows; i++) {
-		const emptyLine = `${BOX.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${BOX.vertical}`;
+		const emptyLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 2 + i, 1)}${emptyLine}\n`;
 	}
 
@@ -514,7 +783,7 @@ function renderMailPanel(
 }
 
 /**
- * Render the merge queue panel (middle-right ~30% height, ~40% width).
+ * Render the merge queue panel (bottom-right 50%).
  */
 function renderMergeQueuePanel(
 	data: DashboardData,
@@ -527,11 +796,13 @@ function renderMergeQueuePanel(
 	const panelWidth = width - startCol + 1;
 	let output = "";
 
-	const headerLine = `${BOX.vertical} ${brand.bold("Merge Queue")} (${data.mergeQueue.length})`;
-	const headerPadding = " ".repeat(Math.max(0, panelWidth - visibleLength(headerLine) - 1));
-	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${BOX.vertical}\n`;
+	const headerLine = `${dimBox.vertical} ${brand.bold("Merge Queue")} (${data.mergeQueue.length})`;
+	const headerPadding = " ".repeat(
+		Math.max(0, panelWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow, startCol)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
 
-	const separator = horizontalLine(panelWidth, BOX.cross, BOX.horizontal, BOX.teeRight);
+	const separator = dimHorizontalLine(panelWidth, dimBox.cross, dimBox.teeRight);
 	output += `${CURSOR.cursorTo(startRow + 1, startCol)}${separator}\n`;
 
 	const maxRows = panelHeight - 3; // header + separator + border
@@ -546,14 +817,16 @@ function renderMergeQueuePanel(
 		const agent = accent(truncate(entry.agentName, 15));
 		const branch = truncate(entry.branchName, panelWidth - 30);
 
-		const line = `${BOX.vertical} ${statusColorFn(status)} ${agent} ${branch}`;
-		const padding = " ".repeat(Math.max(0, panelWidth - visibleLength(line) - 1));
-		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${line}${padding}${BOX.vertical}\n`;
+		const lineContent = `${dimBox.vertical} ${statusColorFn(status)} ${agent} ${branch}`;
+		const padding = " ".repeat(
+			Math.max(0, panelWidth - visibleLength(lineContent) - visibleLength(dimBox.vertical)),
+		);
+		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${lineContent}${padding}${dimBox.vertical}\n`;
 	}
 
 	// Fill remaining rows with empty lines
 	for (let i = entries.length; i < maxRows; i++) {
-		const emptyLine = `${BOX.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${BOX.vertical}`;
+		const emptyLine = `${dimBox.vertical}${" ".repeat(Math.max(0, panelWidth - 2))}${dimBox.vertical}`;
 		output += `${CURSOR.cursorTo(startRow + 2 + i, startCol)}${emptyLine}\n`;
 	}
 
@@ -571,24 +844,28 @@ function renderMetricsPanel(
 ): string {
 	let output = "";
 
-	const separator = horizontalLine(width, BOX.tee, BOX.horizontal, BOX.teeRight);
+	const separator = dimHorizontalLine(width, dimBox.tee, dimBox.teeRight);
 	output += `${CURSOR.cursorTo(startRow, 1)}${separator}\n`;
 
-	const headerLine = `${BOX.vertical} ${brand.bold("Metrics")}`;
-	const headerPadding = " ".repeat(Math.max(0, width - visibleLength(headerLine) - 1));
-	output += `${CURSOR.cursorTo(startRow + 1, 1)}${headerLine}${headerPadding}${BOX.vertical}\n`;
+	const headerLine = `${dimBox.vertical} ${brand.bold("Metrics")}`;
+	const headerPadding = " ".repeat(
+		Math.max(0, width - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow + 1, 1)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
 
 	const totalSessions = data.metrics.totalSessions;
-	const avgDuration = formatDuration(data.metrics.avgDuration);
+	const avgDur = formatDuration(data.metrics.avgDuration);
 	const byCapability = Object.entries(data.metrics.byCapability)
 		.map(([cap, count]) => `${cap}:${count}`)
 		.join(", ");
 
-	const metricsLine = `${BOX.vertical} Total sessions: ${totalSessions} | Avg duration: ${avgDuration} | By capability: ${byCapability}`;
-	const metricsPadding = " ".repeat(Math.max(0, width - metricsLine.length - 1));
-	output += `${CURSOR.cursorTo(startRow + 2, 1)}${metricsLine}${metricsPadding}${BOX.vertical}\n`;
+	const metricsLine = `${dimBox.vertical} Total sessions: ${totalSessions} | Avg duration: ${avgDur} | By capability: ${byCapability}`;
+	const metricsPadding = " ".repeat(
+		Math.max(0, width - visibleLength(metricsLine) - visibleLength(dimBox.vertical)),
+	);
+	output += `${CURSOR.cursorTo(startRow + 2, 1)}${metricsLine}${metricsPadding}${dimBox.vertical}\n`;
 
-	const bottomBorder = horizontalLine(width, BOX.bottomLeft, BOX.horizontal, BOX.bottomRight);
+	const bottomBorder = dimHorizontalLine(width, dimBox.bottomLeft, dimBox.bottomRight);
 	output += `${CURSOR.cursorTo(startRow + 3, 1)}${bottomBorder}\n`;
 
 	return output;
@@ -606,19 +883,45 @@ function renderDashboard(data: DashboardData, interval: number): void {
 	// Header (rows 1-2)
 	output += renderHeader(width, interval, data.currentRunId);
 
-	// Agent panel (rows 3 to ~40% of screen)
+	// Agent panel start row
 	const agentPanelStart = 3;
-	output += renderAgentPanel(data, width, height, agentPanelStart);
 
-	// Calculate middle panels start row
-	const agentPanelHeight = Math.floor(height * 0.4);
+	// Dynamic agent panel height
+	const agentCount = data.status.agents.length;
+	const agentPanelHeight = computeAgentPanelHeight(height, agentCount);
+
+	// Column widths
+	const leftWidth = Math.floor(width * 0.6);
+	const rightWidth = width - leftWidth;
+	const rightStartCol = leftWidth + 1;
+
+	// Right column split (Tasks upper / Feed lower)
+	const rightHalf = Math.floor(agentPanelHeight / 2);
+	const feedHeight = agentPanelHeight - rightHalf;
+
+	// Render left: agents (60% wide, dynamic height)
+	output += renderAgentPanel(data, width, agentPanelHeight, agentPanelStart);
+
+	// Render right-upper: tasks
+	output += renderTasksPanel(data, rightStartCol, rightWidth, rightHalf, agentPanelStart);
+
+	// Render right-lower: feed
+	output += renderFeedPanel(
+		data,
+		rightStartCol,
+		rightWidth,
+		feedHeight,
+		agentPanelStart + rightHalf,
+	);
+
+	// Middle panels (mail/merge) start after agent block
 	const middlePanelStart = agentPanelStart + agentPanelHeight + 1;
 
-	// Mail panel (left 60%)
+	// Mail panel (left 50%)
 	output += renderMailPanel(data, width, height, middlePanelStart);
 
-	// Merge queue panel (right 40%)
-	const mergeQueueCol = Math.floor(width * 0.6) + 1;
+	// Merge queue panel (right 50%)
+	const mergeQueueCol = Math.floor(width * 0.5) + 1;
 	output += renderMergeQueuePanel(data, width, height, middlePanelStart, mergeQueueCol);
 
 	// Metrics panel (bottom strip)
