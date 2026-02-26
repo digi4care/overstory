@@ -65,6 +65,7 @@ describe("SQL schema consistency", () => {
 				"state",
 				"task_id",
 				"tmux_session",
+				"transcript_path",
 				"worktree_path",
 			].sort();
 
