@@ -1,8 +1,13 @@
 /**
- * Tests for Claude Code transcript JSONL parser.
+ * Tests for Claude Code transcript JSONL parser and pricing.ts module.
  *
  * Uses temp files with real-format JSONL data. No mocks.
  * Philosophy: "never mock what you can use for real" (mx-252b16).
+ *
+ * Coverage:
+ *   - parseTranscriptUsage (transcript.ts)
+ *   - estimateCost re-export (transcript.ts -> pricing.ts)
+ *   - getPricingForModel (pricing.ts)
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
@@ -10,6 +15,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cleanupTempDir } from "../test-helpers.ts";
+import { getPricingForModel, estimateCost as pricingEstimateCost } from "./pricing.ts";
 import { estimateCost, parseTranscriptUsage } from "./transcript.ts";
 
 let tempDir: string;
@@ -352,5 +358,56 @@ describe("estimateCost", () => {
 			expect(cost).toBeGreaterThan(0.1);
 			expect(cost).toBeLessThan(1.0);
 		}
+	});
+});
+
+// === getPricingForModel (pricing.ts) ===
+
+describe("getPricingForModel", () => {
+	test("matches opus substring", () => {
+		const pricing = getPricingForModel("claude-opus-4-6");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(15);
+			expect(pricing.outputPerMTok).toBe(75);
+		}
+	});
+
+	test("matches sonnet substring", () => {
+		const pricing = getPricingForModel("claude-sonnet-4-20250514");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(3);
+			expect(pricing.outputPerMTok).toBe(15);
+		}
+	});
+
+	test("matches haiku substring", () => {
+		const pricing = getPricingForModel("claude-haiku-3-5-20241022");
+		expect(pricing).not.toBeNull();
+		if (pricing !== null) {
+			expect(pricing.inputPerMTok).toBe(0.8);
+			expect(pricing.outputPerMTok).toBe(4);
+		}
+	});
+
+	test("returns null for unknown model", () => {
+		const pricing = getPricingForModel("gpt-4o");
+		expect(pricing).toBeNull();
+	});
+});
+
+// === re-export parity ===
+
+describe("estimateCost re-export parity", () => {
+	test("transcript.estimateCost and pricing.estimateCost produce same result", () => {
+		const usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheReadTokens: 1_000_000,
+			cacheCreationTokens: 1_000_000,
+			modelUsed: "claude-opus-4-6",
+		};
+		expect(estimateCost(usage)).toBe(pricingEstimateCost(usage));
 	});
 });

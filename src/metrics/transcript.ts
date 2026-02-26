@@ -1,8 +1,12 @@
 /**
  * Parser for Claude Code transcript JSONL files.
  *
- * Extracts token usage data from assistant-type entries in transcript files
- * at ~/.claude/projects/{project-slug}/{session-id}.jsonl.
+ * This is a Claude Code-specific JSONL parser that extracts token usage data
+ * from assistant-type entries in transcript files at
+ * ~/.claude/projects/{project-slug}/{session-id}.jsonl.
+ *
+ * Runtime-agnostic pricing logic lives in ./pricing.ts. Other runtimes
+ * implement their own transcript parsing via AgentRuntime.parseTranscript().
  *
  * Each assistant entry contains per-turn usage:
  * {
@@ -19,74 +23,11 @@
  * }
  */
 
-export interface TranscriptUsage {
-	inputTokens: number;
-	outputTokens: number;
-	cacheReadTokens: number;
-	cacheCreationTokens: number;
-	modelUsed: string | null;
-}
+import type { TokenUsage } from "./pricing.ts";
 
-/** Pricing per million tokens (USD). */
-interface ModelPricing {
-	inputPerMTok: number;
-	outputPerMTok: number;
-	cacheReadPerMTok: number;
-	cacheCreationPerMTok: number;
-}
+export type TranscriptUsage = TokenUsage;
 
-/** Hardcoded pricing for known Claude models. */
-const MODEL_PRICING: Record<string, ModelPricing> = {
-	opus: {
-		inputPerMTok: 15,
-		outputPerMTok: 75,
-		cacheReadPerMTok: 1.5, // 10% of input
-		cacheCreationPerMTok: 3.75, // 25% of input
-	},
-	sonnet: {
-		inputPerMTok: 3,
-		outputPerMTok: 15,
-		cacheReadPerMTok: 0.3, // 10% of input
-		cacheCreationPerMTok: 0.75, // 25% of input
-	},
-	haiku: {
-		inputPerMTok: 0.8,
-		outputPerMTok: 4,
-		cacheReadPerMTok: 0.08, // 10% of input
-		cacheCreationPerMTok: 0.2, // 25% of input
-	},
-};
-
-/**
- * Determine the pricing tier for a given model string.
- * Matches on substring: "opus" -> opus pricing, "sonnet" -> sonnet, "haiku" -> haiku.
- * Returns null if unrecognized.
- */
-function getPricingForModel(model: string): ModelPricing | null {
-	const lower = model.toLowerCase();
-	if (lower.includes("opus")) return MODEL_PRICING.opus ?? null;
-	if (lower.includes("sonnet")) return MODEL_PRICING.sonnet ?? null;
-	if (lower.includes("haiku")) return MODEL_PRICING.haiku ?? null;
-	return null;
-}
-
-/**
- * Calculate the estimated cost in USD for a given usage and model.
- * Returns null if the model is unrecognized.
- */
-export function estimateCost(usage: TranscriptUsage): number | null {
-	if (usage.modelUsed === null) return null;
-
-	const pricing = getPricingForModel(usage.modelUsed);
-	if (pricing === null) return null;
-
-	const inputCost = (usage.inputTokens / 1_000_000) * pricing.inputPerMTok;
-	const outputCost = (usage.outputTokens / 1_000_000) * pricing.outputPerMTok;
-	const cacheReadCost = (usage.cacheReadTokens / 1_000_000) * pricing.cacheReadPerMTok;
-	const cacheCreationCost = (usage.cacheCreationTokens / 1_000_000) * pricing.cacheCreationPerMTok;
-
-	return inputCost + outputCost + cacheReadCost + cacheCreationCost;
-}
+export { estimateCost } from "./pricing.ts";
 
 /**
  * Narrow an unknown value to determine if it looks like a transcript assistant entry.
