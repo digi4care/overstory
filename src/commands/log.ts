@@ -427,29 +427,28 @@ async function runLog(opts: {
 			logger.toolStart(toolName, toolInput ?? {});
 			updateLastActivity(config.project.root, opts.agent);
 
-			// When --stdin is used, also write to EventStore for structured observability
-			if (opts.stdin) {
-				try {
-					const eventsDbPath = join(config.project.root, ".overstory", "events.db");
-					const eventStore = createEventStore(eventsDbPath);
-					const filtered = toolInput
-						? filterToolArgs(toolName, toolInput)
-						: { args: {}, summary: toolName };
-					eventStore.insert({
-						runId: null,
-						agentName: opts.agent,
-						sessionId,
-						eventType: "tool_start",
-						toolName,
-						toolArgs: JSON.stringify(filtered.args),
-						toolDurationMs: null,
-						level: "info",
-						data: JSON.stringify({ summary: filtered.summary }),
-					});
-					eventStore.close();
-				} catch {
-					// Non-fatal: EventStore write should not break hook execution
-				}
+			// Always write to EventStore for structured observability
+			// (works for both Claude Code --stdin and Pi runtime --tool-name agents)
+			try {
+				const eventsDbPath = join(config.project.root, ".overstory", "events.db");
+				const eventStore = createEventStore(eventsDbPath);
+				const filtered = toolInput
+					? filterToolArgs(toolName, toolInput)
+					: { args: {}, summary: toolName };
+				eventStore.insert({
+					runId: null,
+					agentName: opts.agent,
+					sessionId,
+					eventType: "tool_start",
+					toolName,
+					toolArgs: JSON.stringify(filtered.args),
+					toolDurationMs: null,
+					level: "info",
+					data: JSON.stringify({ summary: filtered.summary }),
+				});
+				eventStore.close();
+			} catch {
+				// Non-fatal: EventStore write should not break hook execution
 			}
 			break;
 		}
@@ -458,79 +457,78 @@ async function runLog(opts: {
 			logger.toolEnd(toolName, 0);
 			updateLastActivity(config.project.root, opts.agent);
 
-			// When --stdin is used, write to EventStore and correlate with tool-start
-			if (opts.stdin) {
-				try {
-					const eventsDbPath = join(config.project.root, ".overstory", "events.db");
-					const eventStore = createEventStore(eventsDbPath);
-					const filtered = toolInput
-						? filterToolArgs(toolName, toolInput)
-						: { args: {}, summary: toolName };
-					eventStore.insert({
-						runId: null,
-						agentName: opts.agent,
-						sessionId,
-						eventType: "tool_end",
-						toolName,
-						toolArgs: JSON.stringify(filtered.args),
-						toolDurationMs: null,
-						level: "info",
-						data: JSON.stringify({ summary: filtered.summary }),
-					});
-					const correlation = eventStore.correlateToolEnd(opts.agent, toolName);
-					if (correlation) {
-						logger.toolEnd(toolName, correlation.durationMs);
-					}
-					eventStore.close();
-				} catch {
-					// Non-fatal: EventStore write should not break hook execution
+			// Always write to EventStore for structured observability
+			// (works for both Claude Code --stdin and Pi runtime --tool-name agents)
+			try {
+				const eventsDbPath = join(config.project.root, ".overstory", "events.db");
+				const eventStore = createEventStore(eventsDbPath);
+				const filtered = toolInput
+					? filterToolArgs(toolName, toolInput)
+					: { args: {}, summary: toolName };
+				eventStore.insert({
+					runId: null,
+					agentName: opts.agent,
+					sessionId,
+					eventType: "tool_end",
+					toolName,
+					toolArgs: JSON.stringify(filtered.args),
+					toolDurationMs: null,
+					level: "info",
+					data: JSON.stringify({ summary: filtered.summary }),
+				});
+				const correlation = eventStore.correlateToolEnd(opts.agent, toolName);
+				if (correlation) {
+					logger.toolEnd(toolName, correlation.durationMs);
 				}
+				eventStore.close();
+			} catch {
+				// Non-fatal: EventStore write should not break hook execution
+			}
 
-				// Throttled token snapshot recording
-				if (sessionId) {
-					try {
-						// Throttle check
-						const snapshotMarkerPath = join(logsBase, opts.agent, ".last-snapshot");
-						const SNAPSHOT_INTERVAL_MS = 30_000;
-						const snapshotMarkerFile = Bun.file(snapshotMarkerPath);
-						let shouldSnapshot = true;
+			// Throttled token snapshot recording (requires sessionId from --stdin; skipped for Pi agents)
+			if (sessionId) {
+				try {
+					// Throttle check
+					const snapshotMarkerPath = join(logsBase, opts.agent, ".last-snapshot");
+					const SNAPSHOT_INTERVAL_MS = 30_000;
+					const snapshotMarkerFile = Bun.file(snapshotMarkerPath);
+					let shouldSnapshot = true;
 
-						if (await snapshotMarkerFile.exists()) {
-							const lastTs = Number.parseInt(await snapshotMarkerFile.text(), 10);
-							if (!Number.isNaN(lastTs) && Date.now() - lastTs < SNAPSHOT_INTERVAL_MS) {
-								shouldSnapshot = false;
-							}
+					if (await snapshotMarkerFile.exists()) {
+						const lastTs = Number.parseInt(await snapshotMarkerFile.text(), 10);
+						if (!Number.isNaN(lastTs) && Date.now() - lastTs < SNAPSHOT_INTERVAL_MS) {
+							shouldSnapshot = false;
 						}
-
-						if (shouldSnapshot) {
-							const resolvedTranscriptPath = await resolveTranscriptPath(
-								config.project.root,
-								sessionId,
-								logsBase,
-								opts.agent,
-							);
-							if (resolvedTranscriptPath) {
-								const usage = await parseTranscriptUsage(resolvedTranscriptPath);
-								const cost = estimateCost(usage);
-								const metricsDbPath = join(config.project.root, ".overstory", "metrics.db");
-								const metricsStore = createMetricsStore(metricsDbPath);
-								metricsStore.recordSnapshot({
-									agentName: opts.agent,
-									inputTokens: usage.inputTokens,
-									outputTokens: usage.outputTokens,
-									cacheReadTokens: usage.cacheReadTokens,
-									cacheCreationTokens: usage.cacheCreationTokens,
-									estimatedCostUsd: cost,
-									modelUsed: usage.modelUsed,
-									createdAt: new Date().toISOString(),
-								});
-								metricsStore.close();
-								await Bun.write(snapshotMarkerPath, String(Date.now()));
-							}
-						}
-					} catch {
-						// Non-fatal: snapshot recording should not break tool-end handling
 					}
+
+					if (shouldSnapshot) {
+						const resolvedTranscriptPath = await resolveTranscriptPath(
+							config.project.root,
+							sessionId,
+							logsBase,
+							opts.agent,
+						);
+						if (resolvedTranscriptPath) {
+							const usage = await parseTranscriptUsage(resolvedTranscriptPath);
+							const cost = estimateCost(usage);
+							const metricsDbPath = join(config.project.root, ".overstory", "metrics.db");
+							const metricsStore = createMetricsStore(metricsDbPath);
+							metricsStore.recordSnapshot({
+								agentName: opts.agent,
+								inputTokens: usage.inputTokens,
+								outputTokens: usage.outputTokens,
+								cacheReadTokens: usage.cacheReadTokens,
+								cacheCreationTokens: usage.cacheCreationTokens,
+								estimatedCostUsd: cost,
+								modelUsed: usage.modelUsed,
+								createdAt: new Date().toISOString(),
+							});
+							metricsStore.close();
+							await Bun.write(snapshotMarkerPath, String(Date.now()));
+						}
+					}
+				} catch {
+					// Non-fatal: snapshot recording should not break tool-end handling
 				}
 			}
 			break;
@@ -683,26 +681,24 @@ async function runLog(opts: {
 					}
 				}
 
-				// Write session-end event to EventStore when --stdin is used
-				if (opts.stdin) {
-					try {
-						const eventsDbPath = join(config.project.root, ".overstory", "events.db");
-						const eventStore = createEventStore(eventsDbPath);
-						eventStore.insert({
-							runId: null,
-							agentName: opts.agent,
-							sessionId,
-							eventType: "session_end",
-							toolName: null,
-							toolArgs: null,
-							toolDurationMs: null,
-							level: "info",
-							data: transcriptPath ? JSON.stringify({ transcriptPath }) : null,
-						});
-						eventStore.close();
-					} catch {
-						// Non-fatal: EventStore write should not break session-end
-					}
+				// Always write session-end event to EventStore (not just when --stdin is used)
+				try {
+					const eventsDbPath = join(config.project.root, ".overstory", "events.db");
+					const eventStore = createEventStore(eventsDbPath);
+					eventStore.insert({
+						runId: null,
+						agentName: opts.agent,
+						sessionId,
+						eventType: "session_end",
+						toolName: null,
+						toolArgs: null,
+						toolDurationMs: null,
+						level: "info",
+						data: transcriptPath ? JSON.stringify({ transcriptPath }) : null,
+					});
+					eventStore.close();
+				} catch {
+					// Non-fatal: EventStore write should not break session-end
 				}
 			}
 			// Clear the current session marker

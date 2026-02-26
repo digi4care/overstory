@@ -786,6 +786,54 @@ describe("logCommand", () => {
 		expect(eventsContent).toContain("unknown");
 	});
 
+	test("tool-start writes to EventStore without --stdin flag (Pi runtime path)", async () => {
+		await logCommand(["tool-start", "--agent", "pi-agent", "--tool-name", "Read"]);
+
+		const eventsDbPath = join(tempDir, ".overstory", "events.db");
+		const eventStore = createEventStore(eventsDbPath);
+		const events = eventStore.getByAgent("pi-agent");
+		eventStore.close();
+
+		expect(events).toHaveLength(1);
+		expect(events[0]?.eventType).toBe("tool_start");
+		expect(events[0]?.toolName).toBe("Read");
+		expect(events[0]?.sessionId).toBeNull();
+		expect(events[0]?.agentName).toBe("pi-agent");
+	});
+
+	test("tool-end writes to EventStore without --stdin flag (Pi runtime path)", async () => {
+		await logCommand(["tool-start", "--agent", "pi-end-agent", "--tool-name", "Write"]);
+		await logCommand(["tool-end", "--agent", "pi-end-agent", "--tool-name", "Write"]);
+
+		const eventsDbPath = join(tempDir, ".overstory", "events.db");
+		const eventStore = createEventStore(eventsDbPath);
+		const events = eventStore.getByAgent("pi-end-agent");
+		eventStore.close();
+
+		expect(events).toHaveLength(2);
+		const startEv = events.find((e) => e.eventType === "tool_start");
+		const endEv = events.find((e) => e.eventType === "tool_end");
+		expect(startEv).toBeDefined();
+		expect(endEv).toBeDefined();
+		expect(startEv?.toolName).toBe("Write");
+		expect(endEv?.toolName).toBe("Write");
+		expect(startEv?.sessionId).toBeNull();
+	});
+
+	test("session-end writes to EventStore without --stdin flag (Pi runtime path)", async () => {
+		await logCommand(["session-end", "--agent", "pi-session-agent"]);
+
+		const eventsDbPath = join(tempDir, ".overstory", "events.db");
+		const eventStore = createEventStore(eventsDbPath);
+		const events = eventStore.getByAgent("pi-session-agent");
+		eventStore.close();
+
+		expect(events).toHaveLength(1);
+		expect(events[0]?.eventType).toBe("session_end");
+		expect(events[0]?.sessionId).toBeNull();
+		expect(events[0]?.agentName).toBe("pi-session-agent");
+	});
+
 	test("--help includes --stdin option in output", async () => {
 		await logCommand(["--help"]);
 		const out = output();
