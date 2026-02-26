@@ -96,6 +96,7 @@ const COMMANDS = [
 	"costs",
 	"metrics",
 	"upgrade",
+	"completions",
 ];
 
 function editDistance(a: string, b: string): number {
