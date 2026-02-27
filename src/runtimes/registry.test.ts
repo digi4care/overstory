@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { OverstoryConfig } from "../types.ts";
 import { ClaudeRuntime } from "./claude.ts";
+import { CopilotRuntime } from "./copilot.ts";
 import { PiRuntime } from "./pi.ts";
 import { getRuntime } from "./registry.ts";
 
@@ -82,5 +83,24 @@ describe("getRuntime", () => {
 		expect(runtime).toBeInstanceOf(PiRuntime);
 		// Should use default anthropic mappings
 		expect(runtime.expandModel("sonnet")).toBe("anthropic/claude-sonnet-4-6");
+	});
+
+	it("returns CopilotRuntime when name is 'copilot'", () => {
+		const runtime = getRuntime("copilot");
+		expect(runtime).toBeInstanceOf(CopilotRuntime);
+		expect(runtime.id).toBe("copilot");
+	});
+
+	it("uses config.runtime.default 'copilot' when name is omitted", () => {
+		const config = { runtime: { default: "copilot" } } as OverstoryConfig;
+		const runtime = getRuntime(undefined, config);
+		expect(runtime).toBeInstanceOf(CopilotRuntime);
+		expect(runtime.id).toBe("copilot");
+	});
+
+	it("copilot runtime returns a new instance on each call", () => {
+		const a = getRuntime("copilot");
+		const b = getRuntime("copilot");
+		expect(a).not.toBe(b);
 	});
 });
