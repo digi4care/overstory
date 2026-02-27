@@ -224,6 +224,44 @@ describe("getSessionsByAgent", () => {
 	});
 });
 
+// === getSessionsByTask ===
+
+describe("getSessionsByTask", () => {
+	test("returns sessions matching task_id", () => {
+		store.recordSession(makeSession({ agentName: "agent-1", taskId: "task-A" }));
+		store.recordSession(makeSession({ agentName: "agent-2", taskId: "task-A" }));
+		store.recordSession(makeSession({ agentName: "agent-3", taskId: "task-B" }));
+
+		const sessions = store.getSessionsByTask("task-A");
+		expect(sessions).toHaveLength(2);
+		expect(sessions.every((s) => s.taskId === "task-A")).toBe(true);
+	});
+
+	test("returns empty array for unknown task_id", () => {
+		store.recordSession(makeSession({ agentName: "agent-1", taskId: "task-A" }));
+
+		expect(store.getSessionsByTask("nonexistent")).toEqual([]);
+	});
+
+	test("returns sessions ordered by started_at DESC", () => {
+		store.recordSession(
+			makeSession({ agentName: "agent-1", taskId: "task-X", startedAt: "2026-01-01T10:00:00Z" }),
+		);
+		store.recordSession(
+			makeSession({ agentName: "agent-2", taskId: "task-X", startedAt: "2026-01-01T12:00:00Z" }),
+		);
+		store.recordSession(
+			makeSession({ agentName: "agent-3", taskId: "task-X", startedAt: "2026-01-01T11:00:00Z" }),
+		);
+
+		const sessions = store.getSessionsByTask("task-X");
+		expect(sessions).toHaveLength(3);
+		expect(sessions[0]?.startedAt).toBe("2026-01-01T12:00:00Z"); // most recent first
+		expect(sessions[1]?.startedAt).toBe("2026-01-01T11:00:00Z");
+		expect(sessions[2]?.startedAt).toBe("2026-01-01T10:00:00Z");
+	});
+});
+
 // === getAverageDuration ===
 
 describe("getAverageDuration", () => {

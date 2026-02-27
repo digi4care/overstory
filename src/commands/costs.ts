@@ -16,6 +16,7 @@ import { color } from "../logging/color.ts";
 import { renderHeader, separator } from "../logging/theme.ts";
 import { createMetricsStore } from "../metrics/store.ts";
 import { estimateCost, parseTranscriptUsage } from "../metrics/transcript.ts";
+import { getRuntime } from "../runtimes/registry.ts";
 import { openSessionStore } from "../sessions/compat.ts";
 import type { SessionMetrics } from "../types.ts";
 
@@ -43,24 +44,45 @@ function padLeft(str: string, width: number): string {
 }
 
 /**
- * Discover the orchestrator's Claude Code transcript JSONL file.
+ * Resolve the transcript directory for a given runtime and project root.
  *
- * Scans ~/.claude/projects/{project-key}/ for JSONL files and returns
+ * @param runtimeId - The runtime identifier (e.g. "claude")
+ * @param projectRoot - Absolute path to the project root
+ * @returns Absolute path to the transcript directory, or null if not supported
+ */
+function getTranscriptDir(runtimeId: string, projectRoot: string): string | null {
+	const homeDir = process.env.HOME ?? "";
+	if (homeDir.length === 0) return null;
+	switch (runtimeId) {
+		case "claude": {
+			const projectKey = projectRoot.replace(/\//g, "-");
+			return join(homeDir, ".claude", "projects", projectKey);
+		}
+		default:
+			return null;
+	}
+}
+
+/**
+ * Discover the orchestrator's transcript JSONL file for the given runtime.
+ *
+ * Scans the runtime-specific transcript directory for JSONL files and returns
  * the most recently modified one, corresponding to the current orchestrator session.
  *
+ * @param runtimeId - The runtime identifier (e.g. "claude")
  * @param projectRoot - Absolute path to the project root
  * @returns Absolute path to the most recent transcript, or null if none found
  */
-async function discoverOrchestratorTranscript(projectRoot: string): Promise<string | null> {
-	const homeDir = process.env.HOME ?? "";
-	if (homeDir.length === 0) return null;
-
-	const projectKey = projectRoot.replace(/\//g, "-");
-	const projectDir = join(homeDir, ".claude", "projects", projectKey);
+async function discoverOrchestratorTranscript(
+	runtimeId: string,
+	projectRoot: string,
+): Promise<string | null> {
+	const transcriptDir = getTranscriptDir(runtimeId, projectRoot);
+	if (transcriptDir === null) return null;
 
 	let entries: string[];
 	try {
-		entries = await readdir(projectDir);
+		entries = await readdir(transcriptDir);
 	} catch {
 		return null;
 	}
@@ -72,7 +94,7 @@ async function discoverOrchestratorTranscript(projectRoot: string): Promise<stri
 	let bestMtime = 0;
 
 	for (const file of jsonlFiles) {
-		const filePath = join(projectDir, file);
+		const filePath = join(transcriptDir, file);
 		try {
 			const fileStat = await stat(filePath);
 			if (fileStat.mtimeMs > bestMtime) {
@@ -236,6 +258,7 @@ interface CostsOpts {
 	byCapability?: boolean;
 	agent?: string;
 	run?: string;
+	bead?: string;
 	last?: string;
 	json?: boolean;
 }
@@ -247,6 +270,7 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 	const byCapability = opts.byCapability ?? false;
 	const agentName = opts.agent;
 	const runId = opts.run;
+	const beadId = opts.bead;
 	const lastStr = opts.last;
 
 	if (lastStr !== undefined) {
@@ -267,13 +291,15 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 
 	// Handle --self flag (early return for self-scan)
 	if (self) {
-		const transcriptPath = await discoverOrchestratorTranscript(config.project.root);
+		const runtime = getRuntime(undefined, config);
+		const transcriptPath = await discoverOrchestratorTranscript(runtime.id, config.project.root);
 		if (!transcriptPath) {
 			if (json) {
-				jsonError("costs", "No orchestrator transcript found");
+				jsonError("costs", `No transcript found for runtime '${runtime.id}'`);
 			} else {
 				process.stdout.write(
-					"No orchestrator transcript found.\nExpected at: ~/.claude/projects/{project-key}/*.jsonl\n",
+					`No transcript found for runtime '${runtime.id}'.\n` +
+						"Transcript discovery may not be supported for this runtime.\n",
 				);
 			}
 			return;
@@ -521,6 +547,8 @@ async function executeCosts(opts: CostsOpts): Promise<void> {
 			sessions = metricsStore.getSessionsByAgent(agentName);
 		} else if (runId !== undefined) {
 			sessions = metricsStore.getSessionsByRun(runId);
+		} else if (beadId !== undefined) {
+			sessions = metricsStore.getSessionsByTask(beadId);
 		} else {
 			sessions = metricsStore.getRecentSessions(last);
 		}
@@ -559,6 +587,7 @@ export function createCostsCommand(): Command {
 		.option("--self", "Show cost for the current orchestrator session")
 		.option("--agent <name>", "Filter by agent name")
 		.option("--run <id>", "Filter by run ID")
+		.option("--bead <id>", "Show cost breakdown for a specific task/bead")
 		.option("--by-capability", "Group results by capability with subtotals")
 		.option("--last <n>", "Number of recent sessions (default: 20)")
 		.option("--json", "Output as JSON")
