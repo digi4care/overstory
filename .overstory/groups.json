@@ -592,5 +592,19 @@
 		"status": "completed",
 		"createdAt": "2026-02-26T18:27:59.593Z",
 		"completedAt": "2026-02-26T18:38:16.728Z"
+	},
+	{
+		"id": "group-e043d4c5",
+		"name": "wave3-runtime-and-init",
+		"memberIssueIds": [
+			"overstory-44c4",
+			"overstory-g3ym",
+			"overstory-xxu7",
+			"overstory-865e",
+			"overstory-06ae"
+		],
+		"status": "active",
+		"createdAt": "2026-02-26T22:42:51.251Z",
+		"completedAt": null
 	}
 ]

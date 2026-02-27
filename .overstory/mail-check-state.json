@@ -1,13 +1,5 @@
 {
-	"transcript-refactor": 1772130885924,
-	"prime-cleanup": 1772130590362,
-	"coordinator": 1772132032208,
-	"test-gaps": 1772131001092,
-	"overlay-polish": 1772130959554,
-	"prime-import-builder": 1772130552623,
-	"classification-builder": 1772130801649,
-	"pricing-builder": 1772130773306,
-	"tracker-test-builder": 1772130893099,
-	"prime-test-fix": 1772131602042,
-	"gitignore-fix-builder": 1772131535269
+	"merge-resolver": 1772147567633,
+	"coordinator": 1772157559856,
+	"copilot-adapter": 1772146854000
 }
