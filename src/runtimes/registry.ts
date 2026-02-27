@@ -3,6 +3,7 @@
 
 import type { OverstoryConfig } from "../types.ts";
 import { ClaudeRuntime } from "./claude.ts";
+import { CodexRuntime } from "./codex.ts";
 import { CopilotRuntime } from "./copilot.ts";
 import { PiRuntime } from "./pi.ts";
 import type { AgentRuntime } from "./types.ts";
@@ -10,6 +11,7 @@ import type { AgentRuntime } from "./types.ts";
 /** Registry of config-independent runtime adapters (name → factory). */
 const runtimes = new Map<string, () => AgentRuntime>([
 	["claude", () => new ClaudeRuntime()],
+	["codex", () => new CodexRuntime()],
 	["pi", () => new PiRuntime()],
 	["copilot", () => new CopilotRuntime()],
 ]);

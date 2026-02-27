@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { OverstoryConfig } from "../types.ts";
 import { ClaudeRuntime } from "./claude.ts";
+import { CodexRuntime } from "./codex.ts";
 import { CopilotRuntime } from "./copilot.ts";
 import { PiRuntime } from "./pi.ts";
 import { getRuntime } from "./registry.ts";
@@ -20,7 +21,7 @@ describe("getRuntime", () => {
 
 	it("throws with a helpful message for an unknown runtime", () => {
 		expect(() => getRuntime("unknown-runtime")).toThrow(
-			'Unknown runtime: "unknown-runtime". Available: claude',
+			'Unknown runtime: "unknown-runtime". Available: claude, codex, pi, copilot',
 		);
 	});
 
@@ -39,12 +40,11 @@ describe("getRuntime", () => {
 		expect(runtime).toBeInstanceOf(ClaudeRuntime);
 	});
 
-	it("throws for unknown runtime even when config default is set", () => {
+	it("resolves codex runtime from config default", () => {
 		const config = { runtime: { default: "codex" } } as OverstoryConfig;
-		// No name arg — falls back to config default "codex" which is unknown.
-		expect(() => getRuntime(undefined, config)).toThrow(
-			'Unknown runtime: "codex". Available: claude',
-		);
+		const runtime = getRuntime(undefined, config);
+		expect(runtime).toBeInstanceOf(CodexRuntime);
+		expect(runtime.id).toBe("codex");
 	});
 
 	it("returns a new instance on each call (factory pattern)", () => {
