@@ -10,7 +10,13 @@ import { initCommand, OVERSTORY_GITIGNORE, OVERSTORY_README, resolveToolSet } fr
  *
  * Uses real temp git repos. Suppresses stdout to keep test output clean.
  * process.cwd() is saved/restored because initCommand uses it to find the project root.
+ *
+ * Tests that don't exercise ecosystem bootstrap pass a no-op spawner via _spawner
+ * so they don't require ml/sd/cn CLIs to be installed (they aren't available in CI).
  */
+
+/** No-op spawner that treats all ecosystem tools as "not installed". */
+const noopSpawner: Spawner = async () => ({ exitCode: 1, stdout: "", stderr: "not found" });
 
 const AGENT_DEF_FILES = [
 	"scout.md",
@@ -47,7 +53,7 @@ describe("initCommand: agent-defs deployment", () => {
 	});
 
 	test("creates .overstory/agent-defs/ with all 7 agent definition files (supervisor deprecated)", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const agentDefsDir = join(tempDir, ".overstory", "agent-defs");
 		const files = await readdir(agentDefsDir);
@@ -57,7 +63,7 @@ describe("initCommand: agent-defs deployment", () => {
 	});
 
 	test("copied files match source content", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		for (const fileName of AGENT_DEF_FILES) {
 			const sourcePath = join(SOURCE_AGENTS_DIR, fileName);
@@ -72,7 +78,7 @@ describe("initCommand: agent-defs deployment", () => {
 
 	test("--force reinit overwrites existing agent def files", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Tamper with one of the deployed files
 		const tamperPath = join(tempDir, ".overstory", "agent-defs", "scout.md");
@@ -83,7 +89,7 @@ describe("initCommand: agent-defs deployment", () => {
 		expect(tampered).toBe("# tampered content\n");
 
 		// Reinit with --force
-		await initCommand({ force: true });
+		await initCommand({ force: true, _spawner: noopSpawner });
 
 		// Verify the file was overwritten with the original source
 		const sourceContent = await Bun.file(join(SOURCE_AGENTS_DIR, "scout.md")).text();
@@ -92,7 +98,7 @@ describe("initCommand: agent-defs deployment", () => {
 	});
 
 	test("Stop hook includes mulch learn command", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const hooksPath = join(tempDir, ".overstory", "hooks.json");
 		const content = await Bun.file(hooksPath).text();
@@ -105,7 +111,7 @@ describe("initCommand: agent-defs deployment", () => {
 	});
 
 	test("PostToolUse hooks include Bash-matched mulch diff hook", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const hooksPath = join(tempDir, ".overstory", "hooks.json");
 		const content = await Bun.file(hooksPath).text();
@@ -147,7 +153,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 	});
 
 	test("creates .overstory/.gitignore with wildcard+whitelist model", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const gitignorePath = join(tempDir, ".overstory", ".gitignore");
 		const content = await Bun.file(gitignorePath).text();
@@ -167,7 +173,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 
 	test("gitignore is always written when init completes", async () => {
 		// Init should write gitignore
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const gitignorePath = join(tempDir, ".overstory", ".gitignore");
 		const content = await Bun.file(gitignorePath).text();
@@ -182,7 +188,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 
 	test("--force reinit overwrites stale .overstory/.gitignore", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const gitignorePath = join(tempDir, ".overstory", ".gitignore");
 
@@ -195,7 +201,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 		expect(tampered).not.toContain("!.gitignore\n");
 
 		// Reinit with --force
-		await initCommand({ force: true });
+		await initCommand({ force: true, _spawner: noopSpawner });
 
 		// Verify the file was overwritten with the new wildcard+whitelist format
 		const restored = await Bun.file(gitignorePath).text();
@@ -206,7 +212,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 
 	test("subsequent init without --force does not overwrite gitignore", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const gitignorePath = join(tempDir, ".overstory", ".gitignore");
 
@@ -218,7 +224,7 @@ describe("initCommand: .overstory/.gitignore", () => {
 		expect(tampered).toBe("# custom content\n");
 
 		// Second init without --force should return early (not overwrite)
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Verify the file was NOT overwritten (early return prevented it)
 		const afterSecondInit = await Bun.file(gitignorePath).text();
@@ -248,7 +254,7 @@ describe("initCommand: .overstory/README.md", () => {
 	});
 
 	test("creates .overstory/README.md with expected content", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const readmePath = join(tempDir, ".overstory", "README.md");
 		const exists = await Bun.file(readmePath).exists();
@@ -264,7 +270,7 @@ describe("initCommand: .overstory/README.md", () => {
 
 	test("--force reinit overwrites README.md", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const readmePath = join(tempDir, ".overstory", "README.md");
 
@@ -274,7 +280,7 @@ describe("initCommand: .overstory/README.md", () => {
 		expect(tampered).toBe("# tampered\n");
 
 		// Reinit with --force
-		await initCommand({ force: true });
+		await initCommand({ force: true, _spawner: noopSpawner });
 
 		// Verify restored to canonical content
 		const restored = await Bun.file(readmePath).text();
@@ -283,7 +289,7 @@ describe("initCommand: .overstory/README.md", () => {
 
 	test("subsequent init without --force does not overwrite README.md", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const readmePath = join(tempDir, ".overstory", "README.md");
 
@@ -293,7 +299,7 @@ describe("initCommand: .overstory/README.md", () => {
 		expect(tampered).toBe("# custom content\n");
 
 		// Second init without --force returns early
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Verify tampered content preserved (early return)
 		const afterSecondInit = await Bun.file(readmePath).text();
@@ -329,7 +335,7 @@ describe("initCommand: canonical branch detection", () => {
 		// Switch to a non-standard branch name
 		await runGitInDir(tempDir, ["switch", "-c", "trunk"]);
 
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		const content = await Bun.file(configPath).text();
@@ -338,7 +344,7 @@ describe("initCommand: canonical branch detection", () => {
 
 	test("standard branch names (main) still work as canonicalBranch", async () => {
 		// createTempGitRepo defaults to main branch
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		const content = await Bun.file(configPath).text();
@@ -369,14 +375,14 @@ describe("initCommand: --yes flag", () => {
 
 	test("--yes reinitializes when .overstory/ already exists", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Tamper with config to verify reinit happens
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		await Bun.write(configPath, "# tampered\n");
 
 		// Second init with --yes should reinitialize (not return early)
-		await initCommand({ yes: true });
+		await initCommand({ yes: true, _spawner: noopSpawner });
 
 		// Verify config was regenerated (not the tampered content)
 		const content = await Bun.file(configPath).text();
@@ -385,7 +391,7 @@ describe("initCommand: --yes flag", () => {
 	});
 
 	test("--yes works on fresh project (no .overstory/ yet)", async () => {
-		await initCommand({ yes: true });
+		await initCommand({ yes: true, _spawner: noopSpawner });
 
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		const exists = await Bun.file(configPath).exists();
@@ -397,14 +403,14 @@ describe("initCommand: --yes flag", () => {
 
 	test("--yes overwrites agent-defs on reinit", async () => {
 		// First init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Tamper with an agent def
 		const scoutPath = join(tempDir, ".overstory", "agent-defs", "scout.md");
 		await Bun.write(scoutPath, "TAMPERED CONTENT");
 
 		// Reinit with --yes should overwrite
-		await initCommand({ yes: true });
+		await initCommand({ yes: true, _spawner: noopSpawner });
 
 		const restored = await Bun.file(scoutPath).text();
 		expect(restored).not.toBe("TAMPERED CONTENT");
@@ -433,7 +439,7 @@ describe("initCommand: --name flag", () => {
 	});
 
 	test("--name overrides auto-detected project name", async () => {
-		await initCommand({ name: "custom-project" });
+		await initCommand({ name: "custom-project", _spawner: noopSpawner });
 
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		const content = await Bun.file(configPath).text();
@@ -441,7 +447,7 @@ describe("initCommand: --name flag", () => {
 	});
 
 	test("--name combined with --yes works for fully non-interactive init", async () => {
-		await initCommand({ yes: true, name: "scripted-project" });
+		await initCommand({ yes: true, name: "scripted-project", _spawner: noopSpawner });
 
 		const configPath = join(tempDir, ".overstory", "config.yaml");
 		const content = await Bun.file(configPath).text();

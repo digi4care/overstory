@@ -3,6 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createManifestLoader } from "../agents/manifest.ts";
 import { writeOverlay } from "../agents/overlay.ts";
+import type { Spawner } from "../commands/init.ts";
 import { initCommand } from "../commands/init.ts";
 import { loadConfig } from "../config.ts";
 import { cleanupTempDir, createTempGitRepo } from "../test-helpers.ts";
@@ -15,9 +16,13 @@ import type { OverlayConfig } from "../types.ts";
  * fresh temp git repo (NOT the overstory repo itself), then verifying all
  * artifacts, loading config + manifest via real APIs, and generating an overlay.
  *
- * Uses real filesystem and real git repos. No mocks.
+ * Uses real filesystem and real git repos.
+ * Uses a no-op spawner so ecosystem CLIs (ml/sd/cn) don't need to be installed in CI.
  * Suppresses stdout because initCommand prints status lines.
  */
+
+/** No-op spawner that treats all ecosystem tools as "not installed". */
+const noopSpawner: Spawner = async () => ({ exitCode: 1, stdout: "", stderr: "not found" });
 
 const EXPECTED_AGENT_DEFS = [
 	"builder.md",
@@ -51,7 +56,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 	});
 
 	test("init creates all expected artifacts", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const overstoryDir = join(tempDir, ".overstory");
 
@@ -91,7 +96,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 	});
 
 	test("loadConfig returns valid config pointing to temp dir", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const config = await loadConfig(tempDir);
 
@@ -109,7 +114,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 	});
 
 	test("manifest loads successfully with all 7 agents (supervisor deprecated)", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const manifestPath = join(tempDir, ".overstory", "agent-manifest.json");
 		const agentDefsDir = join(tempDir, ".overstory", "agent-defs");
@@ -143,7 +148,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 	});
 
 	test("manifest capability index is consistent", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const manifestPath = join(tempDir, ".overstory", "agent-manifest.json");
 		const agentDefsDir = join(tempDir, ".overstory", "agent-defs");
@@ -165,7 +170,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 	});
 
 	test("overlay generation works for external project", async () => {
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		const agentDefsDir = join(tempDir, ".overstory", "agent-defs");
 		const baseDefinition = await Bun.file(join(agentDefsDir, "builder.md")).text();
@@ -213,7 +218,7 @@ describe("E2E: init→sling lifecycle on external project", () => {
 		// init → load config → load manifest → generate overlay
 
 		// Step 1: Init
-		await initCommand({});
+		await initCommand({ _spawner: noopSpawner });
 
 		// Step 2: Load config
 		const config = await loadConfig(tempDir);
