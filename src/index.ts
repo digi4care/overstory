@@ -228,10 +228,19 @@ program.addCommand(createCompletionsCommand());
 // Unmigrated commands — passthrough pattern
 program
 	.command("init")
-	.description("Initialize .overstory/ in current project")
+	.description("Initialize .overstory/ and bootstrap os-eco ecosystem tools")
 	.option("--force", "Reinitialize even if .overstory/ already exists")
 	.option("-y, --yes", "Accept all defaults without prompting (non-interactive mode)")
 	.option("--name <name>", "Project name (skips auto-detection)")
+	.option(
+		"--tools <list>",
+		"Comma-separated list of ecosystem tools to bootstrap (default: mulch,seeds,canopy)",
+	)
+	.option("--skip-mulch", "Skip mulch bootstrap")
+	.option("--skip-seeds", "Skip seeds bootstrap")
+	.option("--skip-canopy", "Skip canopy bootstrap")
+	.option("--skip-onboard", "Skip CLAUDE.md onboarding step for ecosystem tools")
+	.option("--json", "Output result as JSON")
 	.action(async (opts) => {
 		await initCommand(opts);
 	});

@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { cleanupTempDir, createTempGitRepo, runGitInDir } from "../test-helpers.ts";
-import { initCommand, OVERSTORY_GITIGNORE, OVERSTORY_README } from "./init.ts";
+import type { Spawner } from "./init.ts";
+import { initCommand, OVERSTORY_GITIGNORE, OVERSTORY_README, resolveToolSet } from "./init.ts";
 
 /**
  * Tests for `overstory init` -- agent definition deployment.
@@ -446,5 +447,337 @@ describe("initCommand: --name flag", () => {
 		const content = await Bun.file(configPath).text();
 		expect(content).toContain("name: scripted-project");
 		expect(content).toContain("# Overstory configuration");
+	});
+});
+
+// ---- Ecosystem Bootstrap Tests ----
+
+/**
+ * Build a Spawner that returns preset responses keyed by "arg0 arg1 ..." prefix.
+ * Records all calls for assertion.
+ */
+function createMockSpawner(
+	responses: Record<string, { exitCode: number; stdout: string; stderr: string }>,
+): {
+	spawner: Spawner;
+	calls: string[][];
+} {
+	const calls: string[][] = [];
+	const spawner: Spawner = async (args) => {
+		calls.push(args);
+		const key = args.join(" ");
+		// Longest prefix match
+		let bestMatch = "";
+		let bestResponse = { exitCode: 1, stdout: "", stderr: "not found" };
+		for (const [pattern, response] of Object.entries(responses)) {
+			if (key.startsWith(pattern) && pattern.length > bestMatch.length) {
+				bestMatch = pattern;
+				bestResponse = response;
+			}
+		}
+		return bestResponse;
+	};
+	return { spawner, calls };
+}
+
+describe("resolveToolSet", () => {
+	test("default (no opts) returns all three tools in order", () => {
+		const tools = resolveToolSet({});
+		expect(tools.map((t) => t.name)).toEqual(["mulch", "seeds", "canopy"]);
+	});
+
+	test("--skip-mulch removes mulch", () => {
+		const tools = resolveToolSet({ skipMulch: true });
+		expect(tools.map((t) => t.name)).toEqual(["seeds", "canopy"]);
+	});
+
+	test("--skip-seeds removes seeds", () => {
+		const tools = resolveToolSet({ skipSeeds: true });
+		expect(tools.map((t) => t.name)).toEqual(["mulch", "canopy"]);
+	});
+
+	test("--skip-canopy removes canopy", () => {
+		const tools = resolveToolSet({ skipCanopy: true });
+		expect(tools.map((t) => t.name)).toEqual(["mulch", "seeds"]);
+	});
+
+	test("multiple skip flags combine", () => {
+		const tools = resolveToolSet({ skipMulch: true, skipSeeds: true });
+		expect(tools.map((t) => t.name)).toEqual(["canopy"]);
+	});
+
+	test("--tools overrides to specific tools", () => {
+		const tools = resolveToolSet({ tools: "mulch,seeds" });
+		expect(tools.map((t) => t.name)).toEqual(["mulch", "seeds"]);
+	});
+
+	test("--tools single tool", () => {
+		const tools = resolveToolSet({ tools: "canopy" });
+		expect(tools.map((t) => t.name)).toEqual(["canopy"]);
+	});
+
+	test("--tools with unknown name filters it out", () => {
+		const tools = resolveToolSet({ tools: "mulch,unknown" });
+		expect(tools.map((t) => t.name)).toEqual(["mulch"]);
+	});
+
+	test("--tools overrides skip flags", () => {
+		// --tools takes precedence over --skip-* flags
+		const tools = resolveToolSet({ tools: "mulch", skipMulch: true });
+		expect(tools.map((t) => t.name)).toEqual(["mulch"]);
+	});
+
+	test("all skip flags returns empty array", () => {
+		const tools = resolveToolSet({ skipMulch: true, skipSeeds: true, skipCanopy: true });
+		expect(tools).toHaveLength(0);
+	});
+});
+
+describe("initCommand: ecosystem bootstrap", () => {
+	let tempDir: string;
+	let originalCwd: string;
+	let originalWrite: typeof process.stdout.write;
+
+	beforeEach(async () => {
+		tempDir = await createTempGitRepo();
+		originalCwd = process.cwd();
+		process.chdir(tempDir);
+		originalWrite = process.stdout.write;
+		process.stdout.write = (() => true) as typeof process.stdout.write;
+	});
+
+	afterEach(async () => {
+		process.chdir(originalCwd);
+		process.stdout.write = originalWrite;
+		await cleanupTempDir(tempDir);
+	});
+
+	test("all tools installed and init succeeds → status initialized", async () => {
+		const { spawner, calls } = createMockSpawner({
+			"ml --version": { exitCode: 0, stdout: "0.6.3", stderr: "" },
+			"ml init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"ml onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+		});
+
+		await initCommand({ _spawner: spawner });
+
+		// All three init commands were called
+		expect(calls).toContainEqual(["ml", "init"]);
+		expect(calls).toContainEqual(["sd", "init"]);
+		expect(calls).toContainEqual(["cn", "init"]);
+
+		// All three onboard commands were called
+		expect(calls).toContainEqual(["ml", "onboard"]);
+		expect(calls).toContainEqual(["sd", "onboard"]);
+		expect(calls).toContainEqual(["cn", "onboard"]);
+	});
+
+	test("tool not installed → init and onboard not called", async () => {
+		const { spawner, calls } = createMockSpawner({
+			"ml --version": { exitCode: 1, stdout: "", stderr: "command not found" },
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+		});
+
+		await initCommand({ _spawner: spawner });
+
+		// mulch init should NOT have been called
+		expect(calls).not.toContainEqual(["ml", "init"]);
+		// seeds and canopy should still be called
+		expect(calls).toContainEqual(["sd", "init"]);
+		expect(calls).toContainEqual(["cn", "init"]);
+	});
+
+	test("tool init non-zero + dir exists → already_initialized", async () => {
+		// Create .mulch/ directory to simulate existing mulch init
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(join(tempDir, ".mulch"), { recursive: true });
+
+		const { spawner } = createMockSpawner({
+			"ml --version": { exitCode: 0, stdout: "0.6.3", stderr: "" },
+			"ml init": { exitCode: 1, stdout: "", stderr: "already initialized" },
+			"ml onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+		});
+
+		// Should not throw — already_initialized is not an error
+		await initCommand({ _spawner: spawner });
+	});
+
+	test("--skip-onboard skips onboard calls", async () => {
+		const { spawner, calls } = createMockSpawner({
+			"ml --version": { exitCode: 0, stdout: "0.6.3", stderr: "" },
+			"ml init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+		});
+
+		await initCommand({ skipOnboard: true, _spawner: spawner });
+
+		expect(calls).not.toContainEqual(["ml", "onboard"]);
+		expect(calls).not.toContainEqual(["sd", "onboard"]);
+		expect(calls).not.toContainEqual(["cn", "onboard"]);
+	});
+
+	test("--skip-mulch skips mulch entirely", async () => {
+		const { spawner, calls } = createMockSpawner({
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+		});
+
+		await initCommand({ skipMulch: true, _spawner: spawner });
+
+		expect(calls.filter((c) => c[0] === "ml")).toHaveLength(0);
+	});
+
+	test("--json outputs JSON envelope with tools and onboard status", async () => {
+		const { spawner } = createMockSpawner({
+			"ml --version": { exitCode: 0, stdout: "0.6.3", stderr: "" },
+			"ml init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"ml onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"sd --version": { exitCode: 0, stdout: "0.2.4", stderr: "" },
+			"sd init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"sd onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+			"cn --version": { exitCode: 0, stdout: "0.2.0", stderr: "" },
+			"cn init": { exitCode: 0, stdout: "initialized", stderr: "" },
+			"cn onboard": { exitCode: 0, stdout: "appended", stderr: "" },
+		});
+
+		let capturedOutput = "";
+		const restoreWrite = process.stdout.write;
+		process.stdout.write = ((chunk: unknown) => {
+			capturedOutput += String(chunk);
+			return true;
+		}) as typeof process.stdout.write;
+
+		await initCommand({ json: true, _spawner: spawner });
+
+		process.stdout.write = restoreWrite;
+
+		// Find the JSON line (last line with JSON content)
+		const jsonLine = capturedOutput.split("\n").find((line) => line.startsWith('{"success":'));
+
+		expect(jsonLine).toBeDefined();
+		const parsed = JSON.parse(jsonLine ?? "{}") as Record<string, unknown>;
+		expect(parsed.success).toBe(true);
+		expect(parsed.command).toBe("init");
+		expect(parsed.tools).toBeDefined();
+		expect(parsed.onboard).toBeDefined();
+		expect(typeof parsed.gitattributes).toBe("boolean");
+
+		const tools = parsed.tools as Record<string, { status: string }>;
+		expect(tools.overstory?.status).toBe("initialized");
+		expect(tools.mulch?.status).toBe("initialized");
+		expect(tools.seeds?.status).toBe("initialized");
+		expect(tools.canopy?.status).toBe("initialized");
+	});
+});
+
+describe("initCommand: .gitattributes setup", () => {
+	let tempDir: string;
+	let originalCwd: string;
+	let originalWrite: typeof process.stdout.write;
+
+	beforeEach(async () => {
+		tempDir = await createTempGitRepo();
+		originalCwd = process.cwd();
+		process.chdir(tempDir);
+		originalWrite = process.stdout.write;
+		process.stdout.write = (() => true) as typeof process.stdout.write;
+	});
+
+	afterEach(async () => {
+		process.chdir(originalCwd);
+		process.stdout.write = originalWrite;
+		await cleanupTempDir(tempDir);
+	});
+
+	test("creates .gitattributes with merge=union entries", async () => {
+		// Use a spawner that skips all ecosystem tools so only gitattributes step runs
+		const { spawner } = createMockSpawner({});
+		await initCommand({ skipMulch: true, skipSeeds: true, skipCanopy: true, _spawner: spawner });
+
+		const gitattrsPath = join(tempDir, ".gitattributes");
+		const exists = await Bun.file(gitattrsPath).exists();
+		expect(exists).toBe(true);
+
+		const content = await Bun.file(gitattrsPath).text();
+		expect(content).toContain(".mulch/expertise/*.jsonl merge=union");
+		expect(content).toContain(".seeds/issues.jsonl merge=union");
+	});
+
+	test("does not duplicate entries on reinit with --force", async () => {
+		const { spawner } = createMockSpawner({});
+
+		// First init
+		await initCommand({ skipMulch: true, skipSeeds: true, skipCanopy: true, _spawner: spawner });
+
+		// Second init with --force
+		await initCommand({
+			force: true,
+			skipMulch: true,
+			skipSeeds: true,
+			skipCanopy: true,
+			_spawner: spawner,
+		});
+
+		const gitattrsPath = join(tempDir, ".gitattributes");
+		const content = await Bun.file(gitattrsPath).text();
+
+		// Count occurrences — should be exactly one each
+		const mulchCount = (content.match(/\.mulch\/expertise\/\*\.jsonl merge=union/g) ?? []).length;
+		const seedsCount = (content.match(/\.seeds\/issues\.jsonl merge=union/g) ?? []).length;
+		expect(mulchCount).toBe(1);
+		expect(seedsCount).toBe(1);
+	});
+
+	test("preserves existing .gitattributes content", async () => {
+		// Pre-create .gitattributes with existing content
+		const existingContent = "*.lock binary\n*.png binary\n";
+		await Bun.write(join(tempDir, ".gitattributes"), existingContent);
+
+		const { spawner } = createMockSpawner({});
+		await initCommand({ skipMulch: true, skipSeeds: true, skipCanopy: true, _spawner: spawner });
+
+		const content = await Bun.file(join(tempDir, ".gitattributes")).text();
+		expect(content).toContain("*.lock binary");
+		expect(content).toContain("*.png binary");
+		expect(content).toContain(".mulch/expertise/*.jsonl merge=union");
+		expect(content).toContain(".seeds/issues.jsonl merge=union");
+	});
+
+	test("no-op when entries already present", async () => {
+		// Pre-create .gitattributes with the entries already
+		const existingContent =
+			".mulch/expertise/*.jsonl merge=union\n.seeds/issues.jsonl merge=union\n";
+		await Bun.write(join(tempDir, ".gitattributes"), existingContent);
+
+		const { spawner } = createMockSpawner({});
+		await initCommand({ skipMulch: true, skipSeeds: true, skipCanopy: true, _spawner: spawner });
+
+		const content = await Bun.file(join(tempDir, ".gitattributes")).text();
+		// Content should be unchanged
+		expect(content).toBe(existingContent);
 	});
 });
