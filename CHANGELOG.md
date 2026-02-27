@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-02-27
+
+### Added
+
+#### Copilot Runtime Adapter
+- **`src/runtimes/copilot.ts`** — new `CopilotRuntime` adapter implementing the `AgentRuntime` interface for GitHub Copilot's `copilot` CLI, with `--allow-all-tools` permission mode, `.github/copilot-instructions.md` instruction path, and transcript parsing support
+- **`src/runtimes/copilot.test.ts`** — comprehensive test suite (507 lines) covering spawn command building, config deployment, readiness detection, and transcript parsing
+- **Runtime registry** now includes `copilot` alongside `claude` and `pi`
+
+#### Ecosystem Bootstrap in `ov init`
+- **`ov init` now bootstraps sibling os-eco tools** — automatically runs `mulch init`, `sd init`, and `cn init` when the respective CLIs are available; adds CLAUDE.md onboarding sections for each tool
+- **New flags:** `--tools <list>` (comma-separated tool selection), `--skip-mulch`, `--skip-seeds`, `--skip-canopy`, `--skip-onboard`, `--json`
+- **`src/commands/init.test.ts`** — expanded with ecosystem bootstrap tests (335 lines total)
+
+#### Doctor Provider Checks
+- **`src/doctor/providers.ts`** — new `providers` check category (11th category) validating gateway provider reachability, auth token environment variables, and tool-use compatibility for multi-runtime configurations
+- **`src/doctor/providers.test.ts`** — test suite (373 lines) covering provider validation scenarios
+
+#### Multi-Provider Model Pricing
+- **`src/metrics/pricing.ts`** — extended with OpenAI (GPT-4o, GPT-4o-mini, GPT-5, o1, o3) and Google Gemini (Flash, Pro) pricing alongside existing Claude tiers
+
+#### Cost Analysis Enhancements
+- **`--bead <id>` flag for `ov costs`** — filter cost breakdown by task/bead ID via new `MetricsStore.getSessionsByTask()` method
+- **Runtime-aware transcript discovery** — `ov costs --self` now resolves transcript paths through the runtime adapter instead of hardcoding Claude Code paths
+
+#### Agent Discovery Improvements
+- **Runtime-aware instruction path** in `ov agents discover` — `extractFileScope()` now tries the configured runtime's `instructionPath` before falling back to `KNOWN_INSTRUCTION_PATHS`
+
+### Changed
+
+- **CI: CHANGELOG-based GitHub release notes** — publish workflow now extracts the version's CHANGELOG.md section for release notes instead of auto-generating from commits; falls back to `--generate-notes` if no entry found
+
+### Fixed
+
+- **Pi coding agent URL** updated in README to correct repository path
+
+#### Testing
+- 2714 tests across 88 files (6481 `expect()` calls)
+
 ## [0.7.5] - 2026-02-26
 
 ### Fixed
@@ -1137,7 +1176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.6...HEAD
+[0.7.6]: https://github.com/jayminwest/overstory/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/jayminwest/overstory/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/jayminwest/overstory/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/jayminwest/overstory/compare/v0.7.2...v0.7.3

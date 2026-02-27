@@ -16,6 +16,7 @@ Requires [Bun](https://bun.sh) v1.0+, git, and tmux. At least one supported agen
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` CLI)
 - [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) (`pi` CLI)
+- [GitHub Copilot](https://github.com/features/copilot) (`copilot` CLI)
 
 ```bash
 bun install -g @os-eco/overstory-cli
@@ -77,7 +78,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 
 | Command | Description |
 |---------|-------------|
-| `ov init` | Initialize `.overstory/` in current project (`--yes`, `--name`) |
+| `ov init` | Initialize `.overstory/` and bootstrap os-eco tools (`--yes`, `--name`, `--tools`, `--skip-mulch`, `--skip-seeds`, `--skip-canopy`, `--skip-onboard`, `--json`) |
 | `ov sling <task-id>` | Spawn a worker agent (`--capability`, `--name`, `--spec`, `--files`, `--parent`, `--depth`, `--skip-scout`, `--skip-review`, `--max-agents`, `--dispatch-max-agents`, `--skip-task-check`, `--no-scout-check`, `--runtime`, `--json`) |
 | `ov stop <agent-name>` | Terminate a running agent (`--clean-worktree`, `--json`) |
 | `ov prime` | Load context for orchestrator/agent (`--agent`, `--compact`) |
@@ -132,7 +133,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | `ov replay` | Interleaved chronological replay (`--run`, `--agent`, `--since`, `--until`, `--limit`, `--json`) |
 | `ov feed` | Unified real-time event stream (`--follow`, `--interval`, `--agent`, `--run`, `--json`) |
 | `ov logs` | Query NDJSON logs across agents (`--agent`, `--level`, `--since`, `--until`, `--follow`, `--json`) |
-| `ov costs` | Token/cost analysis and breakdown (`--live`, `--self`, `--agent`, `--run`, `--by-capability`, `--last`, `--json`) |
+| `ov costs` | Token/cost analysis and breakdown (`--live`, `--self`, `--agent`, `--run`, `--bead`, `--by-capability`, `--last`, `--json`) |
 | `ov metrics` | Show session metrics (`--last`, `--json`) |
 | `ov run list` | List orchestration runs (`--last`, `--json`) |
 | `ov run show <id>` | Show run details |
@@ -153,7 +154,7 @@ Every command supports `--json` where noted. Global flags: `-q`/`--quiet`, `--ti
 | `ov monitor status` | Show monitor state |
 | `ov log <event>` | Log a hook event (`--agent`) |
 | `ov clean` | Clean up worktrees, sessions, artifacts (`--completed`, `--all`, `--run`) |
-| `ov doctor` | Run health checks on overstory setup (`--category`, `--fix`, `--json`) |
+| `ov doctor` | Run health checks on overstory setup — 11 categories (`--category`, `--fix`, `--json`) |
 | `ov ecosystem` | Show os-eco tool versions and health (`--json`) |
 | `ov upgrade` | Upgrade overstory to latest npm version (`--check`, `--all`, `--json`) |
 | `ov agents discover` | Discover agents by capability/state/parent (`--capability`, `--state`, `--parent`, `--json`) |
@@ -171,6 +172,7 @@ Overstory is runtime-agnostic. The `AgentRuntime` interface (`src/runtimes/types
 |---------|-----|-----------------|--------|
 | Claude Code | `claude` | `settings.local.json` hooks | Stable |
 | Pi | `pi` | `.pi/extensions/` guard extension | Active development |
+| Copilot | `copilot` | (none — `--allow-all-tools`) | Active development |
 
 ## How It Works
 
@@ -240,7 +242,7 @@ overstory/
       run.ts                      Orchestration run lifecycle
       trace.ts                    Agent/task timeline viewing
       clean.ts                    Worktree/session cleanup
-      doctor.ts                   Health check runner (10 check modules)
+      doctor.ts                   Health check runner (11 check modules)
       inspect.ts                  Deep per-agent inspection
       spec.ts                     Task spec management
       errors.ts                   Aggregated error view
@@ -265,9 +267,9 @@ overstory/
     watchdog/                     Tiered health monitoring (daemon, triage, health)
     logging/                      Multi-format logger + sanitizer + reporter + color control + shared theme/format
     metrics/                      SQLite metrics + pricing + transcript parsing
-    doctor/                       Health check modules (10 checks)
+    doctor/                       Health check modules (11 checks)
     insights/                     Session insight analyzer for auto-expertise
-    runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi)
+    runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi, Copilot)
     tracker/                      Pluggable task tracker (beads + seeds backends)
     mulch/                        mulch client (programmatic API + CLI wrapper)
     e2e/                          End-to-end lifecycle tests

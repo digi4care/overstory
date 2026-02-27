@@ -124,6 +124,7 @@ overstory/                        # This repo (the overstory tool itself)
       claude.ts                   # Claude Code runtime adapter
       pi.ts                       # Pi runtime adapter (Mario Zechner's Pi coding agent)
       pi-guards.ts                # Pi guard extension generator (.pi/extensions/)
+      copilot.ts                  # GitHub Copilot runtime adapter
     mulch/
       client.ts                   # mulch client (programmatic API for record/search/query, CLI wrapper for rest)
     merge/
@@ -146,7 +147,7 @@ overstory/                        # This repo (the overstory tool itself)
       pricing.ts                  # Runtime-agnostic pricing + cost estimation
       transcript.ts               # Claude Code transcript JSONL parser
     doctor/                       # Modular health check system
-      *.ts                        # 10 check categories (see `ov doctor --help`)
+      *.ts                        # 11 check categories (see `ov doctor --help`)
   agents/                         # Base agent definitions (the HOW)
     scout.md                      # Read-only exploration (leaf, depth 2)
     builder.md                    # Implementation (leaf, depth 2)
@@ -253,9 +254,15 @@ db.exec("PRAGMA busy_timeout=5000");
 ### Core Workflow
 
 ```
-ov init                          Initialize .overstory/ in current project
+ov init                          Initialize .overstory/ and bootstrap os-eco ecosystem tools
   --yes, -y                              Skip interactive prompts
   --name <name>                          Set project name (default: auto-detect)
+  --tools <list>                         Comma-separated list of tools to bootstrap (default: mulch,seeds,canopy)
+  --skip-mulch                           Skip mulch bootstrap
+  --skip-seeds                           Skip seeds bootstrap
+  --skip-canopy                          Skip canopy bootstrap
+  --skip-onboard                         Skip CLAUDE.md onboarding step for ecosystem tools
+  --json                                 JSON output
 
 ov sling <task-id>              Spawn a worker agent
   --capability <type>                    builder | scout | reviewer | lead | merger
@@ -426,6 +433,7 @@ ov costs                          Token/cost analysis and breakdown
   --live                                 Show real-time token usage for active agents
   --self                                 Show cost for the current orchestrator session
   --agent <name>  --run <id>             Filter by agent or run
+  --bead <id>                            Show cost breakdown for a specific task/bead
   --by-capability                        Group by capability with subtotals
   --last <n>                             Recent sessions (default: 20)
   --json                                 JSON output
@@ -469,7 +477,7 @@ ov doctor                        Run health checks on overstory setup
   --json                                 JSON output
   Categories: dependencies, config, structure, databases,
               consistency, agents, merge, logs, version,
-              ecosystem
+              ecosystem, providers
 
 ov ecosystem                     Show os-eco tool versions and health
   --json                                 JSON output
