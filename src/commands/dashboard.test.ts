@@ -21,6 +21,7 @@ import {
 	computeAgentPanelHeight,
 	dashboardCommand,
 	dimBox,
+	EventBuffer,
 	filterAgentsByRun,
 	horizontalLine,
 	openDashboardStores,
@@ -242,28 +243,28 @@ describe("dimBox", () => {
 
 describe("computeAgentPanelHeight", () => {
 	test("0 agents: clamps to minimum 8", () => {
-		// max(8, min(floor(30*0.5), 0+4)) = max(8, min(15,4)) = max(8,4) = 8
+		// max(8, min(floor(30*0.35)=10, 0+4)) = max(8, min(10,4)) = max(8,4) = 8
 		expect(computeAgentPanelHeight(30, 0)).toBe(8);
 	});
 
 	test("4 agents: still clamps to minimum 8", () => {
-		// max(8, min(15, 4+4)) = max(8, 8) = 8
+		// max(8, min(10, 4+4)) = max(8, 8) = 8
 		expect(computeAgentPanelHeight(30, 4)).toBe(8);
 	});
 
-	test("20 agents with height 30: clamps to floor(height*0.5)", () => {
-		// max(8, min(15, 24)) = max(8,15) = 15
-		expect(computeAgentPanelHeight(30, 20)).toBe(15);
+	test("20 agents with height 30: clamps to floor(height*0.35)", () => {
+		// max(8, min(floor(30*0.35)=10, 24)) = max(8,10) = 10
+		expect(computeAgentPanelHeight(30, 20)).toBe(10);
 	});
 
 	test("10 agents with height 30: grows with agent count", () => {
-		// max(8, min(15, 14)) = max(8,14) = 14
-		expect(computeAgentPanelHeight(30, 10)).toBe(14);
+		// max(8, min(10, 14)) = max(8,10) = 10
+		expect(computeAgentPanelHeight(30, 10)).toBe(10);
 	});
 
-	test("small height: respects 50% cap", () => {
-		// height=20: max(8, min(10, 20+4)) = max(8,10) = 10
-		expect(computeAgentPanelHeight(20, 20)).toBe(10);
+	test("small height: respects 35% cap", () => {
+		// height=20: max(8, min(floor(20*0.35)=7, 24)) = max(8,7) = 8
+		expect(computeAgentPanelHeight(20, 20)).toBe(8);
 	});
 });
 
@@ -302,6 +303,7 @@ function makeDashboardData(
 		metrics: { totalSessions: 0, avgDuration: 0, byCapability: {} },
 		tasks: overrides.tasks ?? [],
 		recentEvents: (overrides.recentEvents as never[]) ?? [],
+		feedColorMap: new Map(),
 	};
 }
 
@@ -366,6 +368,7 @@ describe("renderFeedPanel", () => {
 		const data = makeDashboardData({ recentEvents: [] });
 		const out = renderFeedPanel(data, 1, 80, 8, 1);
 		expect(out).toContain("Feed");
+		expect(out).toContain("(live)");
 	});
 
 	test("renders event agent name when events are present", () => {
@@ -551,6 +554,94 @@ describe("closeDashboardStores", () => {
 
 		const stores = openDashboardStores(tempDir);
 		expect(() => closeDashboardStores(stores)).not.toThrow();
+	});
+});
+
+describe("EventBuffer", () => {
+	let tempDir: string;
+
+	beforeEach(async () => {
+		tempDir = await mkdtemp(join(tmpdir(), "event-buffer-test-"));
+	});
+
+	afterEach(async () => {
+		await cleanupTempDir(tempDir);
+	});
+
+	function makeEvent(agentName: string) {
+		return {
+			agentName,
+			eventType: "tool_end" as const,
+			level: "info" as const,
+			runId: null,
+			sessionId: null,
+			toolName: null,
+			toolArgs: null,
+			toolDurationMs: null,
+			data: null,
+		};
+	}
+
+	test("starts empty", () => {
+		const buf = new EventBuffer();
+		expect(buf.size).toBe(0);
+		expect(buf.getEvents()).toEqual([]);
+	});
+
+	test("poll adds events from event store", async () => {
+		const overstoryDir = join(tempDir, ".overstory");
+		await mkdir(overstoryDir, { recursive: true });
+		const store = createEventStore(join(overstoryDir, "events.db"));
+		store.insert(makeEvent("agent-a"));
+
+		const buf = new EventBuffer();
+		buf.poll(store);
+		expect(buf.size).toBe(1);
+		store.close();
+	});
+
+	test("deduplicates by lastSeenId (double poll returns same count)", async () => {
+		const overstoryDir = join(tempDir, ".overstory");
+		await mkdir(overstoryDir, { recursive: true });
+		const store = createEventStore(join(overstoryDir, "events.db"));
+		store.insert(makeEvent("agent-a"));
+
+		const buf = new EventBuffer();
+		buf.poll(store);
+		buf.poll(store); // second poll should not duplicate
+		expect(buf.size).toBe(1);
+		store.close();
+	});
+
+	test("trims to maxSize keeping most recent events", async () => {
+		const overstoryDir = join(tempDir, ".overstory");
+		await mkdir(overstoryDir, { recursive: true });
+		const store = createEventStore(join(overstoryDir, "events.db"));
+		for (let i = 0; i < 5; i++) {
+			store.insert(makeEvent(`agent-${i}`));
+		}
+
+		const buf = new EventBuffer(3);
+		buf.poll(store);
+		expect(buf.size).toBe(3);
+		store.close();
+	});
+
+	test("builds color map across polls", async () => {
+		const overstoryDir = join(tempDir, ".overstory");
+		await mkdir(overstoryDir, { recursive: true });
+		const store = createEventStore(join(overstoryDir, "events.db"));
+		store.insert(makeEvent("agent-x"));
+
+		const buf = new EventBuffer();
+		buf.poll(store);
+		expect(buf.getColorMap().has("agent-x")).toBe(true);
+
+		store.insert(makeEvent("agent-y"));
+		buf.poll(store);
+		expect(buf.getColorMap().has("agent-x")).toBe(true);
+		expect(buf.getColorMap().has("agent-y")).toBe(true);
+		store.close();
 	});
 });
 

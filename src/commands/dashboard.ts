@@ -24,6 +24,7 @@ import { createEventStore } from "../events/store.ts";
 import { accent, brand, color, visibleLength } from "../logging/color.ts";
 import {
 	buildAgentColorMap,
+	extendAgentColorMap,
 	formatDuration,
 	formatEventLine,
 	formatRelativeTime,
@@ -128,10 +129,10 @@ export { pad, truncate, horizontalLine };
 
 /**
  * Compute agent panel height from screen height and agent count.
- * min 8 rows, max floor(height * 0.5), grows with agent count (+4 for chrome).
+ * min 8 rows, max floor(height * 0.35), grows with agent count (+4 for chrome).
  */
 export function computeAgentPanelHeight(height: number, agentCount: number): number {
-	return Math.max(8, Math.min(Math.floor(height * 0.5), agentCount + 4));
+	return Math.max(8, Math.min(Math.floor(height * 0.35), agentCount + 4));
 }
 
 /**
@@ -241,6 +242,49 @@ export function closeDashboardStores(stores: DashboardStores): void {
 	}
 }
 
+/**
+ * Rolling event buffer with incremental dedup by lastSeenId.
+ * Maintains a fixed-size window of the most recent events.
+ */
+export class EventBuffer {
+	private events: StoredEvent[] = [];
+	private lastSeenId = 0;
+	private colorMap: Map<string, (s: string) => string> = new Map();
+	private readonly maxSize: number;
+
+	constructor(maxSize = 100) {
+		this.maxSize = maxSize;
+	}
+
+	poll(eventStore: EventStore): void {
+		const since = new Date(Date.now() - 60 * 1000).toISOString();
+		const allEvents = eventStore.getTimeline({ since, limit: 1000 });
+		const newEvents = allEvents.filter((e) => e.id > this.lastSeenId);
+
+		if (newEvents.length === 0) return;
+
+		extendAgentColorMap(this.colorMap, newEvents);
+		this.events = [...this.events, ...newEvents].slice(-this.maxSize);
+
+		const lastEvent = newEvents[newEvents.length - 1];
+		if (lastEvent) {
+			this.lastSeenId = lastEvent.id;
+		}
+	}
+
+	getEvents(): StoredEvent[] {
+		return this.events;
+	}
+
+	getColorMap(): Map<string, (s: string) => string> {
+		return this.colorMap;
+	}
+
+	get size(): number {
+		return this.events.length;
+	}
+}
+
 /** Tracker data cached between dashboard ticks (10s TTL). */
 interface TrackerCache {
 	tasks: TrackerIssue[];
@@ -263,6 +307,7 @@ interface DashboardData {
 	};
 	tasks: TrackerIssue[];
 	recentEvents: StoredEvent[];
+	feedColorMap: Map<string, (s: string) => string>;
 }
 
 /**
@@ -289,6 +334,7 @@ async function loadDashboardData(
 	stores: DashboardStores,
 	runId?: string | null,
 	thresholds?: { staleMs: number; zombieMs: number },
+	eventBuffer?: EventBuffer,
 ): Promise<DashboardData> {
 	// Get all sessions from the pre-opened session store
 	const allSessions = stores.sessionStore.getAll();
@@ -450,13 +496,14 @@ async function loadDashboardData(
 		tasks = trackerCache.tasks;
 	}
 
-	// Load recent events from event store
+	// Load recent events via incremental buffer (or fallback to empty)
 	let recentEvents: StoredEvent[] = [];
-	if (stores.eventStore) {
+	let feedColorMap: Map<string, (s: string) => string> = new Map();
+	if (eventBuffer && stores.eventStore) {
 		try {
-			const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-			const events = stores.eventStore.getTimeline({ since: fiveMinAgo, limit: 20 });
-			recentEvents = [...events].reverse(); // most recent first
+			eventBuffer.poll(stores.eventStore);
+			recentEvents = [...eventBuffer.getEvents()].reverse();
+			feedColorMap = eventBuffer.getColorMap();
 		} catch {
 			/* best effort */
 		}
@@ -470,6 +517,7 @@ async function loadDashboardData(
 		metrics: { totalSessions, avgDuration, byCapability },
 		tasks,
 		recentEvents,
+		feedColorMap,
 	};
 }
 
@@ -496,7 +544,7 @@ export function renderAgentPanel(
 	panelHeight: number,
 	startRow: number,
 ): string {
-	const leftWidth = Math.floor(fullWidth * 0.6);
+	const leftWidth = fullWidth;
 	let output = "";
 
 	// Panel header
@@ -650,7 +698,7 @@ export function renderFeedPanel(
 	let output = "";
 
 	// Header
-	const headerLine = `${dimBox.vertical} ${brand.bold("Feed")} (last 5 min)`;
+	const headerLine = `${dimBox.vertical} ${brand.bold("Feed")} (live)`;
 	const headerPadding = " ".repeat(
 		Math.max(0, panelWidth - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
 	);
@@ -676,7 +724,8 @@ export function renderFeedPanel(
 		return output;
 	}
 
-	const colorMap = buildAgentColorMap(data.recentEvents);
+	const colorMap =
+		data.feedColorMap.size > 0 ? data.feedColorMap : buildAgentColorMap(data.recentEvents);
 	const visibleEvents = data.recentEvents.slice(0, maxRows);
 
 	for (let i = 0; i < visibleEvents.length; i++) {
@@ -733,12 +782,10 @@ export function renderFeedPanel(
  */
 function renderMailPanel(
 	data: DashboardData,
-	width: number,
-	height: number,
+	panelWidth: number,
+	panelHeight: number,
 	startRow: number,
 ): string {
-	const panelHeight = Math.floor(height * 0.3);
-	const panelWidth = Math.floor(width * 0.5);
 	let output = "";
 
 	const unreadCount = data.status.unreadMailCount;
@@ -787,13 +834,11 @@ function renderMailPanel(
  */
 function renderMergeQueuePanel(
 	data: DashboardData,
-	width: number,
-	height: number,
+	panelWidth: number,
+	panelHeight: number,
 	startRow: number,
 	startCol: number,
 ): string {
-	const panelHeight = Math.floor(height * 0.3);
-	const panelWidth = width - startCol + 1;
 	let output = "";
 
 	const headerLine = `${dimBox.vertical} ${brand.bold("Merge Queue")} (${data.mergeQueue.length})`;
@@ -847,26 +892,20 @@ function renderMetricsPanel(
 	const separator = dimHorizontalLine(width, dimBox.tee, dimBox.teeRight);
 	output += `${CURSOR.cursorTo(startRow, 1)}${separator}\n`;
 
-	const headerLine = `${dimBox.vertical} ${brand.bold("Metrics")}`;
-	const headerPadding = " ".repeat(
-		Math.max(0, width - visibleLength(headerLine) - visibleLength(dimBox.vertical)),
-	);
-	output += `${CURSOR.cursorTo(startRow + 1, 1)}${headerLine}${headerPadding}${dimBox.vertical}\n`;
-
 	const totalSessions = data.metrics.totalSessions;
 	const avgDur = formatDuration(data.metrics.avgDuration);
 	const byCapability = Object.entries(data.metrics.byCapability)
 		.map(([cap, count]) => `${cap}:${count}`)
 		.join(", ");
 
-	const metricsLine = `${dimBox.vertical} Total sessions: ${totalSessions} | Avg duration: ${avgDur} | By capability: ${byCapability}`;
+	const metricsLine = `${dimBox.vertical} ${brand.bold("Metrics")}  Total: ${totalSessions} | Avg: ${avgDur} | ${byCapability}`;
 	const metricsPadding = " ".repeat(
 		Math.max(0, width - visibleLength(metricsLine) - visibleLength(dimBox.vertical)),
 	);
-	output += `${CURSOR.cursorTo(startRow + 2, 1)}${metricsLine}${metricsPadding}${dimBox.vertical}\n`;
+	output += `${CURSOR.cursorTo(startRow + 1, 1)}${metricsLine}${metricsPadding}${dimBox.vertical}\n`;
 
 	const bottomBorder = dimHorizontalLine(width, dimBox.bottomLeft, dimBox.bottomRight);
-	output += `${CURSOR.cursorTo(startRow + 3, 1)}${bottomBorder}\n`;
+	output += `${CURSOR.cursorTo(startRow + 2, 1)}${bottomBorder}\n`;
 
 	return output;
 }
@@ -883,50 +922,42 @@ function renderDashboard(data: DashboardData, interval: number): void {
 	// Header (rows 1-2)
 	output += renderHeader(width, interval, data.currentRunId);
 
-	// Agent panel start row
+	// Agent panel: full width, capped at 35% of height
 	const agentPanelStart = 3;
-
-	// Dynamic agent panel height
 	const agentCount = data.status.agents.length;
 	const agentPanelHeight = computeAgentPanelHeight(height, agentCount);
-
-	// Column widths
-	const leftWidth = Math.floor(width * 0.6);
-	const rightWidth = width - leftWidth;
-	const rightStartCol = leftWidth + 1;
-
-	// Right column split (Tasks upper / Feed lower)
-	const rightHalf = Math.floor(agentPanelHeight / 2);
-	const feedHeight = agentPanelHeight - rightHalf;
-
-	// Render left: agents (60% wide, dynamic height)
 	output += renderAgentPanel(data, width, agentPanelHeight, agentPanelStart);
 
-	// Render right-upper: tasks
-	output += renderTasksPanel(data, rightStartCol, rightWidth, rightHalf, agentPanelStart);
+	// Middle zone: Feed (left 60%) | Tasks (right 40%)
+	const middleStart = agentPanelStart + agentPanelHeight + 1;
+	const compactPanelHeight = 5; // fixed for mail/merge panels
+	const metricsHeight = 3; // separator + data + border
+	const middleHeight = Math.max(6, height - middleStart - compactPanelHeight - metricsHeight);
 
-	// Render right-lower: feed
-	output += renderFeedPanel(
+	const feedWidth = Math.floor(width * 0.6);
+	output += renderFeedPanel(data, 1, feedWidth, middleHeight, middleStart);
+
+	const taskWidth = width - feedWidth;
+	const taskStartCol = feedWidth + 1;
+	output += renderTasksPanel(data, taskStartCol, taskWidth, middleHeight, middleStart);
+
+	// Compact panels: Mail (left 50%) | Merge Queue (right 50%) — fixed 5 rows
+	const compactStart = middleStart + middleHeight;
+	const mailWidth = Math.floor(width * 0.5);
+	output += renderMailPanel(data, mailWidth, compactPanelHeight, compactStart);
+
+	const mergeStartCol = mailWidth + 1;
+	const mergeWidth = width - mailWidth;
+	output += renderMergeQueuePanel(
 		data,
-		rightStartCol,
-		rightWidth,
-		feedHeight,
-		agentPanelStart + rightHalf,
+		mergeWidth,
+		compactPanelHeight,
+		compactStart,
+		mergeStartCol,
 	);
 
-	// Middle panels (mail/merge) start after agent block
-	const middlePanelStart = agentPanelStart + agentPanelHeight + 1;
-
-	// Mail panel (left 50%)
-	output += renderMailPanel(data, width, height, middlePanelStart);
-
-	// Merge queue panel (right 50%)
-	const mergeQueueCol = Math.floor(width * 0.5) + 1;
-	output += renderMergeQueuePanel(data, width, height, middlePanelStart, mergeQueueCol);
-
-	// Metrics panel (bottom strip)
-	const middlePanelHeight = Math.floor(height * 0.3);
-	const metricsStart = middlePanelStart + middlePanelHeight + 1;
+	// Metrics footer
+	const metricsStart = compactStart + compactPanelHeight;
 	output += renderMetricsPanel(data, width, height, metricsStart);
 
 	process.stdout.write(output);
@@ -963,6 +994,9 @@ async function executeDashboard(opts: DashboardOpts): Promise<void> {
 	// Open stores once for the entire poll loop lifetime
 	const stores = openDashboardStores(root);
 
+	// Create rolling event buffer (persisted across poll ticks)
+	const eventBuffer = new EventBuffer(100);
+
 	// Compute health thresholds once from config (reused across poll ticks)
 	const thresholds = {
 		staleMs: config.watchdog.staleThresholdMs,
@@ -984,7 +1018,7 @@ async function executeDashboard(opts: DashboardOpts): Promise<void> {
 
 	// Poll loop
 	while (running) {
-		const data = await loadDashboardData(root, stores, runId, thresholds);
+		const data = await loadDashboardData(root, stores, runId, thresholds, eventBuffer);
 		renderDashboard(data, interval);
 		await Bun.sleep(interval);
 	}
