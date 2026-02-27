@@ -17,6 +17,7 @@ Requires [Bun](https://bun.sh) v1.0+, git, and tmux. At least one supported agen
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` CLI)
 - [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) (`pi` CLI)
 - [GitHub Copilot](https://github.com/features/copilot) (`copilot` CLI)
+- [Codex](https://github.com/openai/codex) (`codex` CLI)
 
 ```bash
 bun install -g @os-eco/overstory-cli
@@ -173,6 +174,7 @@ Overstory is runtime-agnostic. The `AgentRuntime` interface (`src/runtimes/types
 | Claude Code | `claude` | `settings.local.json` hooks | Stable |
 | Pi | `pi` | `.pi/extensions/` guard extension | Active development |
 | Copilot | `copilot` | (none — `--allow-all-tools`) | Active development |
+| Codex | `codex` | OS-level sandbox (Seatbelt/Landlock) | Active development |
 
 ## How It Works
 
@@ -269,7 +271,7 @@ overstory/
     metrics/                      SQLite metrics + pricing + transcript parsing
     doctor/                       Health check modules (11 checks)
     insights/                     Session insight analyzer for auto-expertise
-    runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi, Copilot)
+    runtimes/                     AgentRuntime abstraction (registry + adapters: Claude, Pi, Copilot, Codex)
     tracker/                      Pluggable task tracker (beads + seeds backends)
     mulch/                        mulch client (programmatic API + CLI wrapper)
     e2e/                          End-to-end lifecycle tests

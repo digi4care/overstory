@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-02-27
+
+### Added
+
+#### Codex Runtime Adapter
+- **`src/runtimes/codex.ts`** — new `CodexRuntime` adapter implementing the `AgentRuntime` interface for OpenAI's `codex` CLI, with headless `codex exec` mode, OS-level sandbox security (Seatbelt/Landlock), `AGENTS.md` instruction path, and NDJSON event stream parsing for token usage
+- **`src/runtimes/codex.test.ts`** — comprehensive test suite (741 lines) covering spawn command building, config deployment, readiness detection, and transcript parsing
+- **Runtime registry** now includes `codex` alongside `claude`, `pi`, and `copilot`
+
+#### Documentation
+- **`docs/runtime-adapters.md`** — contributor guide (991 lines) covering the `AgentRuntime` interface, all four built-in adapters, the registry pattern, and a step-by-step walkthrough for adding new runtimes
+
+### Changed
+
+#### Dashboard Redesign
+- **`src/commands/dashboard.ts`** — rewritten with rolling event buffer, compact panels, and new multi-panel layout (Agents 60% + Tasks/Feed 40%, Mail + Merge Queue row, Metrics row)
+
+### Fixed
+- **`src/commands/init.test.ts`** — use no-op spawner in init tests to avoid CI failures from tmux/subprocess side effects
+
+### Testing
+- 2779 tests across 89 files (6591 `expect()` calls)
+
 ## [0.7.6] - 2026-02-27
 
 ### Added
@@ -1176,7 +1199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Biome configuration for formatting and linting
 - TypeScript strict mode with `noUncheckedIndexedAccess`
 
-[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.6...HEAD
+[Unreleased]: https://github.com/jayminwest/overstory/compare/v0.7.7...HEAD
+[0.7.7]: https://github.com/jayminwest/overstory/compare/v0.7.6...v0.7.7
 [0.7.6]: https://github.com/jayminwest/overstory/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/jayminwest/overstory/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/jayminwest/overstory/compare/v0.7.3...v0.7.4
